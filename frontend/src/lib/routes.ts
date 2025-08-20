@@ -1,0 +1,16 @@
+export const router = {
+    home: "/",
+    news: "/news",
+    events: "/events",
+    about: "/about",
+    breed: "/breed",
+    puppies: "/puppies",
+    archive: "/archive",
+    rating: "/rating",
+    gallery: "/gallery",
+    profile: "/profile",
+    tools: "/tools",
+    president: "/about/president",
+    ratingWinner: (year?: number) => `/rating/winner/${year ?? ""}`,
+    pedigree: (dogId: string) => `/pedigree/${dogId}`,
+};
