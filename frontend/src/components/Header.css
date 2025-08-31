@@ -1,0 +1,261 @@
+/* ====== БАЗОВЫЕ СТИЛИ (десктоп), как в макете ====== */
+.header {
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-light);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    transition: background .2s ease, box-shadow .2s ease;
+}
+
+.header.scrolled {
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .08);
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2px 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo {
+    width: 60px;
+    height: 60px;
+    background: var(--gradient-primary);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: var(--snow-white);
+    font-weight: 700;
+    box-shadow: var(--shadow-glow);
+    transition: transform .2s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.club-info h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: .2rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.club-subtitle {
+    font-size: .9rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.nav-menu {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.nav-link {
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 600;
+    padding: .8rem 1.5rem;
+    border-radius: 12px;
+    transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+
+.nav-link:hover {
+    background: var(--ice-blue);
+    color: var(--bright-blue);
+    transform: translateY(-2px);
+}
+
+.cta-button {
+    background: var(--gradient-primary);
+    color: var(--snow-white);
+    padding: .8rem 2rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: var(--shadow-soft);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.cta-button:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+}
+
+/* Техническая прокладка, чтобы фикс-хедер не перекрывал контент */
+.header-spacer {
+    width: 100%;
+}
+
+/* ====== BURGER (по умолчанию скрыт) ====== */
+.burger {
+    display: none;
+    position: relative;
+    width: 42px;
+    height: 42px;
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.burger span {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    height: 2px;
+    background: var(--text-dark);
+    transition: transform .2s, opacity .2s;
+}
+
+.burger span:nth-child(1) {
+    top: 12px;
+}
+
+.burger span:nth-child(2) {
+    top: 20px;
+}
+
+.burger span:nth-child(3) {
+    top: 28px;
+}
+
+.header.open .burger span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+.header.open .burger span:nth-child(2) {
+    opacity: 0;
+}
+
+.header.open .burger span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Подложка под мобильным меню */
+.menu-backdrop {
+    display: none;
+}
+
+/* ====== АДАПТИВ: планшеты/мобайл (≤1280px) ====== */
+@media (max-width:1280px) {
+
+    /* показываем бургер, правильно выстраиваем слои */
+    .burger {
+        display: inline-flex;
+        z-index: 1002;
+    }
+
+    .logo-section {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .menu-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .25);
+        backdrop-filter: blur(1px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s ease;
+        z-index: 998;
+        display: block;
+    }
+
+    .header.open .menu-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* превращаем .nav-menu в выпадающее мобильное меню */
+    .nav-menu {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: var(--header-h, 72px);
+        /* строго под шапкой */
+        background: #fff;
+        border-bottom: 1px solid var(--border-light);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: .5rem;
+        padding: .75rem env(safe-area-inset-right) .75rem env(safe-area-inset-left);
+
+        /* полностью спрятано, пока закрыто */
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-8px);
+        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+        z-index: 999;
+    }
+
+    .header.open .nav-menu {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: none;
+        transition-delay: 0s;
+    }
+
+    .nav-link,
+    .cta-button {
+        display: block;
+        text-align: center;
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .nav-menu .cta-button {
+        width: min(680px, calc(100% - 2px));
+        margin: .75rem auto 0;
+    }
+}
+
+/* ====== Очень узкие экраны (≤480px) — чуть компактнее ====== */
+@media (max-width:480px) {
+    .header-content {
+        gap: .5rem;
+        padding: .75rem 1rem;
+    }
+
+    .logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+
+    .club-info h1 {
+        font-size: 1.1rem;
+    }
+
+    .club-subtitle {
+        font-size: .8rem;
+    }
+}

@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
-import "./tailwind.css";
+import "@/styles/tokens.css";
 import { router } from "./app/router";
 import { AppProviders } from "./app/providers";
 
