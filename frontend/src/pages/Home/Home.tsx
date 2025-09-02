@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./Home.css";
 
 /* Mock-данные */
@@ -51,44 +51,6 @@ function useCounter(target: number, duration = 1600) {
     return () => cancelAnimationFrame(id);
   }, [target, duration]);
   return value;
-}
-
-/* Компоненты */
-function AnimatedBackground() {
-  const shapesRef = useRef<Array<HTMLDivElement | null>>([]);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      shapesRef.current.forEach((el, i) => {
-        if (!el) return;
-        const speed = 0.5 + i * 0.1;
-        el.style.transform = `translateY(${y * speed}px)`;
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  return (
-    <div className="animated-bg" aria-hidden>
-      <div className="floating-shapes">
-        <div
-          className="shape shape-1"
-          ref={(el) => { shapesRef.current[0] = el; }}
-        />
-        <div
-          className="shape shape-2"
-          ref={(el) => { shapesRef.current[1] = el; }}
-        />
-        <div
-          className="shape shape-3"
-          ref={(el) => { shapesRef.current[2] = el; }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function StatCard({ label, value, plus }: { label: string; value: number; plus?: boolean }) {
@@ -168,8 +130,6 @@ export default function Home() {
 
   return (
     <div className="home-page">
-      <AnimatedBackground />
-
       {/* HERO */}
       <section className="hero">
         <div className="hero-content">
