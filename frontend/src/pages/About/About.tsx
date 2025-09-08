@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef } from "react";
+import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
+import ClubSidebar from "@/components/Sidebar/ClubSidebar";
 import "./About.css";
 
 export default function About() {
@@ -54,17 +56,10 @@ export default function About() {
 
   return (
     <div ref={pageRef}>
-      {/* Хлебные крошки */}
-      <section className="breadcrumb">
-        <div className="breadcrumb-content">
-          <nav className="breadcrumb-nav">
-            <Link to="/">Главная</Link>
-            <span>→</span>
-            <span>О клубе</span>
-          </nav>
-          <h1 className="breadcrumb-title">О клубе</h1>
-        </div>
-      </section>
+      <Breadcrumb
+        title="О клубе"
+        items={[{ label: "Главная", to: "/" }, { label: "О клубе" }]}
+      />
 
       {/* Контент */}
       <main className="main-content">
@@ -297,61 +292,7 @@ export default function About() {
               </section>
             </div>
 
-            {/* Сайдбар */}
-            <aside className="sidebar">
-              <div className="sidebar-card">
-                <h3 className="sidebar-title">📄 Документы клуба</h3>
-                <div className="document-list">
-                  {[
-                    { icon: "📋", title: "Устав НКП СХ", sub: "PDF, 2.1 МБ" },
-                    { icon: "📜", title: "Племенное положение", sub: "PDF, 1.8 МБ" },
-                    { icon: "🏆", title: "Выставочное положение", sub: "PDF, 1.5 МБ" },
-                    { icon: "📐", title: "Стандарт породы FCI", sub: "PDF, 0.9 МБ" },
-                    { icon: "📝", title: "Заявление на членство", sub: "DOC, 0.2 МБ" },
-                    { icon: "💰", title: "Реквизиты для оплаты", sub: "PDF, 0.1 МБ" },
-                  ].map((d) => (
-                    <Link key={d.title} to="#" className="document-item">
-                      <div className="document-icon">{d.icon}</div>
-                      <div>
-                        <div className="document-title">{d.title}</div>
-                        <div className="document-sub">{d.sub}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              <div className="sidebar-card">
-                <h3 className="sidebar-title">📊 Статистика клуба</h3>
-                <div className="stats-grid">
-                  <div className="stat-box">
-                    <div className="stat-number">1,250+</div>
-                    <div className="stat-label">Членов</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-number">350+</div>
-                    <div className="stat-label">Питомников</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-number">15,000+</div>
-                    <div className="stat-label">Собак в архиве</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="stat-number">85</div>
-                    <div className="stat-label">Регионов</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sidebar-card">
-                <h3 className="sidebar-title">🚀 Быстрые действия</h3>
-                <div className="quick-actions">
-                  <Link to="/join" className="qa-primary">Подать заявление</Link>
-                  <Link to="/contact" className="qa-info">Задать вопрос</Link>
-                  <Link to="/events" className="qa-neutral">Календарь мероприятий</Link>
-                </div>
-              </div>
-            </aside>
+            <ClubSidebar stickyTopPx={120} />
           </div>
         </div>
       </main>

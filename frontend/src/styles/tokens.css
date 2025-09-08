@@ -1,12 +1,52 @@
-* {
-    box-sizing: border-box
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
 html,
 body,
 ul {
     margin: 0;
-    padding: 0
+    padding: 0;
+}
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+a,
+p,
+li,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+h1,
+h2,
+h3,
+.breadcrumb-title,
+.section-title {
+    line-height: 1.25;
+    letter-spacing: -0.01em;
 }
 
 :root {
@@ -26,10 +66,37 @@ ul {
     --shadow-glow: 0 0 30px rgba(59, 130, 246, .3);
     --shadow-soft: 0 4px 20px rgba(0, 0, 0, .1);
     --shadow-hover: 0 8px 30px rgba(0, 0, 0, .15);
+
+    --page-pad: clamp(12px, 4vw, 32px);
 }
 
 body {
     font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     color: var(--text-dark);
-    background: var(--snow-white)
+    background: var(--snow-white);
+}
+
+.content-container,
+.breadcrumb-content {
+    max-width: 1400px;
+    margin-inline: auto;
+    padding-inline: var(--page-pad);
+}
+
+.content-grid>*,
+.leadership-grid>*,
+.membership-types>*,
+.stats-grid>*,
+.terms-grid>* {
+    min-width: 0;
+}
+
+.sidebar {
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    .sidebar-card {
+        padding: 1.25rem;
+    }
 }

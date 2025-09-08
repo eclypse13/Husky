@@ -1,0 +1,324 @@
+.breadcrumb {
+    background: var(--arctic-gray);
+    padding: 2rem 0;
+}
+
+.breadcrumb-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.breadcrumb-nav {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .9rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+}
+
+.breadcrumb-nav a {
+    color: var(--bright-blue);
+    text-decoration: none;
+    transition: color .2s ease;
+}
+
+.breadcrumb-nav a:hover {
+    color: var(--primary-blue);
+}
+
+.breadcrumb-title {
+    font-size: 3rem;
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.main-content {
+    padding: 4rem 0;
+}
+
+.content-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 4rem;
+    align-items: start;
+}
+
+.breed-section,
+.sidebar-card {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .6s ease, transform .6s ease;
+}
+
+[data-visible="1"] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.history-section,
+.breed-mission-section,
+.leadership-section,
+.membership-section,
+.contact-section {
+    border-radius: 24px;
+    margin-bottom: 3rem;
+}
+
+.history-section,
+.leadership-section,
+.contact-section {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    padding: 3rem;
+    box-shadow: var(--shadow-soft);
+}
+
+.breed-mission-section {
+    background: var(--gradient-primary);
+    color: var(--snow-white);
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.breed-mission-section::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 100px;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="g" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23g)"/></svg>');
+}
+
+.membership-section {
+    background: var(--arctic-gray);
+    padding: 3rem;
+}
+
+.section-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.section-title::after {
+    content: "";
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--gradient-primary);
+    border-radius: 2px;
+}
+
+.section-title--light {
+    color: var(--snow-white);
+}
+
+.section-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-dark);
+    margin-bottom: 1.25rem;
+}
+
+.highlight-box {
+    background: var(--ice-blue);
+    border-left: 4px solid var(--bright-blue);
+    padding: 1.5rem;
+    margin: 2rem 0;
+    border-radius: 0 12px 12px 0;
+}
+
+.highlight-box ul {
+    margin-left: 1rem;
+}
+
+.bullet {
+    list-style: disc;
+    padding-left: 1rem;
+}
+
+.breed-mission-content {
+    position: relative;
+    z-index: 1;
+}
+
+.breed-mission-lead {
+    font-size: 1.1rem;
+    opacity: .95;
+    margin-bottom: 1.25rem;
+    line-height: 1.75;
+}
+
+.breed-mission-list {
+    list-style: disc;
+    margin-top: 1rem;
+}
+
+.breed-mission-list li {
+    display: list-item;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+}
+
+.breed-mission-icon {
+    background: rgba(255, 255, 255, .2);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.2rem;
+}
+
+.img-center {
+    display: block;
+    max-width: 100%;
+    max-height: 480px;
+    height: auto;
+    object-fit: cover;
+    border-radius: 16px;
+    box-shadow: var(--shadow-soft);
+    margin: 1rem 0 1.5rem;
+}
+
+.terms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.term {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: .75rem .9rem;
+}
+
+.benefit-check {
+    color: var(--forest-green);
+    font-weight: 700;
+}
+
+.contact-cta {
+    background: var(--ice-blue);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.contact-cta h3 {
+    color: var(--bright-blue);
+    margin-bottom: .5rem;
+}
+
+.contact-cta .cta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+    margin-top: 1rem;
+}
+
+.contact-cta-btn {
+    background: var(--gradient-primary);
+    color: var(--snow-white);
+    padding: .9rem 1.25rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    display: inline-block;
+    transition: transform .2s ease, filter .2s ease;
+    text-align: center;
+}
+
+.contact-cta-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
+.contact-cta-btn--ghost {
+    background: transparent;
+    color: var(--bright-blue);
+    border: 2px solid var(--bright-blue);
+}
+
+.content-grid>* {
+    min-width: 0;
+}
+
+.breed-margin {
+    margin: 0 0 1rem 0;
+}
+
+@media (max-width: 1200px) {
+    .content-grid {
+        gap: 3rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .breadcrumb-title {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .breadcrumb-title {
+        font-size: 2rem;
+    }
+
+    .history-section,
+    .breed-mission-section,
+    .leadership-section,
+    .membership-section,
+    .contact-section {
+        padding: 2rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .contact-cta .cta-row {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 600px) {
+    .content-container {
+        padding: 0 1rem;
+    }
+
+    .img-center {
+        max-height: 300px;
+    }
+}

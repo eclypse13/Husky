@@ -163,9 +163,9 @@ export default function Home() {
       {/* MAP */}
       <section className="interactive-map-section">
         <div className="map-content">
-          <div className="section-header">
-            <h2 className="section-title">Наша география</h2>
-            <p className="section-subtitle">Питомники и члены клуба по всей России</p>
+          <div className="head-section-header">
+            <h2 className="head-section-title">Наша география</h2>
+            <p className="head-section-subtitle">Питомники и члены клуба по всей России</p>
           </div>
 
           <div className="map-container">
@@ -209,9 +209,9 @@ export default function Home() {
       {/* ACTIVITY */}
       <section className="activity-section">
         <div className="activity-content">
-          <div className="section-header">
-            <h2 className="section-title">Живая лента активности</h2>
-            <p className="section-subtitle">Что происходит в мире хаски прямо сейчас</p>
+          <div className="head-section-header">
+            <h2 className="head-section-title">Живая лента активности</h2>
+            <p className="head-section-subtitle">Что происходит в мире хаски прямо сейчас</p>
           </div>
           <ActivityFeed />
         </div>
@@ -220,9 +220,9 @@ export default function Home() {
       {/* FEATURES */}
       <section className="features">
         <div className="features-content">
-          <div className="section-header">
-            <h2 className="section-title">Всё для породы хаски</h2>
-            <p className="section-subtitle">Комплексная экосистема для заводчиков, владельцев и любителей сибирских хаски</p>
+          <div className="head-section-header">
+            <h2 className="head-section-title">Всё для породы хаски</h2>
+            <p className="head-section-subtitle">Комплексная экосистема для заводчиков, владельцев и любителей сибирских хаски</p>
           </div>
 
           <div className="features-grid">
@@ -248,9 +248,9 @@ export default function Home() {
       {/* NEWS */}
       <section className="news-section">
         <div className="news-content">
-          <div className="section-header">
-            <h2 className="section-title">Последние новости</h2>
-            <p className="section-subtitle">Будьте в курсе всех событий в мире сибирских хаски</p>
+          <div className="head-section-header">
+            <h2 className="head-section-title">Последние новости</h2>
+            <p className="head-section-subtitle">Будьте в курсе всех событий в мире сибирских хаски</p>
           </div>
 
           <div className="news-grid">
@@ -263,9 +263,9 @@ export default function Home() {
       {/* PUPPIES */}
       <section className="features">
         <div className="features-content">
-          <div className="section-header">
-            <h2 className="section-title">🐾 Доступные щенки</h2>
-            <p className="section-subtitle">Помёты от проверенных питомников — только от членов НКП. Щенки с родословной и заботой.</p>
+          <div className="head-section-header">
+            <h2 className="head-section-title">🐾 Доступные щенки</h2>
+            <p className="head-section-subtitle">Помёты от проверенных питомников — только от членов НКП. Щенки с родословной и заботой.</p>
           </div>
 
           <div className="features-grid">
