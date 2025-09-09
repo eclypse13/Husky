@@ -1,73 +1,44 @@
-.breadcrumb {
-    background: var(--arctic-gray);
-    padding: 2rem 0;
-}
-
-.breadcrumb-content {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 2rem;
-}
-
-.breadcrumb-nav {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    font-size: .9rem;
-    color: var(--text-light);
-    margin-bottom: 1rem;
-}
-
-.breadcrumb-nav a {
-    color: var(--bright-blue);
-    text-decoration: none;
-    transition: color .2s ease;
-}
-
-.breadcrumb-nav a:hover {
-    color: var(--primary-blue);
-}
-
-.breadcrumb-title {
-    font-size: 3rem;
-    font-weight: 900;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin: 0;
-}
-
-.main-content {
+/* Layout */
+.about-main-content {
     line-height: 1.6rem;
     padding: 4rem 0;
 }
 
-.content-container {
+.about-content-container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 2rem;
 }
 
-.content-grid {
+.about-content-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 4rem;
-    align-items: start;
+    align-items: stretch;
 }
 
-.history-section,
-.mission-section,
-.leadership-section,
-.membership-section,
-.contact-section,
+.about-content-grid>* {
+    min-width: 0;
+}
 
-[data-visible="1"] {
+/* Reveal */
+.about-page .about-history-section,
+.about-page .about-mission-section,
+.about-page .about-leadership-section,
+.about-page .about-membership-section,
+.about-page .about-contact-section {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .6s ease, transform .6s ease;
+}
+
+.about-page [data-visible="1"] {
     opacity: 1;
     transform: translateY(0);
 }
 
-.history-section {
+/* History */
+.about-history-section {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 24px;
@@ -76,15 +47,16 @@
     margin-bottom: 3rem;
 }
 
-.section-title {
+.about-section-title {
     font-size: 2.2rem;
     font-weight: 800;
     color: var(--text-dark);
     margin-bottom: 2rem;
     position: relative;
+    line-height: 1.25;
 }
 
-.section-title::after {
+.about-section-title::after {
     content: "";
     position: absolute;
     bottom: -10px;
@@ -95,39 +67,39 @@
     border-radius: 2px;
 }
 
-.section-title--light {
+.about-section-title--light {
     color: var(--snow-white);
 }
 
-.history-content {
+.about-history-content {
     font-size: 1.1rem;
     line-height: 1.8;
     color: var(--text-dark);
 }
 
-.history-content p {
+.about-history-content p {
     margin-bottom: 1.5rem;
 }
 
-.history-ul {
+.about-history-ul {
     list-style: none;
     padding-left: 0;
     margin: 1.5rem 0;
 }
 
-.history-ul li {
+.about-history-ul li {
     display: flex;
     gap: .8rem;
     align-items: center;
     margin-bottom: .8rem;
 }
 
-.history-ul .check {
+.about-check {
     color: var(--forest-green);
     font-weight: 700;
 }
 
-.highlight-box {
+.about-highlight-box {
     background: var(--ice-blue);
     border-left: 4px solid var(--bright-blue);
     padding: 1.5rem;
@@ -135,14 +107,14 @@
     border-radius: 0 12px 12px 0;
 }
 
-.highlight-box h4 {
+.about-highlight-box h4 {
     color: var(--bright-blue);
     font-weight: 700;
     margin-bottom: .5rem;
 }
 
 /* Mission */
-.mission-section {
+.about-mission-section {
     background: var(--gradient-primary);
     color: var(--snow-white);
     border-radius: 24px;
@@ -152,7 +124,7 @@
     overflow: hidden;
 }
 
-.mission-section::before {
+.about-mission-section::before {
     content: "";
     position: absolute;
     top: 0;
@@ -162,27 +134,25 @@
     background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="g" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23g)"/></svg>');
 }
 
-.mission-content {
+.about-mission-content {
     position: relative;
     z-index: 1;
 }
 
-.mission-lead {
+.about-mission-lead {
     font-size: 1.2rem;
     margin-bottom: 2rem;
     opacity: .95;
     line-height: 1.8rem;
-
 }
 
-.mission-list {
+.about-mission-list {
     list-style: none;
     margin-top: 2rem;
     line-height: 1.6rem;
-
 }
 
-.mission-list li {
+.about-mission-list li {
     display: flex;
     align-items: flex-start;
     gap: 1rem;
@@ -190,7 +160,7 @@
     font-size: 1.1rem;
 }
 
-.mission-icon {
+.about-mission-icon {
     background: rgba(255, 255, 255, .2);
     border-radius: 50%;
     width: 40px;
@@ -203,7 +173,7 @@
 }
 
 /* Leadership */
-.leadership-section {
+.about-leadership-section {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 24px;
@@ -212,34 +182,34 @@
     margin-bottom: 3rem;
 }
 
-.leader-highlight {
+.about-leader-highlight {
     background: var(--ice-blue);
     border-radius: 16px;
     padding: 2rem;
     margin-bottom: 2rem;
 }
 
-.leader-highlight-title {
+.about-leader-highlight-title {
     color: var(--bright-blue);
     margin-bottom: 1rem;
     font-size: 1.3rem;
 }
 
-.leader-group-title {
+.about-leader-group-title {
     font-size: 1.8rem;
     font-weight: 700;
     color: var(--text-dark);
     margin-bottom: 2rem;
 }
 
-.leadership-grid {
+.about-leadership-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
 }
 
-.leader-card {
+.about-leader-card {
     background: var(--arctic-gray);
     border-radius: 16px;
     padding: 2rem;
@@ -248,17 +218,17 @@
     position: relative;
 }
 
-.leader-card:hover {
+.about-leader-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--shadow-soft);
 }
 
-.leader-card--plain {
+.about-leader-card--plain {
     background: var(--snow-white);
     margin: 0;
 }
 
-.leader-avatar {
+.about-leader-avatar {
     width: 100px;
     height: 100px;
     background: var(--gradient-primary);
@@ -272,30 +242,30 @@
     box-shadow: var(--shadow-glow);
 }
 
-.leader-name {
+.about-leader-name {
     font-size: 1.3rem;
     font-weight: 800;
     color: var(--text-dark);
     margin-bottom: .5rem;
 }
 
-.leader-position {
+.about-leader-position {
     color: var(--bright-blue);
     font-weight: 600;
     margin-bottom: 1rem;
 }
 
-.leader-contact {
+.about-leader-contact {
     font-size: .9rem;
     color: var(--text-light);
 }
 
-.leader-note {
+.about-leader-note {
     font-size: .85rem;
     margin-bottom: .5rem;
 }
 
-.join-box {
+.about-join-box {
     background: var(--arctic-gray);
     border-left: 4px solid var(--forest-green);
     border-radius: 16px;
@@ -303,14 +273,14 @@
     margin-top: 2rem;
 }
 
-.join-box h4 {
+.about-join-box h4 {
     color: var(--forest-green);
     margin-bottom: 1rem;
     font-weight: 700;
 }
 
 /* Membership */
-.membership-section {
+.about-membership-section {
     background: var(--arctic-gray);
     border-radius: 24px;
     padding: 3rem;
@@ -318,20 +288,20 @@
     position: relative;
 }
 
-.membership-lead {
+.about-membership-lead {
     font-size: 1.1rem;
     color: var(--text-dark);
     margin-bottom: 2rem;
 }
 
-.membership-types {
+.about-membership-types {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
 }
 
-.membership-card {
+.about-membership-card {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 16px;
@@ -342,12 +312,12 @@
     transition: transform .3s ease, box-shadow .3s ease;
 }
 
-.membership-card:hover {
+.about-membership-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--shadow-hover);
 }
 
-.membership-card::before {
+.about-membership-card::before {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
@@ -355,7 +325,7 @@
     background: var(--gradient-secondary);
 }
 
-.membership-title {
+.about-membership-title {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-dark);
@@ -365,11 +335,11 @@
     gap: .5rem;
 }
 
-.membership-benefits {
+.about-membership-benefits {
     list-style: none;
 }
 
-.membership-benefits li {
+.about-membership-benefits li {
     display: flex;
     gap: .8rem;
     align-items: flex-start;
@@ -378,14 +348,14 @@
     line-height: 1.5;
 }
 
-.benefit-check {
+.about-benefit-check {
     color: var(--forest-green);
     font-weight: 700;
     margin-top: .1rem;
     flex-shrink: 0;
 }
 
-.membership-terms {
+.about-membership-terms {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 16px;
@@ -393,30 +363,30 @@
     margin-top: 2rem;
 }
 
-.membership-terms h4 {
+.about-membership-terms h4 {
     color: var(--text-dark);
     margin-bottom: 1rem;
     font-size: 1.2rem;
     font-weight: 700;
 }
 
-.terms-grid {
+.about-terms-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
 }
 
-.terms-accent {
+.about-terms-accent {
     color: var(--bright-blue);
 }
 
-.terms-note {
+.about-terms-note {
     margin-top: .5rem;
     color: var(--text-light);
 }
 
 /* Contacts */
-.contact-section {
+.about-contact-section {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 24px;
@@ -424,14 +394,14 @@
     box-shadow: var(--shadow-soft);
 }
 
-.contact-grid {
+.about-contact-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
 }
 
-.contact-method {
+.about-contact-method {
     text-align: center;
     padding: 2rem;
     background: var(--arctic-gray);
@@ -439,12 +409,12 @@
     transition: all .3s ease;
 }
 
-.contact-method:hover {
+.about-contact-method:hover {
     background: var(--ice-blue);
     transform: translateY(-5px);
 }
 
-.contact-icon {
+.about-contact-icon {
     width: 60px;
     height: 60px;
     background: var(--gradient-primary);
@@ -457,18 +427,18 @@
     color: var(--snow-white);
 }
 
-.contact-title {
+.about-contact-title {
     font-weight: 700;
     color: var(--text-dark);
     margin-bottom: .5rem;
 }
 
-.contact-info {
+.about-contact-info {
     color: var(--text-light);
     font-size: .9rem;
 }
 
-.contact-cta {
+.about-contact-cta {
     background: var(--ice-blue);
     border-radius: 16px;
     padding: 2rem;
@@ -476,17 +446,17 @@
     text-align: center;
 }
 
-.contact-cta h3 {
+.about-contact-cta h3 {
     color: var(--bright-blue);
     margin-bottom: 1rem;
 }
 
-.contact-cta p {
+.about-contact-cta p {
     color: var(--text-dark);
     margin-bottom: 1.5rem;
 }
 
-.contact-cta-btn {
+.about-contact-cta-btn {
     background: var(--gradient-primary);
     color: var(--snow-white);
     padding: 1rem 2rem;
@@ -497,77 +467,72 @@
     transition: all .3s ease;
 }
 
-.contact-cta-btn:hover {
+.about-contact-cta-btn:hover {
     filter: brightness(1.05);
     transform: translateY(-2px);
 }
 
-.content-grid>* {
-    min-width: 0;
-}
-
 /* Responsive */
-/* ============ Responsive ============ */
 @media (max-width: 1024px) {
-    .content-grid {
+    .about-content-grid {
         grid-template-columns: 1fr;
         gap: 2rem;
     }
 
-    .breadcrumb-title {
+    .about-page .breadcrumb-title {
         font-size: 2.5rem;
     }
 
-    .leadership-grid {
+    .about-leadership-grid {
         grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 768px) {
 
-    .content-container,
-    .breadcrumb-content {
+    .about-content-container,
+    .about-page .breadcrumb-content {
         padding: 0 1.25rem;
     }
 
-    .breadcrumb-title {
+    .about-page .breadcrumb-title {
         font-size: 2rem;
     }
 
-    .section-title {
+    .about-section-title {
         font-size: 1.8rem;
     }
 
-    .history-section,
-    .mission-section,
-    .leadership-section,
-    .membership-section,
-    .contact-section {
+    .about-history-section,
+    .about-mission-section,
+    .about-leadership-section,
+    .about-membership-section,
+    .about-contact-section {
         padding: 2rem;
     }
 
-    .stats-grid {
+    .about-page .stats-grid {
         grid-template-columns: 1fr;
     }
 
-    .membership-types {
+    .about-membership-types {
         grid-template-columns: 1fr;
     }
 
-    .contact-grid {
+    .about-contact-grid {
         grid-template-columns: 1fr;
     }
 
-    .terms-grid {
+    .about-terms-grid {
         grid-template-columns: 1fr;
     }
 
-    .mission-list li {
+    .about-mission-list li {
         gap: .75rem;
         font-size: 1rem;
     }
 
-    .leader-avatar {
+    .about-leader-avatar {
         width: 84px;
         height: 84px;
         font-size: 2rem;
@@ -576,64 +541,63 @@
 
 @media (max-width: 600px) {
 
-    .content-container,
-    .breadcrumb-content {
+    .about-content-container,
+    .about-page .breadcrumb-content {
         padding: 0 1rem;
     }
 
-    .main-content {
+    .about-main-content {
         padding: 3rem 0;
     }
 
-    .history-section,
-    .mission-section,
-    .leadership-section,
-    .membership-section,
-    .contact-section {
+    .about-history-section,
+    .about-mission-section,
+    .about-leadership-section,
+    .about-membership-section,
+    .about-contact-section {
         padding: 1.5rem;
         border-radius: 18px;
     }
 
-    .membership-card {
+    .about-membership-card {
         padding: 1.25rem;
     }
 
-    .contact-method {
+    .about-contact-method {
         padding: 1.25rem;
     }
 
-    .leader-group-title {
+    .about-leader-group-title {
         font-size: 1.5rem;
     }
 
-    .about .section-title::after {
+    .about-page .section-title::after {
         width: 48px;
     }
 
-    .stat-number {
+    .about-page .stat-number {
         font-size: 1.6rem;
     }
 
-    .mission-section::before {
+    .about-mission-section::before {
         display: none;
     }
 
-    /* узор убираем на очень узких экранах */
-    .history-ul li {
+    .about-history-ul li {
         align-items: flex-start;
     }
 }
 
 @media (max-width: 420px) {
-    .breadcrumb-title {
+    .about-page .breadcrumb-title {
         font-size: 1.7rem;
     }
 
-    .section-title {
+    .about-section-title {
         font-size: 1.6rem;
     }
 
-    .membership-title {
+    .about-membership-title {
         font-size: 1.2rem;
     }
 }

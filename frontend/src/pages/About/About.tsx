@@ -12,7 +12,7 @@ export default function About() {
     if (!root) return;
 
     const els = root.querySelectorAll<HTMLElement>(
-      ".history-section, .mission-section, .leadership-section, .membership-section, .contact-section, .sidebar-card"
+      ".about-history-section, .about-mission-section, .about-leadership-section, .about-membership-section, .about-contact-section, .club-sidebar__card"
     );
 
     const obs = new IntersectionObserver(
@@ -55,28 +55,28 @@ export default function About() {
   }, []);
 
   return (
-    <div ref={pageRef}>
+    <div ref={pageRef} className="about-page">
       <Breadcrumb
         title="О клубе"
         items={[{ label: "Главная", to: "/" }, { label: "О клубе" }]}
       />
 
       {/* Контент */}
-      <main className="main-content">
-        <div className="content-container">
-          <div className="content-grid">
-            <div className="main-column">
+      <main className="about-main-content">
+        <div className="about-content-container">
+          <div className="about-content-grid">
+            <div className="about-main-column">
               {/* История */}
-              <section className="history-section">
-                <h2 className="section-title">История НКП Сибирский Хаски</h2>
-                <div className="history-content">
+              <section className="about-history-section">
+                <h2 className="about-section-title">История НКП Сибирский Хаски</h2>
+                <div className="about-history-content">
                   <p>
                     Национальный клуб породы "Сибирский хаски" был основан в 2008 году группой
                     энтузиастов и профессиональных кинологов, объединенных общей целью —
                     сохранение и развитие породы сибирский хаски в России.
                   </p>
 
-                  <div className="highlight-box">
+                  <div className="about-highlight-box">
                     <h4>Основные вехи развития</h4>
                     <p>
                       За 15+ лет работы клуб стал ведущей организацией в области разведения
@@ -89,11 +89,11 @@ export default function About() {
                     региональные представительства. Сегодня НКП СХ — это экосистема, включающая:
                   </p>
 
-                  <ul className="history-ul">
-                    <li><span className="check">✓</span>Племенной учёт и архив родословных</li>
-                    <li><span className="check">✓</span>Систему генетического тестирования</li>
-                    <li><span className="check">✓</span>Образовательные программы</li>
-                    <li><span className="check">✓</span>Поддержку ездового спорта</li>
+                  <ul className="about-history-ul">
+                    <li><span className="about-check">✓</span>Племенной учёт и архив родословных</li>
+                    <li><span className="about-check">✓</span>Систему генетического тестирования</li>
+                    <li><span className="about-check">✓</span>Образовательные программы</li>
+                    <li><span className="about-check">✓</span>Поддержку ездового спорта</li>
                   </ul>
 
                   <p>
@@ -103,41 +103,41 @@ export default function About() {
               </section>
 
               {/* Миссия */}
-              <section className="mission-section">
-                <div className="mission-content">
-                  <h2 className="section-title section-title--light">Миссия и задачи клуба</h2>
-                  <p className="mission-lead">
+              <section className="about-mission-section">
+                <div className="about-mission-content">
+                  <h2 className="about-section-title about-section-title--light section-title--no-underline">Миссия и задачи клуба</h2>
+                  <p className="about-mission-lead">
                     Наша миссия — сохранение породных качеств сибирского хаски, развитие культуры ответственного разведения и создание сильного профессионального сообщества заводчиков и владельцев.
                   </p>
 
-                  <ul className="mission-list">
+                  <ul className="about-mission-list">
                     <li>
-                      <div className="mission-icon">🧬</div>
+                      <div className="about-mission-icon">🧬</div>
                       <div>
                         <strong>Здоровье породы: </strong>Программы генетического тестирования и мониторинга наследственных
                         заболеваний
                       </div>
                     </li>
                     <li>
-                      <div className="mission-icon">📚</div>
+                      <div className="about-mission-icon">📚</div>
                       <div>
                         <strong>Образование: </strong>Обучение заводчиков современным методам селекции и ухода за собаками
                       </div>
                     </li>
                     <li>
-                      <div className="mission-icon">🌐</div>
+                      <div className="about-mission-icon">🌐</div>
                       <div>
                         <strong>Международное сотрудничество: </strong>Обмен опытом с ведущими клубами мира и участие в глобальных проектах
                       </div>
                     </li>
                     <li>
-                      <div className="mission-icon">🏆</div>
+                      <div className="about-mission-icon">🏆</div>
                       <div>
                         <strong>Выставочная деятельность: </strong>Организация специализированных выставок и поддержка экспертизы
                       </div>
                     </li>
                     <li>
-                      <div className="mission-icon">❄️</div>
+                      <div className="about-mission-icon">❄️</div>
                       <div>
                         <strong>Ездовой спорт: </strong>Популяризация и развитие традиционного использования породы
                       </div>
@@ -147,24 +147,24 @@ export default function About() {
               </section>
 
               {/* Президиум */}
-              <section className="leadership-section">
-                <h2 className="section-title">Президиум НКП</h2>
+              <section className="about-leadership-section">
+                <h2 className="about-section-title">Президиум НКП</h2>
 
-                <div className="leader-highlight">
-                  <h3 className="leader-highlight-title">Президент НКП Сибирский хаски</h3>
-                  <div className="leader-card leader-card--plain">
-                    <div className="leader-avatar">👩‍💼</div>
-                    <h3 className="leader-name">Татьяна Евграфова</h3>
-                    <p className="leader-position">Президент НКП СХ</p>
-                    <div className="leader-contact">
+                <div className="about-leader-highlight">
+                  <h3 className="about-leader-highlight-title">Президент НКП Сибирский хаски</h3>
+                  <div className="about-leader-card about-leader-card--plain">
+                    <div className="about-leader-avatar">👩‍💼</div>
+                    <h3 className="about-leader-name">Татьяна Евграфова</h3>
+                    <p className="about-leader-position">Президент НКП СХ</p>
+                    <div className="about-leader-contact">
                       <p>president@nkp-husky.ru</p>
                       <p>+7 (495) 123-45-67</p>
                     </div>
                   </div>
                 </div>
 
-                <h3 className="leader-group-title">Рабочие группы НКП</h3>
-                <div className="leadership-grid">
+                <h3 className="about-leader-group-title">Рабочие группы НКП</h3>
+                <div className="about-leadership-grid">
                   {[
                     { icon: "📰", name: "Татьяна Солдатова", role: "СМИ и информационные материалы", extra: "Совместно с Анной Фалуниной", mail: "media@nkp-husky.ru" },
                     { icon: "💻", name: "Влада Кугуракова", role: "Информационные системы", mail: "it@nkp-husky.ru" },
@@ -174,19 +174,19 @@ export default function About() {
                     { icon: "🏃‍♀️", name: "Елена Шепелёва", role: "Ездовой спорт", mail: "sport@nkp-husky.ru" },
                     { icon: "📊", name: "Анна Фалунина", role: "Породный рейтинг", mail: "rating@nkp-husky.ru" },
                   ].map((p) => (
-                    <div key={p.mail} className="leader-card">
-                      <div className="leader-avatar">{p.icon}</div>
-                      <h3 className="leader-name">{p.name}</h3>
-                      <p className="leader-position">{p.role}</p>
-                      <div className="leader-contact">
-                        {p.extra && <p className="leader-note">{p.extra}</p>}
+                    <div key={p.mail} className="about-leader-card">
+                      <div className="about-leader-avatar">{p.icon}</div>
+                      <h3 className="about-leader-name">{p.name}</h3>
+                      <p className="about-leader-position">{p.role}</p>
+                      <div className="about-leader-contact">
+                        {p.extra && <p className="about-leader-note">{p.extra}</p>}
                         <p>{p.mail}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="join-box">
+                <div className="about-join-box">
                   <h4>🤝 Присоединение к рабочим группам</h4>
                   <p>
                     Члены НКП Сибирский хаски могут присоединяться к рабочим группам на основании заявления и решения руководителя соответствующей группы. Это отличная возможность внести личный вклад в развитие породы и получить ценный опыт.
@@ -195,16 +195,16 @@ export default function About() {
               </section>
 
               {/* Членство */}
-              <section className="membership-section">
-                <h2 className="section-title">Членство в НКП</h2>
-                <p className="membership-lead">
+              <section className="about-membership-section">
+                <h2 className="about-section-title">Членство в НКП</h2>
+                <p className="about-membership-lead">
                   Присоединение к НКП Сибирский Хаски открывает доступ к уникальным возможностям и привилегиям для заводчиков и владельцев собак.
                 </p>
 
-                <div className="membership-types">
-                  <div className="membership-card">
-                    <h3 className="membership-title">👤 Физические лица</h3>
-                    <ul className="membership-benefits">
+                <div className="about-membership-types">
+                  <div className="about-membership-card">
+                    <h3 className="about-membership-title">👤 Физические лица</h3>
+                    <ul className="about-membership-benefits">
                       {[
                         "Приоритетная техническая поддержка сайта НКП",
                         "Консультации по разведению и документообороту",
@@ -217,16 +217,16 @@ export default function About() {
                         "Доступ к закрытым разделам сайта",
                       ].map((x) => (
                         <li key={x}>
-                          <span className="benefit-check">✓</span>
+                          <span className="about-benefit-check">✓</span>
                           {x}
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  <div className="membership-card">
-                    <h3 className="membership-title">🏢 Юридические лица (клубы)</h3>
-                    <ul className="membership-benefits">
+                  <div className="about-membership-card">
+                    <h3 className="about-membership-title">🏢 Юридические лица (клубы)</h3>
+                    <ul className="about-membership-benefits">
                       {[
                         "Методическая помощь в организации мероприятий",
                         "Предоставление типовых документов и регламентов",
@@ -239,7 +239,7 @@ export default function About() {
                         "Привлечение спонсорской поддержки от партнеров",
                       ].map((x) => (
                         <li key={x}>
-                          <span className="benefit-check">✓</span>
+                          <span className="about-benefit-check">✓</span>
                           {x}
                         </li>
                       ))}
@@ -247,47 +247,47 @@ export default function About() {
                   </div>
                 </div>
 
-                <div className="membership-terms">
+                <div className="about-membership-terms">
                   <h4>💰 Условия членства</h4>
-                  <div className="terms-grid">
+                  <div className="about-terms-grid">
                     <div>
-                      <strong className="terms-accent">Вступительный взнос:</strong>
-                      <p className="terms-note">5 000 ₽ (разовый)</p>
+                      <strong className="about-terms-accent">Вступительный взнос:</strong>
+                      <p className="about-terms-note">5 000 ₽ (разовый)</p>
                     </div>
                     <div>
-                      <strong className="terms-accent">Годовой взнос:</strong>
-                      <p className="terms-note">3 000 ₽</p>
+                      <strong className="about-terms-accent">Годовой взнос:</strong>
+                      <p className="about-terms-note">3 000 ₽</p>
                     </div>
                     <div>
-                      <strong className="terms-accent">Для юрлиц:</strong>
-                      <p className="terms-note">15 000 ₽ / год</p>
+                      <strong className="about-terms-accent">Для юрлиц:</strong>
+                      <p className="about-terms-note">15 000 ₽ / год</p>
                     </div>
                   </div>
                 </div>
               </section>
 
               {/* Контакты */}
-              <section className="contact-section">
-                <h2 className="section-title">Контактная информация</h2>
-                <div className="contact-grid">
+              <section className="about-contact-section">
+                <h2 className="about-section-title">Контактная информация</h2>
+                <div className="about-contact-grid">
                   {[
                     { icon: "📧", title: "Email", text: "info@nkp-husky.ru" },
                     { icon: "📱", title: "Телефон", text: "+7 (495) 123-45-67" },
                     { icon: "🌐", title: "Социальные сети", text: "@nkp_husky" },
                     { icon: "📍", title: "Адрес", text: "Москва, ул. Кинологическая, 15" },
                   ].map((c) => (
-                    <div key={c.title} className="contact-method">
-                      <div className="contact-icon">{c.icon}</div>
-                      <h3 className="contact-title">{c.title}</h3>
-                      <p className="contact-info">{c.text}</p>
+                    <div key={c.title} className="about-contact-method">
+                      <div className="about-contact-icon">{c.icon}</div>
+                      <h3 className="about-contact-title">{c.title}</h3>
+                      <p className="about-contact-info">{c.text}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="contact-cta">
+                <div className="about-contact-cta">
                   <h3>Форма обратной связи</h3>
                   <p>Есть вопросы? Напишите нам — ответим в течение 24 часов.</p>
-                  <Link to="/contact" className="contact-cta-btn">Написать сообщение</Link>
+                  <Link to="/contact" className="about-contact-cta-btn">Написать сообщение</Link>
                 </div>
               </section>
             </div>

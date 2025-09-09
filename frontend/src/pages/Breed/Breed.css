@@ -1,15 +1,16 @@
-.breadcrumb {
+/* Breadcrumb */
+.breed-page .breadcrumb {
     background: var(--arctic-gray);
     padding: 2rem 0;
 }
 
-.breadcrumb-content {
+.breed-page .breadcrumb-content {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 2rem;
 }
 
-.breadcrumb-nav {
+.breed-page .breadcrumb-nav {
     display: flex;
     align-items: center;
     gap: .5rem;
@@ -18,17 +19,17 @@
     margin-bottom: 1rem;
 }
 
-.breadcrumb-nav a {
+.breed-page .breadcrumb-nav a {
     color: var(--bright-blue);
     text-decoration: none;
     transition: color .2s ease;
 }
 
-.breadcrumb-nav a:hover {
+.breed-page .breadcrumb-nav a:hover {
     color: var(--primary-blue);
 }
 
-.breadcrumb-title {
+.breed-page .breadcrumb-title {
     font-size: 3rem;
     font-weight: 900;
     background: var(--gradient-primary);
@@ -38,47 +39,53 @@
     margin: 0;
 }
 
-.main-content {
+/* Layout */
+.breed-main-content {
     padding: 4rem 0;
 }
 
-.content-container {
+.breed-content-container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 2rem;
 }
 
-.content-grid {
+.breed-content-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 4rem;
     align-items: start;
 }
 
-.breed-section,
-.sidebar-card {
+.breed-content-grid>* {
+    min-width: 0;
+}
+
+/* Reveal */
+.breed-page .breed-section {
     opacity: 0;
     transform: translateY(30px);
     transition: opacity .6s ease, transform .6s ease;
 }
 
-[data-visible="1"] {
+.breed-page [data-visible="1"] {
     opacity: 1;
     transform: translateY(0);
 }
 
-.history-section,
-.breed-mission-section,
-.leadership-section,
-.membership-section,
-.contact-section {
+/* Surface variants */
+.breed-history-section,
+.breed-leadership-section,
+.breed-contact-section,
+.breed-membership-section,
+.breed-mission-section {
     border-radius: 24px;
     margin-bottom: 3rem;
 }
 
-.history-section,
-.leadership-section,
-.contact-section {
+.breed-history-section,
+.breed-leadership-section,
+.breed-contact-section {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     padding: 3rem;
@@ -101,20 +108,22 @@
     background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="g" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23g)"/></svg>');
 }
 
-.membership-section {
+.breed-membership-section {
     background: var(--arctic-gray);
     padding: 3rem;
 }
 
-.section-title {
+/* Typography */
+.breed-section-title {
     font-size: 2.2rem;
     font-weight: 800;
     color: var(--text-dark);
     margin-bottom: 2rem;
     position: relative;
+    line-height: 1.25;
 }
 
-.section-title::after {
+.breed-section-title::after {
     content: "";
     position: absolute;
     bottom: -10px;
@@ -125,17 +134,18 @@
     border-radius: 2px;
 }
 
-.section-title--light {
+.breed-section-title--light {
     color: var(--snow-white);
 }
 
-.section-subtitle {
+.breed-section-subtitle {
     font-size: 1.1rem;
     color: var(--text-dark);
     margin-bottom: 1.25rem;
 }
 
-.highlight-box {
+/* Blocks And Utils */
+.breed-highlight-box {
     background: var(--ice-blue);
     border-left: 4px solid var(--bright-blue);
     padding: 1.5rem;
@@ -143,11 +153,11 @@
     border-radius: 0 12px 12px 0;
 }
 
-.highlight-box ul {
+.breed-highlight-box ul {
     margin-left: 1rem;
 }
 
-.bullet {
+.breed-bullet {
     list-style: disc;
     padding-left: 1rem;
 }
@@ -171,8 +181,6 @@
 
 .breed-mission-list li {
     display: list-item;
-    align-items: flex-start;
-    gap: 1rem;
     margin-bottom: 1rem;
     font-size: 1.05rem;
 }
@@ -189,7 +197,7 @@
     font-size: 1.2rem;
 }
 
-.img-center {
+.breed-img-center {
     display: block;
     max-width: 100%;
     max-height: 480px;
@@ -200,26 +208,26 @@
     margin: 1rem 0 1.5rem;
 }
 
-.terms-grid {
+.breed-terms-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
     margin-top: 1rem;
 }
 
-.term {
+.breed-term {
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 12px;
     padding: .75rem .9rem;
 }
 
-.benefit-check {
+.breed-benefit-check {
     color: var(--forest-green);
     font-weight: 700;
 }
 
-.contact-cta {
+.breed-contact-cta {
     background: var(--ice-blue);
     border-radius: 16px;
     padding: 2rem;
@@ -227,19 +235,19 @@
     text-align: center;
 }
 
-.contact-cta h3 {
+.breed-contact-cta h3 {
     color: var(--bright-blue);
     margin-bottom: .5rem;
 }
 
-.contact-cta .cta-row {
+.breed-contact-cta .cta-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: .75rem;
     margin-top: 1rem;
 }
 
-.contact-cta-btn {
+.breed-contact-cta-btn {
     background: var(--gradient-primary);
     color: var(--snow-white);
     padding: .9rem 1.25rem;
@@ -251,74 +259,67 @@
     text-align: center;
 }
 
-.contact-cta-btn:hover {
+.breed-contact-cta-btn:hover {
     transform: translateY(-2px);
     filter: brightness(1.05);
 }
 
-.contact-cta-btn--ghost {
+.breed-contact-cta-btn--ghost {
     background: transparent;
     color: var(--bright-blue);
     border: 2px solid var(--bright-blue);
-}
-
-.content-grid>* {
-    min-width: 0;
 }
 
 .breed-margin {
     margin: 0 0 1rem 0;
 }
 
+/* Responsive */
 @media (max-width: 1200px) {
-    .content-grid {
+    .breed-content-grid {
         gap: 3rem;
     }
 }
 
 @media (max-width: 1024px) {
-    .content-grid {
+    .breed-content-grid {
         grid-template-columns: 1fr;
         gap: 2rem;
     }
 
-    .breadcrumb-title {
+    .breed-page .breadcrumb-title {
         font-size: 2.5rem;
     }
 }
 
 @media (max-width: 768px) {
-    .breadcrumb-title {
+    .breed-page .breadcrumb-title {
         font-size: 2rem;
     }
 
-    .history-section,
+    .breed-history-section,
     .breed-mission-section,
-    .leadership-section,
-    .membership-section,
-    .contact-section {
+    .breed-leadership-section,
+    .breed-membership-section,
+    .breed-contact-section {
         padding: 2rem;
     }
 
-    .stats-grid {
+    .breed-page .stats-grid {
         grid-template-columns: 1fr;
     }
 
-    .contact-cta .cta-row {
+    .breed-contact-cta .cta-row {
         grid-template-columns: 1fr;
-    }
-
-    .sidebar {
-        position: static;
     }
 }
 
 @media (max-width: 600px) {
-    .content-container {
+    .breed-content-container {
         padding: 0 1rem;
     }
 
-    .img-center {
+    .breed-img-center {
         max-height: 300px;
     }
 }

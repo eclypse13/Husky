@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
 import Home from "@/pages/Home/Home";
 import NewsList from "@/pages/News/NewsList";
-import EventsList from "@/pages/Events/EventsList";
+import EventsList from "@/pages/Events/Events";
 import About from "@/pages/About/About";
 import Breed from "@/pages/Breed/Breed";
 import PuppiesList from "@/pages/Puppies/PuppiesList";

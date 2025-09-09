@@ -20,7 +20,7 @@ export default function RootLayout() {
         <>
             <AnimatedBackground />
             <Header />
-            <main className="page-content" id="page-content">
+            <main id="page-content">
                 <Outlet />
             </main>
             <Footer />

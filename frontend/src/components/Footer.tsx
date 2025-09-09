@@ -3,10 +3,10 @@ import "./Footer.css";
 
 export default function Footer() {
   return (
-    <footer className="footer">
-      <div className="footer-content">
+    <footer className="site-footer">
+      <div className="site-footer__content">
 
-        <div className="footer-section">
+        <div className="site-footer__section">
           <h3>НКП Сибирский Хаски</h3>
           <p style={{ color: "rgba(255,255,255,.8)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
             Ведущая организация России по развитию и сохранению породы сибирский хаски.
@@ -19,9 +19,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="footer-section">
+        <div className="site-footer__section">
           <h3>Архив и данные</h3>
-          <ul>
+          <ul className="site-footer__list">
             <li><Link to="/archive">Поиск собак</Link></li>
             <li><Link to="/archive">Родословные</Link></li>
             <li><Link to="/health">Здоровье породы</Link></li>
@@ -30,9 +30,9 @@ export default function Footer() {
           </ul>
         </div>
 
-        <div className="footer-section">
+        <div className="site-footer__section">
           <h3>Мероприятия</h3>
-          <ul>
+          <ul className="site-footer__list">
             <li><Link to="/events">Календарь выставок</Link></li>
             <li><Link to="/events/sport">Ездовой спорт</Link></li>
             <li><Link to="/events/seminars">Семинары</Link></li>
@@ -41,9 +41,9 @@ export default function Footer() {
           </ul>
         </div>
 
-        <div className="footer-section">
+        <div className="site-footer__section">
           <h3>Сообщество</h3>
-          <ul>
+          <ul className="site-footer__list">
             <li><Link to="/join">Членство в клубе</Link></li>
             <li><Link to="/kennels">Питомники-партнеры</Link></li>
             <li><Link to="/forum">Форум заводчиков</Link></li>
@@ -54,7 +54,7 @@ export default function Footer() {
 
       </div>
 
-      <div className="footer-bottom">
+      <div className="site-footer__bottom">
         <p>&copy; 2025 НКП Сибирский Хаски. Все права защищены. Интеграция с breedarchive.com</p>
       </div>
     </footer>

@@ -49,6 +49,8 @@ h3,
     letter-spacing: -0.01em;
 }
 
+.section-title--no-underline::after { display: none; }
+
 :root {
     --bright-blue: #3b82f6;
     --ice-blue: #dbeafe;

@@ -1,5 +1,4 @@
-/* ====== БАЗОВЫЕ СТИЛИ (десктоп), как в макете ====== */
-.header {
+.site-header {
     background: rgba(255, 255, 255, 0.95);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
@@ -12,12 +11,12 @@
     transition: background .2s ease, box-shadow .2s ease;
 }
 
-.header.scrolled {
+.site-header.scrolled {
     background: rgba(255, 255, 255, 0.98);
     box-shadow: 0 4px 20px rgba(0, 0, 0, .08);
 }
 
-.header-content {
+.site-header__content {
     max-width: 1400px;
     margin: 0 auto;
     padding: 2px 2rem;
@@ -27,13 +26,13 @@
     gap: 2rem;
 }
 
-.logo-section {
+.site-header__logo-section {
     display: flex;
     align-items: center;
     gap: 1rem;
 }
 
-.logo {
+.site-header__logo {
     width: 60px;
     height: 60px;
     background: var(--gradient-primary);
@@ -48,11 +47,11 @@
     transition: transform .2s ease;
 }
 
-.logo:hover {
+.site-header__logo:hover {
     transform: scale(1.05);
 }
 
-.club-info h1 {
+.site-header__club-info h1 {
     font-size: 1.5rem;
     font-weight: 800;
     margin-bottom: .2rem;
@@ -62,20 +61,21 @@
     background-clip: text;
 }
 
-.club-subtitle {
+.site-header__club-subtitle {
     font-size: .9rem;
     color: var(--text-light);
     font-weight: 500;
 }
 
-.nav-menu {
+/* Nav */
+.site-header__nav-menu {
     list-style: none;
     display: flex;
     align-items: center;
     gap: 2rem;
 }
 
-.nav-link {
+.site-header__nav-link {
     color: var(--text-dark);
     text-decoration: none;
     font-weight: 600;
@@ -84,13 +84,13 @@
     transition: background .2s ease, color .2s ease, transform .2s ease;
 }
 
-.nav-link:hover {
+.site-header__nav-link:hover {
     background: var(--ice-blue);
     color: var(--bright-blue);
     transform: translateY(-2px);
 }
 
-.cta-button {
+.site-header__cta-button {
     background: var(--gradient-primary);
     color: var(--snow-white);
     padding: .8rem 2rem;
@@ -101,18 +101,17 @@
     transition: transform .2s ease, box-shadow .2s ease;
 }
 
-.cta-button:hover {
+.site-header__cta-button:hover {
     transform: translateY(-3px);
     box-shadow: var(--shadow-hover);
 }
 
-/* Техническая прокладка, чтобы фикс-хедер не перекрывал контент */
-.header-spacer {
+.site-header__spacer {
     width: 100%;
 }
 
-/* ====== BURGER (по умолчанию скрыт) ====== */
-.burger {
+/* Burger */
+.site-header__burger {
     display: none;
     position: relative;
     width: 42px;
@@ -123,7 +122,7 @@
     cursor: pointer;
 }
 
-.burger span {
+.site-header__burger span {
     position: absolute;
     left: 10px;
     right: 10px;
@@ -132,50 +131,47 @@
     transition: transform .2s, opacity .2s;
 }
 
-.burger span:nth-child(1) {
+.site-header__burger span:nth-child(1) {
     top: 12px;
 }
 
-.burger span:nth-child(2) {
+.site-header__burger span:nth-child(2) {
     top: 20px;
 }
 
-.burger span:nth-child(3) {
+.site-header__burger span:nth-child(3) {
     top: 28px;
 }
 
-.header.open .burger span:nth-child(1) {
+.site-header.is-open .site-header__burger span:nth-child(1) {
     transform: translateY(8px) rotate(45deg);
 }
 
-.header.open .burger span:nth-child(2) {
+.site-header.is-open .site-header__burger span:nth-child(2) {
     opacity: 0;
 }
 
-.header.open .burger span:nth-child(3) {
+.site-header.is-open .site-header__burger span:nth-child(3) {
     transform: translateY(-8px) rotate(-45deg);
 }
 
-/* Подложка под мобильным меню */
-.menu-backdrop {
+.site-header__backdrop {
     display: none;
 }
 
-/* ====== АДАПТИВ: планшеты/мобайл (≤1280px) ====== */
+/* Responsive */
 @media (max-width:1280px) {
-
-    /* показываем бургер, правильно выстраиваем слои */
-    .burger {
+    .site-header__burger {
         display: inline-flex;
         z-index: 1002;
     }
 
-    .logo-section {
+    .site-header__logo-section {
         flex: 1 1 auto;
         min-width: 0;
     }
 
-    .menu-backdrop {
+    .site-header__backdrop {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, .25);
@@ -187,18 +183,16 @@
         display: block;
     }
 
-    .header.open .menu-backdrop {
+    .site-header.is-open .site-header__backdrop {
         opacity: 1;
         pointer-events: auto;
     }
 
-    /* превращаем .nav-menu в выпадающее мобильное меню */
-    .nav-menu {
+    .site-header__nav-menu {
         position: fixed;
         left: 0;
         right: 0;
         top: var(--header-h, 72px);
-        /* строго под шапкой */
         background: #fff;
         border-bottom: 1px solid var(--border-light);
         box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
@@ -207,7 +201,6 @@
         gap: .5rem;
         padding: .75rem env(safe-area-inset-right) .75rem env(safe-area-inset-left);
 
-        /* полностью спрятано, пока закрыто */
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -216,7 +209,7 @@
         z-index: 999;
     }
 
-    .header.open .nav-menu {
+    .site-header.is-open .site-header__nav-menu {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
@@ -224,38 +217,37 @@
         transition-delay: 0s;
     }
 
-    .nav-link,
-    .cta-button {
+    .site-header__nav-link,
+    .site-header__cta-button {
         display: block;
         text-align: center;
         padding: 1rem;
         border-radius: 12px;
     }
 
-    .nav-menu .cta-button {
+    .site-header__nav-menu .site-header__cta-button {
         width: min(680px, calc(100% - 2px));
         margin: .75rem auto 0;
     }
 }
 
-/* ====== Очень узкие экраны (≤480px) — чуть компактнее ====== */
 @media (max-width:480px) {
-    .header-content {
+    .site-header__content {
         gap: .5rem;
         padding: .75rem 1rem;
     }
 
-    .logo {
+    .site-header__logo {
         width: 48px;
         height: 48px;
         border-radius: 14px;
     }
 
-    .club-info h1 {
+    .site-header__club-info h1 {
         font-size: 1.1rem;
     }
 
-    .club-subtitle {
+    .site-header__club-subtitle {
         font-size: .8rem;
     }
 }

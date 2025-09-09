@@ -10,9 +10,7 @@ export default function Breed() {
     const root = pageRef.current;
     if (!root) return;
 
-    const targets = root.querySelectorAll<HTMLElement>(
-      ".breed-section, .sidebar-card"
-    );
+    const targets = root.querySelectorAll<HTMLElement>(".breed-section, .club-sidebar__card");
 
     const io = new IntersectionObserver(
       (entries) =>
@@ -52,51 +50,46 @@ export default function Breed() {
   }, []);
 
   return (
-    <div ref={pageRef}>
+    <div ref={pageRef} className="breed-page">
       <Breadcrumb
         title="О породе"
         items={[{ label: "Главная", to: "/" }, { label: "О породе" }]}
       />
 
       {/* Контент */}
-      <main className="main-content">
-        <div className="content-container">
-          <div className="content-grid">
+      <main className="breed-main-content">
+        <div className="breed-content-container">
+          <div className="breed-content-grid">
             <div className="main-column">
-              <section className="history-section">
-                <h2 className="section-title">📏 Стандарт породы</h2>
-                <p className="section-subtitle">
+              {/* Стандарт породы */}
+              <section className="breed-section breed-history-section">
+                <h2 className="breed-section-title">📏 Стандарт породы</h2>
+                <p className="breed-section-subtitle">
                   Национальный клуб породы Сибирский Хаски следует официальному стандарту FCI №270. Это рабочая ездовая порода, гармонично сложенная, с умеренным костяком, лёгкой и упругой походкой, типичной для северных пород.
                 </p>
 
                 <img
-                  className="img-center"
+                  className="breed-img-center"
                   alt="Эталонный экстерьер сибирского хаски"
                   src="https://images.squarespace-cdn.com/content/v1/5e0fdcb67e94e335cab5dc5a/8a4cbc04-7b2d-4612-8d01-989f242ecb05/redwhite.jpg?format=2500w"
                 />
 
-                <div className="highlight-box">
-                  <div className="breed-section-subtitle">
-                    <p className="breed-margin"><strong>Высота в холке:</strong> кобели — 53–60 см, суки —
-                    51–56см</p>
-                    <p className="breed-margin"><strong>Вес:</strong> кобели — 20–27 кг, суки — 16–23 кг</p>
-                    <p className="breed-margin"><strong>Окрас:</strong> ддопускаются любые окрасы от чисто белого до чёрного с отметинами</p>
-                    <p style={{"margin": 0}}><strong>Глаза:</strong> голубые, карие, янтарные или разного
-                    цвета</p>
-                  </div>
+                <div className="breed-highlight-box">
+                  <p className="breed-margin"><strong>Высота в холке:</strong> кобели — 53–60 см, суки — 51–56см</p>
+                  <p className="breed-margin"><strong>Вес:</strong> кобели — 20–27 кг, суки — 16–23 кг</p>
+                  <p className="breed-margin"><strong>Окрас:</strong> допускаются любые окрасы от чисто белого до чёрного с отметинами</p>
+                  <p style={{ margin: 0 }}><strong>Глаза:</strong> голубые, карие, янтарные или разного цвета</p>
                 </div>
               </section>
 
               {/* Характер */}
-              <section className="history-section">
+              <section className="breed-section breed-history-section">
                 <div className="breed-mission-content">
-                  <h2 className="section-title">
-                    🧠 Характер и особенности
-                  </h2>
-                  <p className="section-subtitle">
+                  <h2 className="breed-section-title">🧠 Характер и особенности</h2>
+                  <p className="breed-section-subtitle">
                     Сибирские хаски — дружелюбные, энергичные и умные собаки. Они не охранники, но прекрасно чувствуют себя в активной семье и команде.
                   </p>
-                  <div className="highlight-box">
+                  <div className="breed-highlight-box">
                     <ul className="breed-mission-list">
                       {[
                         "Очень активны, нуждаются в ежедневной физической нагрузке",
@@ -104,23 +97,20 @@ export default function Breed() {
                         "Общительны с другими собаками и людьми",
                         "Обожают бег и могут преодолевать большие расстояния",
                       ].map((text, i) => (
-                        <li key={`c-${i}`}>
-                          {text}
-                        </li>
+                        <li key={`c-${i}`}>{text}</li>
                       ))}
                     </ul>
                   </div>
-
                 </div>
               </section>
 
               {/* Уход */}
-              <section className="history-section">
-                <h2 className="section-title">✂️ Уход и груминг</h2>
-                <p className="section-subtitle">
+              <section className="breed-section breed-history-section">
+                <h2 className="breed-section-title">✂️ Уход и груминг</h2>
+                <p className="breed-section-subtitle">
                   Хаски имеют густую двойную шерсть, которая требует регулярного вычёсывания, особенно в периоды линьки.
                 </p>
-                <div className="highlight-box">
+                <div className="breed-highlight-box">
                   <ul className="breed-mission-list">
                     <li>2–3 раза в неделю расчёсывание (ежедневно во время линьки)</li>
                     <li>Не требуют частого мытья</li>
@@ -131,50 +121,32 @@ export default function Breed() {
               </section>
 
               {/* Кормление */}
-              <section className="history-section">
-                <h2 className="section-title">🍽️ Кормление</h2>
-                <p className="section-subtitle">
+              <section className="breed-section breed-history-section">
+                <h2 className="breed-section-title">🍽️ Кормление</h2>
+                <p className="breed-section-subtitle">
                   Метаболизм у сибирских хаски «экономный», поэтому перекармливать их легко. Подходят как качественные промышленные корма, так и натуралка — при грамотном подборе.
                 </p>
-                <div className="terms-grid">
+                <div className="breed-terms-grid">
                   {[
                     "Важно соблюдать режим кормления",
                     "Нельзя перекармливать — склонны к худобе, но при этом легко набирают «пустой» вес",
                     "Вода — всегда в свободном доступе",
                     "Для щенков, беременных и пожилых — отдельный рацион",
                   ].map((t, i) => (
-                    <div className="term" key={`f-${i}`}>
-                      {t}
-                    </div>
+                    <div className="breed-term" key={`f-${i}`}>{t}</div>
                   ))}
                 </div>
               </section>
 
               {/* История */}
-              <section className="history-section">
-                <h2 className="section-title">📜 История породы</h2>
-                <p className="section-subtitle">
+              <section className="breed-section breed-history-section">
+                <h2 className="breed-section-title">📜 История породы</h2>
+                <p className="breed-section-subtitle">
                   Сибирские хаски происходят от ездовых собак коренных народов Северо-Восточной Сибири. В начале XX века они были вывезены на Аляску, где проявили себя в гонках и спасательных экспедициях.
                 </p>
-                <p className="section-subtitle">
+                <p className="breed-section-subtitle">
                   Порода официально признана в США в 1930 году. С тех пор она распространилась по всему миру, сохранив рабочие качества, интеллект и красоту.
                 </p>
-
-                {/* <div className="contact-cta">
-                  <h3>Хотите узнать больше?</h3>
-                  <p>
-                    Посмотрите официальный стандарт FCI и раздел о здоровье
-                    породы.
-                  </p>
-                  <div className="cta-row">
-                    <Link to="#" className="contact-cta-btn">
-                      Стандарт FCI
-                    </Link>
-                    <Link to="/health" className="contact-cta-btn contact-cta-btn--ghost">
-                      Здоровье породы
-                    </Link>
-                  </div>
-                </div> */}
               </section>
             </div>
 

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import "./ClubSidebar.css";
 
 export type Doc = { id: string; icon: string; title: string; sub?: string; to?: string };
@@ -38,54 +39,80 @@ export default function ClubSidebar({
   docs = defaultDocs,
   stats = defaultStats,
   actions = defaultActions,
-  stickyTopPx,
+  stickyTopPx = 120,
 }: Props) {
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [isSticky, setIsSticky] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (sidebarRef.current) {
+        const sidebarRect = sidebarRef.current.getBoundingClientRect();
+        const shouldSticky = sidebarRect.top <= stickyTopPx;
+        
+        if (shouldSticky !== isSticky) {
+          setIsSticky(shouldSticky);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isSticky, stickyTopPx]);
+
   return (
-    <aside
-      className="sidebar"
-      style={stickyTopPx != null ? { position: "sticky", top: `${stickyTopPx}px` } : undefined}
-    >
-      <div className="sidebar-card">
-        <h3 className="sidebar-title">📄 Документы клуба</h3>
-        <div className="document-list">
-          {docs.map((d) => (
-            <Link to={d.to ?? "#"} className="document-item" key={d.id}>
-              <div className="document-icon">{d.icon}</div>
-              <div>
-                <div className="document-title">{d.title}</div>
-                {d.sub && <div className="document-sub">{d.sub}</div>}
+    <aside className="club-sidebar" ref={sidebarRef}>
+      <div
+        className={`club-sidebar__sticky ${isSticky ? 'club-sidebar__sticky--fixed' : ''}`}
+        style={isSticky ? { top: `${stickyTopPx}px` } : {}}
+      >
+        <div className="club-sidebar__card sidebar-card">
+          <h3 className="club-sidebar__title">📄 Документы клуба</h3>
+          <div className="club-sidebar__documents">
+            {docs.map((d) => (
+              <Link to={d.to ?? "#"} className="club-sidebar__document" key={d.id}>
+                <div className="club-sidebar__document-icon">{d.icon}</div>
+                <div>
+                  <div className="club-sidebar__document-title">{d.title}</div>
+                  {d.sub && <div className="club-sidebar__document-sub">{d.sub}</div>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="club-sidebar__card sidebar-card">
+          <h3 className="club-sidebar__title">📊 Статистика клуба</h3>
+          <div className="club-sidebar__stats">
+            {stats.map((s) => (
+              <div className="club-sidebar__stat" key={s.id}>
+                <div className="club-sidebar__stat-number stat-number">{s.value}</div>
+                <div className="club-sidebar__stat-label">{s.label}</div>
               </div>
-            </Link>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="sidebar-card">
-        <h3 className="sidebar-title">📊 Статистика клуба</h3>
-        <div className="stats-grid">
-          {stats.map((s) => (
-            <div className="stat-box" key={s.id}>
-              <div className="stat-number">{s.value}</div>
-              <div className="stat-label">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="sidebar-card">
-        <h3 className="sidebar-title">🚀 Быстрые действия</h3>
-        <div className="quick-actions">
-          {actions.map((a) => (
-            <Link
-              key={a.id}
-              to={a.to}
-              className={
-                a.kind === "info" ? "qa-info" : a.kind === "neutral" ? "qa-neutral" : "qa-primary"
-              }
-            >
-              {a.label}
-            </Link>
-          ))}
+        <div className="club-sidebar__card sidebar-card">
+          <h3 className="club-sidebar__title">🚀 Быстрые действия</h3>
+          <div className="club-sidebar__quick">
+            {actions.map((a) => (
+              <Link
+                key={a.id}
+                to={a.to}
+                className={
+                  "club-sidebar__qa " +
+                  (a.kind === "info"
+                    ? "club-sidebar__qa--info"
+                    : a.kind === "neutral"
+                    ? "club-sidebar__qa--neutral"
+                    : "club-sidebar__qa--primary")
+                }
+              >
+                {a.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </aside>
