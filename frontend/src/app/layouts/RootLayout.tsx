@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ScrollToTop from "@/components/ScrollToTop";
 import { useEffect } from "react";
 
 export default function RootLayout() {
@@ -18,6 +19,7 @@ export default function RootLayout() {
 
     return (
         <>
+            <ScrollToTop />
             <AnimatedBackground />
             <Header />
             <main id="page-content">
