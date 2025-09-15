@@ -353,14 +353,23 @@
 
 /* Responsive */
 @media (max-width: 1200px) {
+    .smart-sidebar {
+        display: block;
+        }
     .smart-content-grid {
         grid-template-columns: 1fr;
         gap: 2rem;
     }
 
-    .smart-page .sidebar {
+    .smart-page .smart-sidebar {
         position: static;
         top: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .smart-page .smart-sidebar-card {
+        width: 100%;
     }
 
     .smart-cta-row {
