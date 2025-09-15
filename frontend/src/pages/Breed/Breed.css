@@ -54,9 +54,8 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 4rem;
-    align-items: start;
+    align-items: stretch;
 }
-
 .breed-content-grid>* {
     min-width: 0;
 }
@@ -277,7 +276,8 @@
 /* Responsive */
 @media (max-width: 1200px) {
     .breed-content-grid {
-        gap: 3rem;
+        grid-template-columns: 1fr;
+        gap: 2rem;
     }
 }
 
@@ -322,4 +322,24 @@
     .breed-img-center {
         max-height: 300px;
     }
+}
+
+@media (max-width: 1200px) and (min-width: 601px) {
+  .breed-page .club-sidebar,
+  .breed-page .club-sidebar__container,
+  .breed-page .club-sidebar__sticky {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .breed-page .club-sidebar__sticky {
+    position: static;
+    bottom: auto;
+  }
+
+  .breed-page .club-sidebar__card {
+    width: 100%;
+  }
 }

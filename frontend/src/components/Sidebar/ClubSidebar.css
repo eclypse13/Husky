@@ -1,6 +1,16 @@
 .club-sidebar {
-    align-self: start;
+    display: flex;
     width: 100%;
+}
+
+.club-sidebar__container {
+    display: flex;
+    position: relative;
+    flex-direction: column;
+}
+
+.club-sidebar__empty {
+    flex: 1;
 }
 
 .club-sidebar__card {
@@ -9,7 +19,7 @@
     border-radius: 20px;
     padding: 2rem;
     box-shadow: var(--shadow-soft);
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
 }
 
 .club-sidebar__title {
@@ -21,7 +31,7 @@
 
 .club-sidebar__sticky {
     position: sticky;
-    top: 120px;
+    bottom: 0;
 }
 
 /* Documents */
@@ -78,18 +88,19 @@
 .club-sidebar__stat {
     background: var(--ice-blue);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     text-align: center;
 }
 
 .club-sidebar__stat-number {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 900;
     background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: .5rem;
+    font-variant-numeric: tabular-nums;
+    min-width: 6ch;  
 }
 
 .club-sidebar__stat-label {
@@ -98,7 +109,7 @@
     font-weight: 600;
 }
 
-/* Quick Фctions */
+/* Quick Actions */
 .club-sidebar__quick {
     display: flex;
     flex-direction: column;
@@ -146,7 +157,32 @@
 }
 
 @media (max-width: 600px) {
-    .club-sidebar__card {
-        padding: 1.25rem;
-    }
+  .club-sidebar,
+  .club-sidebar__container,
+  .club-sidebar__sticky {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .club-sidebar__sticky {
+    position: static;
+    bottom: auto;
+  }
+
+  .club-sidebar__card {
+    padding: 1.25rem;
+    width: 100%;
+  }
+
+  .club-sidebar__document:hover {
+    transform: none;
+  }
+
+  .club-sidebar__stats {
+    grid-template-columns: 1fr;
+  }
 }
+
+

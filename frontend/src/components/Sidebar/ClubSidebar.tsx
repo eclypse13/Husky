@@ -49,7 +49,7 @@ export default function ClubSidebar({
       if (sidebarRef.current) {
         const sidebarRect = sidebarRef.current.getBoundingClientRect();
         const shouldSticky = sidebarRect.top <= stickyTopPx;
-        
+
         if (shouldSticky !== isSticky) {
           setIsSticky(shouldSticky);
         }
@@ -62,56 +62,58 @@ export default function ClubSidebar({
 
   return (
     <aside className="club-sidebar" ref={sidebarRef}>
-      <div
-        className={`club-sidebar__sticky ${isSticky ? 'club-sidebar__sticky--fixed' : ''}`}
-        style={isSticky ? { top: `${stickyTopPx}px` } : {}}
-      >
-        <div className="club-sidebar__card sidebar-card">
-          <h3 className="club-sidebar__title">📄 Документы клуба</h3>
-          <div className="club-sidebar__documents">
-            {docs.map((d) => (
-              <Link to={d.to ?? "#"} className="club-sidebar__document" key={d.id}>
-                <div className="club-sidebar__document-icon">{d.icon}</div>
-                <div>
-                  <div className="club-sidebar__document-title">{d.title}</div>
-                  {d.sub && <div className="club-sidebar__document-sub">{d.sub}</div>}
+      <div className="club-sidebar__container">
+        <div className="club-sidebar__empty"></div>
+        <div
+          className={`club-sidebar__sticky ${isSticky ? 'club-sidebar__sticky--fixed' : ''}`}
+        >
+          <div className="club-sidebar__card sidebar-card">
+            <h3 className="club-sidebar__title">📄 Документы клуба</h3>
+            <div className="club-sidebar__documents">
+              {docs.map((d) => (
+                <Link to={d.to ?? "#"} className="club-sidebar__document" key={d.id}>
+                  <div className="club-sidebar__document-icon">{d.icon}</div>
+                  <div>
+                    <div className="club-sidebar__document-title">{d.title}</div>
+                    {d.sub && <div className="club-sidebar__document-sub">{d.sub}</div>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="club-sidebar__card sidebar-card">
+            <h3 className="club-sidebar__title">📊 Статистика клуба</h3>
+            <div className="club-sidebar__stats">
+              {stats.map((s) => (
+                <div className="club-sidebar__stat" key={s.id}>
+                  <div className="club-sidebar__stat-number stat-number">{s.value}</div>
+                  <div className="club-sidebar__stat-label">{s.label}</div>
                 </div>
-              </Link>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="club-sidebar__card sidebar-card">
-          <h3 className="club-sidebar__title">📊 Статистика клуба</h3>
-          <div className="club-sidebar__stats">
-            {stats.map((s) => (
-              <div className="club-sidebar__stat" key={s.id}>
-                <div className="club-sidebar__stat-number stat-number">{s.value}</div>
-                <div className="club-sidebar__stat-label">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="club-sidebar__card sidebar-card">
-          <h3 className="club-sidebar__title">🚀 Быстрые действия</h3>
-          <div className="club-sidebar__quick">
-            {actions.map((a) => (
-              <Link
-                key={a.id}
-                to={a.to}
-                className={
-                  "club-sidebar__qa " +
-                  (a.kind === "info"
-                    ? "club-sidebar__qa--info"
-                    : a.kind === "neutral"
-                    ? "club-sidebar__qa--neutral"
-                    : "club-sidebar__qa--primary")
-                }
-              >
-                {a.label}
-              </Link>
-            ))}
+          <div className="club-sidebar__card sidebar-card">
+            <h3 className="club-sidebar__title">🚀 Быстрые действия</h3>
+            <div className="club-sidebar__quick">
+              {actions.map((a) => (
+                <Link
+                  key={a.id}
+                  to={a.to}
+                  className={
+                    "club-sidebar__qa " +
+                    (a.kind === "info"
+                      ? "club-sidebar__qa--info"
+                      : a.kind === "neutral"
+                        ? "club-sidebar__qa--neutral"
+                        : "club-sidebar__qa--primary")
+                  }
+                >
+                  {a.label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>

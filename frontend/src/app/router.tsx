@@ -14,6 +14,7 @@ import GalleryPage from "@/features/gallery/pages/GalleryPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
 import ToolsPage from "@/features/tools/pages/ToolsPage";
 import PresidentPage from "@/features/leadership/pages/PresidentPage";
+import SmartTools from "@/pages/SmartTools/SmartTools";
 
 export const router = createBrowserRouter([
     {
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
             { path: "profile", element: <ProfilePage /> },
             { path: "tools", element: <ToolsPage /> },
             { path: "about/president", element: <PresidentPage /> },
+            { path: "/smart-tools", element: <SmartTools /> },
         ],
     },
 ]);
