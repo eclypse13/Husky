@@ -1,0 +1,200 @@
+.health-main {
+    padding: 4rem 0;
+}
+
+.health-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Анимация */
+.health-page [data-visible="0"] {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .6s ease, transform .6s ease;
+}
+
+.health-page [data-visible="1"] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Контент */
+.health-col>* {
+    min-width: 0;
+}
+
+/* Поиск */
+.health-search-section {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 24px;
+    padding: 3rem;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 3rem;
+}
+
+.health-search-head {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.health-title {
+    font-size: 2.2rem;
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 .5rem 0;
+}
+
+.health-sub {
+    color: var(--text-light);
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.health-search-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    margin: 1.5rem 0 1.25rem;
+}
+
+.health-input {
+    padding: 1.1rem 1.25rem;
+    border: 2px solid var(--border-light);
+    border-radius: 999px;
+    background: var(--snow-white);
+    font-size: 1.05rem;
+}
+
+.health-btn {
+    padding: 1.1rem 1.6rem;
+    border-radius: 999px;
+    border: 0;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.health-btn--primary {
+    background: var(--gradient-primary);
+    color: var(--snow-white);
+}
+
+.health-btn--primary:hover {
+    filter: brightness(1.05);
+    transform: translateY(-2px);
+}
+
+.health-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.health-select {
+    padding: .85rem 1rem;
+    border: 2px solid var(--border-light);
+    border-radius: 12px;
+    background: var(--snow-white);
+}
+
+/* Статистика */
+.health-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.health-stat {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: var(--shadow-soft);
+}
+
+.health-stat-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    background: var(--gradient-primary);
+    color: var(--snow-white);
+    display: grid;
+    place-items: center;
+    font-size: 1.8rem;
+}
+
+.health-stat-number {
+    font-size: 2.1rem;
+    font-weight: 900;
+    margin-bottom: .35rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-variant-numeric: tabular-nums;
+}
+
+.health-stat-label {
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+.health-stat-trend {
+    color: var(--forest-green);
+    font-weight: 600;
+    margin-top: .25rem;
+}
+
+/* Карточки */
+.health-card {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 24px;
+    padding: 2rem;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 2rem;
+}
+
+.health-card-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 0 0 1rem 0;
+}
+
+.health-list {
+    display: grid;
+    gap: .6rem;
+    color: var(--text-dark);
+}
+
+/* Адаптив */
+@media (max-width: 1024px) {
+    .health-search-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .health-container {
+        padding: 0 1.25rem;
+    }
+
+    .health-title {
+        font-size: 1.9rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .health-container {
+        padding: 0 1rem;
+    }
+}

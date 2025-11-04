@@ -17,7 +17,7 @@
     background: var(--snow-white);
     border: 1px solid var(--border-light);
     border-radius: 20px;
-    padding: 2rem;
+    padding: 1rem 2rem;
     box-shadow: var(--shadow-soft);
     margin-bottom: 3rem;
 }

@@ -6,6 +6,7 @@ export const router = {
     breed: "/breed",
     puppies: "/puppies",
     archive: "/archive",
+    health: "/health",
     rating: "/rating",
     gallery: "/gallery",
     profile: "/profile",

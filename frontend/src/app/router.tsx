@@ -7,6 +7,7 @@ import About from "@/pages/About/About";
 import Breed from "@/pages/Breed/Breed";
 import PuppiesList from "@/pages/Puppies/PuppiesList";
 import Archive from "@/pages/Archive/Archive";
+import Health from "@/pages/Health/Health"
 import RatingPage from "@/features/rating/pages/RatingPage";
 import WinnerPage from "@/features/rating/pages/WinnerPage";
 import PedigreePage from "@/features/pedigree/pages/PedigreePage";
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
             { path: "breed", element: <Breed /> },
             { path: "puppies", element: <PuppiesList /> },
             { path: "archive", element: <Archive /> },
+            { path: "health", element: <Health /> },
             { path: "rating", element: <RatingPage /> },
             { path: "rating/winner/:year?", element: <WinnerPage /> },
             { path: "pedigree/:dogId", element: <PedigreePage /> },
