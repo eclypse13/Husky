@@ -5,7 +5,6 @@ import "./Health.css";
 export default function Health() {
   const pageRef = useRef<HTMLDivElement | null>(null);
 
-  // Reveal-on-scroll
   useEffect(() => {
     const root = pageRef.current;
     if (!root) return;
@@ -28,7 +27,6 @@ export default function Health() {
     return () => io.disconnect();
   }, []);
 
-  // Числовая анимация
   useEffect(() => {
     const nums = pageRef.current?.querySelectorAll<HTMLElement>(".health-stat-number");
     if (!nums) return;
@@ -59,7 +57,6 @@ export default function Health() {
       <main className="health-main">
         <div className="health-container">
           <div className="health-col">
-            {/* Поиск ДНК */}
             <section className="health-search-section">
               <div className="health-search-head">
                 <h2 className="health-title">Поиск по базе ДНК-тестов</h2>
@@ -72,7 +69,6 @@ export default function Health() {
                 className="health-search-form"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  // сюда добавишь API-запрос
                 }}
               >
                 <input
@@ -106,7 +102,6 @@ export default function Health() {
               </div>
             </section>
 
-            {/* Статистика */}
             <section className="health-stats">
               {[
                 { icon: "🧬", num: "8456", label: "Проведено тестов", trend: "+124 за месяц" },
@@ -129,7 +124,6 @@ export default function Health() {
               ))}
             </section>
 
-            {/* Объяснение статусов */}
             <section className="health-card">
               <h3 className="health-card-title">Объяснение статусов</h3>
               <ul className="health-list">
@@ -140,7 +134,6 @@ export default function Health() {
               </ul>
             </section>
 
-            {/* Инструкция */}
             <section className="health-card">
               <h3 className="health-card-title">Как сдать ДНК-тест</h3>
               <ul className="health-list">

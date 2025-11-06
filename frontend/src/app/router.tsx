@@ -1,14 +1,14 @@
 import { createBrowserRouter } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
 import Home from "@/pages/Home/Home";
-import NewsList from "@/pages/News/NewsList";
+import NewsList from "@/pages/News/News";
 import EventsList from "@/pages/Events/Events";
 import About from "@/pages/About/About";
 import Breed from "@/pages/Breed/Breed";
 import PuppiesList from "@/pages/Puppies/PuppiesList";
 import Archive from "@/pages/Archive/Archive";
 import Health from "@/pages/Health/Health"
-import RatingPage from "@/features/rating/pages/RatingPage";
+import Rating from "@/pages/Rating/Rating";
 import WinnerPage from "@/features/rating/pages/WinnerPage";
 import PedigreePage from "@/features/pedigree/pages/PedigreePage";
 import GalleryPage from "@/features/gallery/pages/GalleryPage";
@@ -30,7 +30,7 @@ export const router = createBrowserRouter([
             { path: "puppies", element: <PuppiesList /> },
             { path: "archive", element: <Archive /> },
             { path: "health", element: <Health /> },
-            { path: "rating", element: <RatingPage /> },
+            { path: "rating", element: <Rating /> },
             { path: "rating/winner/:year?", element: <WinnerPage /> },
             { path: "pedigree/:dogId", element: <PedigreePage /> },
             { path: "gallery", element: <GalleryPage /> },
