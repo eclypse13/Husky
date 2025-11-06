@@ -5,12 +5,12 @@ import NewsList from "@/pages/News/News";
 import EventsList from "@/pages/Events/Events";
 import About from "@/pages/About/About";
 import Breed from "@/pages/Breed/Breed";
-import PuppiesList from "@/pages/Puppies/PuppiesList";
+import PuppiesList from "@/pages/Puppies/AllPuppies";
 import Archive from "@/pages/Archive/Archive";
 import Health from "@/pages/Health/Health"
 import Rating from "@/pages/Rating/Rating";
 import WinnerPage from "@/features/rating/pages/WinnerPage";
-import PedigreePage from "@/features/pedigree/pages/PedigreePage";
+import Pedigree from "@/pages/Pedigree/Pedigree";
 import GalleryPage from "@/features/gallery/pages/GalleryPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
 import ToolsPage from "@/features/tools/pages/ToolsPage";
@@ -32,7 +32,7 @@ export const router = createBrowserRouter([
             { path: "health", element: <Health /> },
             { path: "rating", element: <Rating /> },
             { path: "rating/winner/:year?", element: <WinnerPage /> },
-            { path: "pedigree/:dogId", element: <PedigreePage /> },
+            { path: "pedigree", element: <Pedigree /> },
             { path: "gallery", element: <GalleryPage /> },
             { path: "profile", element: <ProfilePage /> },
             { path: "tools", element: <ToolsPage /> },
