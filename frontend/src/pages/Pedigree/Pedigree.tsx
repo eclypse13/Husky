@@ -3,7 +3,6 @@ import * as d3 from "d3";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./Pedigree.css";
 
-/** Твои данные из html-файла */
 type DogNode = {
   name: string;
   img?: string;
@@ -31,7 +30,6 @@ const baseTree: DogNode = {
   ],
 };
 
-/** Разворачиваем «♂/♀» как в html-демо (только подписи глубже корня) */
 function expandTree(node: DogNode, level: number, maxLevel: number): DogNode {
   if (level >= maxLevel) return node;
   return {
@@ -43,7 +41,6 @@ function expandTree(node: DogNode, level: number, maxLevel: number): DogNode {
   };
 }
 
-/** высота полотна по глубине — как в html */
 const HEIGHT_BY_DEPTH: Record<number, number> = {
   3: 400,
   4: 800,
@@ -58,7 +55,6 @@ export default function Pedigree() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const gRef = useRef<SVGGElement | null>(null);
 
-  /** подготовим данные один раз на смену depth */
   const data = useMemo<DogNode>(() => expandTree(baseTree, 1, depth), [depth]);
 
   useEffect(() => {
@@ -74,29 +70,27 @@ export default function Pedigree() {
     const render = () => {
       const frameW = frame.clientWidth;
 
-      // высота полотна
+      // Высота полотна
       const height = HEIGHT_BY_DEPTH[depth];
 
-      // размеры узла
+      // Размеры узла
       const nodeW = 150;
       const nodeH = 56;
       const imgSize = 36;
 
-      const hGap = 80 - (depth - 3) * 10; // 3пок=120, 6пок≈90, но не меньше 60
-      const vGap = 15 - (depth - 3) * 8;   // 3пок=85, 6пок≈61, но не меньше 55
+      const hGap = 80 - (depth - 3) * 10;
+      const vGap = 15 - (depth - 3) * 8;
 
-      // ширина контента (колонки + поля)
+      // Ширина контента
       const leftPad = 100, rightPad = 100;
       const columns = depth;
       const contentW = leftPad + (columns - 1) * (nodeW + hGap) + nodeW + rightPad;
 
-      // нужен ли скролл
       const needScroll = contentW > frameW;
 
-      // очистка
+      // Очистка
       g.selectAll("*").remove();
 
-      // настраиваем контейнеры и svg
       if (needScroll) {
         frame.classList.add("is-scroll");
         scroll.style.width = `${contentW}px`;
@@ -111,27 +105,23 @@ export default function Pedigree() {
           .attr("preserveAspectRatio", "xMinYMin meet");
       }
 
-      // раскладка дерева фиксированным шагом
       const rootData = d3.hierarchy<DogNode>(data);
       const layout = d3.tree<DogNode>().nodeSize([vGap + nodeH, nodeW + hGap]);
       const root = layout(rootData) as d3.HierarchyPointNode<DogNode>;
 
-      // КЛЮЧЕВОЕ: рассчитываем вертикальный базовый сдвиг,
-      // чтобы корень оказался ПО СЕРЕДИНЕ, и при этом ничего не обрезалось.
       const nodes = root.descendants() as d3.HierarchyPointNode<DogNode>[];
       const [minX, maxX] = d3.extent(nodes, (d) => d.x) as [number, number];
-      const padV = 30; // вертикальные внутренние отступы
-      // базовый топ так, чтобы корень был в центре высоты
+      const padV = 30; // Вертикальные внутренние отступы
+      // Базовый топ так, чтобы корень был в центре высоты
       let baseTop = Math.round(height / 2 - root.x);
-      // ограничим, чтобы верхние/нижние узлы не выходили за границы
-      const minTop = padV - minX - nodeH / 2;                         // самый верхний узел + отступ
-      const maxTop = height - (maxX + nodeH / 2) - padV;              // самый нижний узел + отступ
+      const minTop = padV - minX - nodeH / 2;                         // Самый верхний узел + отступ
+      const maxTop = height - (maxX + nodeH / 2) - padV;              // Самый нижний узел + отступ
       baseTop = Math.max(minTop, Math.min(maxTop, baseTop));
 
       const TX = (d: d3.HierarchyPointNode<DogNode>) =>
         `translate(${leftPad + d.y}, ${baseTop + d.x})`;
 
-      // рёбра
+      // Рёбра
       const links = root.links() as d3.HierarchyPointLink<DogNode>[];
       g.selectAll<SVGPathElement, d3.HierarchyPointLink<DogNode>>(".pdg-link")
         .data(links)
@@ -146,7 +136,7 @@ export default function Pedigree() {
           return `M${x0},${y0}H${midX}V${y1}H${x1}`;
         });
 
-      // узлы
+      // Узлы
       const node = g
         .selectAll<SVGGElement, d3.HierarchyPointNode<DogNode>>(".pdg-node")
         .data(nodes)

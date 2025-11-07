@@ -6,7 +6,6 @@ import "./AllPuppies.css";
 export default function AllPuppies() {
   const pageRef = useRef<HTMLDivElement | null>(null);
 
-  // reveal-анимация секций
   useEffect(() => {
     const root = pageRef.current;
     if (!root) return;
@@ -52,7 +51,6 @@ export default function AllPuppies() {
       <main className="puppies-main">
         <div className="puppies-container">
           <div className="puppies-grid">
-            {/* Левая колонка — выбранный помёт + статистика */}
             <div className="puppies-col">
               <section className="puppies-section puppies-litter" id="selected-litter">
                 <h3 className="puppies-litter-title">Питомник {litter.kennel} ({litter.city})</h3>
@@ -68,7 +66,6 @@ export default function AllPuppies() {
                   ))}
                 </div>
 
-                {/* Родословная 3 колена (упрощённый макет из HTML) */}
                 <div className="pedigree-block">
                   <h4 className="pedigree-title">🧬 Родословная (3 колена)</h4>
                   <div className="pedigree-grid">
@@ -115,7 +112,6 @@ export default function AllPuppies() {
               </section>
             </div>
 
-            {/* Правая колонка — поиск + результаты */}
             <div className="puppies-col">
               <section className="puppies-section search-section">
                 <div className="search-header">
@@ -125,7 +121,7 @@ export default function AllPuppies() {
 
                 <form className="filters-row" onSubmit={(e) => e.preventDefault()}>
                   {[
-                    "Питомник","Наличие","Возраст","Окрас","Глаза","С фото"
+                    "Питомник", "Наличие", "Возраст", "Окрас", "Глаза", "С фото"
                   ].map((label, idx) => (
                     <select key={idx} className="filter-select" defaultValue="">
                       <option value="" disabled>{label}</option>

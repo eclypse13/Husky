@@ -1,4 +1,6 @@
-.pedigree-page { padding-bottom: 4rem; }
+.pedigree-page {
+  padding-bottom: 4rem;
+}
 
 .pedigree-header {
   max-width: 1400px;
@@ -12,6 +14,7 @@
   font-weight: 900;
   margin: 0 0 .75rem;
 }
+
 .pedigree-title-accent {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
@@ -29,80 +32,14 @@
   justify-content: center;
 }
 
-.pedigree-select{
+.pedigree-select {
   padding: .9rem 2.5rem .9rem 1rem;
   border: 2px solid var(--border-light);
   border-radius: 12px;
-  background: var(--snow-white)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
-    no-repeat right 1rem center;
+  background: var(--snow-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 1rem center;
   background-size: 12px;
   appearance: none;
   font-weight: 600;
-}
-
-/* Каркас холста — как «карточка» с тенью, без горизонтальной прокрутки */
-.pedigree-frame{
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.25rem;
-  background: var(--snow-white);
-  border: 1px solid var(--border-light);
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;               /* не даём контенту вылезать */
-}
-
-/* Сам svg растягивается на всю ширину, высота задаётся скриптом */
-.pedigree-svg{
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* Стили узла/рёбер — 1:1 с html */
-.pdg-link{
-  fill: none;
-  stroke: #3b82f6;
-  stroke-width: 3px;
-}
-
-.pdg-node rect{
-  fill: #1e3a8a;
-  stroke: #93c5fd;
-  stroke-width: 2px;
-}
-
-.pdg-fo{
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  line-height: 1.35;
-  color: #fff;
-  font-size: 12px;
-}
-
-.pdg-img{
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid #fff;
-  display: block;
-}
-
-.pdg-title{
-  color: #93c5fd;
-}
-
-/* Адаптив */
-@media (max-width: 900px){
-  .pedigree-frame{ padding: .75rem; border-radius: 18px; }
-}
-
-@media (max-width: 600px){
-  .pedigree-header{ padding: 0 1rem; }
-  .pedigree-title{ font-size: 1.6rem; }
 }
 
 .pedigree-frame {
@@ -116,13 +53,78 @@
   overflow: hidden;
 }
 
-/* Внутренний слой, куда кладём svg */
-.pedigree-scroll {
-  width: 100%;      /* по умолчанию тянемся на ширину карточки */
+.pedigree-svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-/* Когда дерево шире карточки — включаем горизонтальный скролл на карточке
-   и даём внутреннему слою реальную ширину (выставляется JS-ом). */
+.pdg-link {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 3px;
+}
+
+.pdg-node rect {
+  fill: #1e3a8a;
+  stroke: #93c5fd;
+  stroke-width: 2px;
+}
+
+.pdg-fo {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  line-height: 1.35;
+  color: #fff;
+  font-size: 12px;
+}
+
+.pdg-img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #fff;
+  display: block;
+}
+
+.pdg-title {
+  color: #93c5fd;
+}
+
+@media (max-width: 900px) {
+  .pedigree-frame {
+    padding: .75rem;
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 600px) {
+  .pedigree-header {
+    padding: 0 1rem;
+  }
+
+  .pedigree-title {
+    font-size: 1.6rem;
+  }
+}
+
+.pedigree-frame {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  background: var(--snow-white);
+  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.pedigree-scroll {
+  width: 100%;
+}
+
 .pedigree-frame.is-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -133,10 +135,11 @@
 .pedigree-svg {
   display: block;
   width: 100%;
-  height: auto;     /* высота управляется атрибутом height из JS */
+  height: auto;
 }
 
-/* косметика на очень узких */
 @media (max-width: 480px) {
-  .pdg-title { font-size: 11px; }
+  .pdg-title {
+    font-size: 11px;
+  }
 }
