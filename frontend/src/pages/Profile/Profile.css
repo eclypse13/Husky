@@ -1,0 +1,358 @@
+.profile-page .profile-main {
+    padding: 4rem 0
+}
+
+.profile-page .profile-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem
+}
+
+.profile-page .search-section {
+    background: var(--snow-white);
+    border-radius: 24px;
+    padding: 3rem;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 3rem;
+    border: 1px solid var(--border-light)
+}
+
+.profile-page .search-title {
+    font-size: clamp(1.8rem, 1.2rem + 1.6vw, 2.5rem);
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 1rem
+}
+
+.profile-page .profile-two-col {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    align-items: start
+}
+
+.profile-page .stat-card {
+    background: var(--snow-white);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-light);
+    text-align: center;
+    position: relative;
+    overflow: hidden
+}
+
+.profile-page .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-secondary)
+}
+
+.profile-page .stat-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--snow-white);
+    margin: 0 auto 1.5rem
+}
+
+.profile-page .stat-number {
+    font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.5rem);
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: .5rem
+}
+
+.profile-page .profile-edit {
+    cursor: pointer;
+    margin-left: .5rem
+}
+
+.profile-page .stat-label {
+    color: var(--text-light);
+    font-weight: 600;
+    margin-bottom: .5rem
+}
+
+.profile-page .stat-trend {
+    font-size: .9rem;
+    color: var(--forest-green);
+    font-weight: 600
+}
+
+.profile-page .profile-details-list {
+    margin-top: 1rem;
+    text-align: left
+}
+
+.profile-page .profile-details-list a {
+    color: var(--bright-blue);
+    text-decoration: none
+}
+
+.profile-page .sidebar-card {
+    background: var(--snow-white);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-light)
+}
+
+.profile-page .sidebar-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 1.5rem
+}
+
+.profile-page .quick-links-ul {
+    list-style: none;
+    padding-left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem
+}
+
+.profile-page .quick-link {
+    padding: .8rem 0;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    transition: .3s ease
+}
+
+.profile-page .quick-link:hover {
+    background: var(--ice-blue);
+    transform: translateX(5px)
+}
+
+.profile-page .results-grid {
+    display: grid;
+    gap: 1.5rem
+}
+
+.profile-page .dog-card {
+    background: var(--snow-white);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-light);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    align-items: center;
+    transition: .3s ease
+}
+
+.profile-page .dog-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover)
+}
+
+.profile-page .dog-avatar {
+    width: 80px;
+    height: 80px;
+    background: var(--ice-blue);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--bright-blue)
+}
+
+.profile-page .dog-info {
+    min-width: 0
+}
+
+.profile-page .dog-info h3 {
+    font-size: clamp(1rem, .9rem + .6vw, 1.3rem);
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: .5rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    word-break: break-word
+}
+
+.profile-page .dog-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-bottom: .5rem
+}
+
+.profile-page .dog-detail {
+    font-size: .9rem;
+    color: var(--text-light)
+}
+
+.profile-page .dog-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem
+}
+
+.profile-page .badge {
+    padding: .2rem .8rem;
+    border-radius: 50px;
+    font-size: .8rem;
+    font-weight: 600
+}
+
+.profile-page .badge-champion {
+    background: var(--gradient-secondary);
+    color: var(--snow-white)
+}
+
+.profile-page .badge-health {
+    background: var(--ice-blue);
+    color: var(--bright-blue)
+}
+
+.profile-page .dog-actions {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem
+}
+
+.profile-page .action-button {
+    padding: .5rem 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: .9rem;
+    font-weight: 600;
+    transition: .2s ease;
+    text-align: center;
+    white-space: nowrap
+}
+
+.profile-page .btn-primary-small {
+    background: var(--bright-blue);
+    color: var(--snow-white)
+}
+
+.profile-page .btn-secondary-small {
+    background: var(--arctic-gray);
+    color: var(--text-dark)
+}
+
+.profile-page .action-button:hover {
+    transform: translateY(-1px)
+}
+
+.profile-page .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-top: 1rem
+}
+
+.profile-page .form-label {
+    font-weight: 600;
+    color: var(--text-dark)
+}
+
+.profile-page .form-input {
+    padding: .8rem;
+    border: 2px solid var(--border-light);
+    border-radius: 12px;
+    font-size: .95rem;
+    background: var(--snow-white);
+    transition: .2s ease
+}
+
+.profile-page .form-input:focus {
+    outline: none;
+    border-color: var(--bright-blue)
+}
+
+.profile-page .search-button {
+    background: var(--gradient-primary);
+    color: var(--snow-white);
+    border: none;
+    padding: 1.2rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: .2s ease;
+    margin-top: 1rem;
+}
+
+.profile-page .search-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+@media (max-width: 1200px) {
+    .profile-page .profile-two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-page .profile-container {
+        padding: 0 1.5rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .profile-page .dog-card {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .profile-page .dog-actions {
+        flex-direction: row;
+        justify-content: center
+    }
+
+    .profile-page .dog-avatar {
+        margin: 0 auto;
+    }
+
+    .profile-page .dog-details,
+    .profile-page .dog-badges {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-page .profile-container {
+        padding: 0 1rem;
+    }
+
+    .profile-page .search-section {
+        padding: 2rem;
+    }
+
+    .profile-page .dog-avatar {
+        width: 64px;
+        height: 64px;
+        font-size: 1.6rem;
+    }
+
+    .profile-page .dog-actions .action-button {
+        width: 100%;
+    }
+
+    .profile-page .dog-actions {
+        flex-direction: column;
+    }
+}
