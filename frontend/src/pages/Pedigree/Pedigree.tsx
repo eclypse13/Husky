@@ -45,15 +45,16 @@ function expandTree(node: DogNode, level: number, maxLevel: number): DogNode {
 
 /** высота полотна по глубине — как в html */
 const HEIGHT_BY_DEPTH: Record<number, number> = {
-  3: 800,
-  4: 1300,
-  5: 2000,
-  6: 2600,
+  3: 400,
+  4: 800,
+  5: 1400,
+  6: 2300,
 };
 
 export default function Pedigree() {
   const [depth, setDepth] = useState<number>(3);
   const frameRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const gRef = useRef<SVGGElement | null>(null);
 
@@ -61,47 +62,86 @@ export default function Pedigree() {
   const data = useMemo<DogNode>(() => expandTree(baseTree, 1, depth), [depth]);
 
   useEffect(() => {
-    const wrap = frameRef.current;
-    const svg = d3.select(svgRef.current);
-    const g = d3.select(gRef.current);
-    if (!wrap || !svgRef.current || !gRef.current) return;
+    const frame = frameRef.current;
+    const scroll = scrollRef.current;
+    const svgEl = svgRef.current;
+    const gEl = gRef.current;
+    if (!frame || !scroll || !svgEl || !gEl) return;
 
-    // функция перерисовки — зависит от ширины контейнера
+    const svg = d3.select(svgEl);
+    const g = d3.select(gEl);
+
     const render = () => {
-      const width = wrap.clientWidth;                // ширина карточки
-      const height = HEIGHT_BY_DEPTH[depth] ?? 1600; // как в html-версии
-      const marginLeft = 16;                         // чуть воздуха слева
+      const frameW = frame.clientWidth;
 
-      // чистим
+      // высота полотна
+      const height = HEIGHT_BY_DEPTH[depth];
+
+      // размеры узла
+      const nodeW = 150;
+      const nodeH = 56;
+      const imgSize = 36;
+
+      const hGap = 80 - (depth - 3) * 10; // 3пок=120, 6пок≈90, но не меньше 60
+      const vGap = 15 - (depth - 3) * 8;   // 3пок=85, 6пок≈61, но не меньше 55
+
+      // ширина контента (колонки + поля)
+      const leftPad = 100, rightPad = 100;
+      const columns = depth;
+      const contentW = leftPad + (columns - 1) * (nodeW + hGap) + nodeW + rightPad;
+
+      // нужен ли скролл
+      const needScroll = contentW > frameW;
+
+      // очистка
       g.selectAll("*").remove();
 
-      // холст
-      svg.attr("width", width).attr("height", height)
-         .attr("viewBox", `0 0 ${width} ${height}`)
-         .attr("preserveAspectRatio", "xMinYMin meet");
+      // настраиваем контейнеры и svg
+      if (needScroll) {
+        frame.classList.add("is-scroll");
+        scroll.style.width = `${contentW}px`;
+        svg.attr("width", contentW).attr("height", height).attr("viewBox", null);
+      } else {
+        frame.classList.remove("is-scroll");
+        scroll.style.width = "100%";
+        svg
+          .attr("width", frameW)
+          .attr("height", height)
+          .attr("viewBox", `0 0 ${contentW} ${height}`)
+          .attr("preserveAspectRatio", "xMinYMin meet");
+      }
 
-      // раскладка дерева: по X — высота, по Y — ширина минус поля
-      const innerW = Math.max(700, width - 2 * marginLeft);
-      const hRoot = d3.hierarchy<DogNode>(data);
-      const layout = d3.tree<DogNode>().size([height - 100, innerW - 200]);
-      const root = layout(hRoot) as d3.HierarchyPointNode<DogNode>;
-      const treeLayout = d3.tree<DogNode>().size([height - 100, innerW - 200]); // -200, чтобы карточки не прилипали к правой границе
-      treeLayout(root);
+      // раскладка дерева фиксированным шагом
+      const rootData = d3.hierarchy<DogNode>(data);
+      const layout = d3.tree<DogNode>().nodeSize([vGap + nodeH, nodeW + hGap]);
+      const root = layout(rootData) as d3.HierarchyPointNode<DogNode>;
 
-      // переносим координаты: меняем местами x/y, чуть двигаем вправо/вниз
-      const tx = (d: d3.HierarchyPointNode<DogNode>) =>
-        `translate(${d.y + 100}, ${d.x + 50})`;
+      // КЛЮЧЕВОЕ: рассчитываем вертикальный базовый сдвиг,
+      // чтобы корень оказался ПО СЕРЕДИНЕ, и при этом ничего не обрезалось.
+      const nodes = root.descendants() as d3.HierarchyPointNode<DogNode>[];
+      const [minX, maxX] = d3.extent(nodes, (d) => d.x) as [number, number];
+      const padV = 30; // вертикальные внутренние отступы
+      // базовый топ так, чтобы корень был в центре высоты
+      let baseTop = Math.round(height / 2 - root.x);
+      // ограничим, чтобы верхние/нижние узлы не выходили за границы
+      const minTop = padV - minX - nodeH / 2;                         // самый верхний узел + отступ
+      const maxTop = height - (maxX + nodeH / 2) - padV;              // самый нижний узел + отступ
+      baseTop = Math.max(minTop, Math.min(maxTop, baseTop));
 
-      // рёбра (ортогональные — как в html)
+      const TX = (d: d3.HierarchyPointNode<DogNode>) =>
+        `translate(${leftPad + d.y}, ${baseTop + d.x})`;
+
+      // рёбра
+      const links = root.links() as d3.HierarchyPointLink<DogNode>[];
       g.selectAll<SVGPathElement, d3.HierarchyPointLink<DogNode>>(".pdg-link")
-        .data(root.links())
+        .data(links)
         .join("path")
         .attr("class", "pdg-link")
         .attr("d", (d) => {
-          const x0 = d.source.y + 100;
-          const y0 = d.source.x + 50;
-          const x1 = d.target.y + 100;
-          const y1 = d.target.x + 50;
+          const s = d.source as d3.HierarchyPointNode<DogNode>;
+          const t = d.target as d3.HierarchyPointNode<DogNode>;
+          const x0 = leftPad + s.y, y0 = baseTop + s.x;
+          const x1 = leftPad + t.y, y1 = baseTop + t.x;
           const midX = (x0 + x1) / 2;
           return `M${x0},${y0}H${midX}V${y1}H${x1}`;
         });
@@ -109,40 +149,36 @@ export default function Pedigree() {
       // узлы
       const node = g
         .selectAll<SVGGElement, d3.HierarchyPointNode<DogNode>>(".pdg-node")
-        .data(root.descendants())
+        .data(nodes)
         .join("g")
         .attr("class", "pdg-node")
-        .attr("transform", tx);
+        .attr("transform", TX);
 
-      // прямоугольник карточки (как в html: 160x60, скругление 12)
       node
         .append("rect")
-        .attr("x", -80)
-        .attr("y", -30)
-        .attr("width", 160)
-        .attr("height", 60)
+        .attr("x", -nodeW / 2)
+        .attr("y", -nodeH / 2)
+        .attr("width", nodeW)
+        .attr("height", nodeH)
         .attr("rx", 12)
         .attr("ry", 12);
 
-      // содержимое карточки foreignObject — фото + имя + титул
       node
         .append("foreignObject")
-        .attr("x", -75)
-        .attr("y", -26)
-        .attr("width", 150)
-        .attr("height", 52)
+        .attr("x", -nodeW / 2 + 5)
+        .attr("y", -nodeH / 2 + 4)
+        .attr("width", nodeW - 10)
+        .attr("height", nodeH - 8)
         .html((d) => {
           const img = d.data.img
-            ? `<img src="${d.data.img}" class="pdg-img" />`
+            ? `<img src="${d.data.img}" class="pdg-img" style="width:${imgSize}px;height:${imgSize}px" />`
             : "";
-          const title = d.data.title
-            ? `<div class="pdg-title">${d.data.title}</div>`
-            : "";
+          const title = d.data.title ? `<div class="pdg-title">${d.data.title}</div>` : "";
           return `
             <div class="pdg-fo">
               ${img}
               <div class="pdg-text">
-                <div>${d.data.name}</div>
+                <div class="pdg-name">${d.data.name}</div>
                 ${title}
               </div>
             </div>
@@ -150,13 +186,9 @@ export default function Pedigree() {
         });
     };
 
-    // первичная отрисовка
     render();
-
-    // ресайз-наблюдатель, чтобы svg всегда вписывался в карточку
-    const ro = new ResizeObserver(() => render());
-    ro.observe(wrap);
-
+    const ro = new ResizeObserver(render);
+    ro.observe(frame);
     return () => ro.disconnect();
   }, [data, depth]);
 
@@ -191,9 +223,11 @@ export default function Pedigree() {
       </section>
 
       <section className="pedigree-frame" ref={frameRef} aria-label="Генеалогическое дерево">
-        <svg ref={svgRef} className="pedigree-svg" role="img" aria-hidden="false">
-          <g ref={gRef} />
-        </svg>
+        <div className="pedigree-scroll" ref={scrollRef}>
+          <svg ref={svgRef} className="pedigree-svg" role="img" aria-hidden="false">
+            <g ref={gRef} />
+          </svg>
+        </div>
       </section>
     </div>
   );
