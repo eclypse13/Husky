@@ -13,6 +13,9 @@ import Pedigree from "@/pages/Pedigree/Pedigree";
 import President from "@/pages/President/President";
 import SmartTools from "@/pages/SmartTools/SmartTools";
 import Profile from "@/pages/Profile/Profile";
+import PublicGallery from "@/pages/PublicGallery/PublicGallery";
+import PublicWinner from "@/pages/PublicWinner/PublicWinner";
+
 
 export const router = createBrowserRouter([
     {
@@ -32,6 +35,8 @@ export const router = createBrowserRouter([
             { path: "president", element: <President /> },
             { path: "profile", element: <Profile /> },
             { path: "/smart-tools", element: <SmartTools /> },
+            { path: "/public-gallery", element: <PublicGallery /> },
+            { path: "/public-winner", element: <PublicWinner /> },
         ],
     },
 ]);

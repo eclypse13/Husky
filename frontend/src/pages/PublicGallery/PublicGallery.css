@@ -1,0 +1,140 @@
+.public-page .public-main {
+  padding: 4rem 0;
+}
+
+.public-page .public-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Заголовки и описание */
+.public-page .public-title {
+  font-size: clamp(1.6rem, 1rem + 1.2vw, 2.2rem);
+  font-weight: 900;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: .5rem;
+  margin-top: 0;
+  text-align: center;
+}
+
+.public-page .public-subtitle {
+  color: var(--text-dark);
+  opacity: .9;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-size: clamp(0.9rem, 0.8rem + 0.4vw, 1rem);
+  line-height: 1.6;
+}
+
+/* ---- Галерея ---- */
+.public-page .public-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  justify-items: center;
+}
+
+/* карточка */
+.public-page .dog-card {
+  background: #f0f5ff;
+  border-radius: 16px;
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-light);
+  transition: transform .2s ease, box-shadow .2s ease;
+  width: 100%;
+  max-width: 240px;
+}
+
+.public-page .dog-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* изображение */
+.public-page .dog-card img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* подписи */
+.public-page .dog-card strong {
+  display: block;
+  margin-top: .6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.public-page .dog-card .dog-info {
+  display: block;
+  margin-top: .3rem;
+  font-size: .85rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+/* Контакты */
+.public-page .public-contacts {
+  margin-top: 2rem;
+  color: var(--text-dark);
+  text-align: center;
+  font-size: .95rem;
+}
+
+/* ====== Адаптив ====== */
+
+/* планшеты */
+@media (max-width: 1024px) {
+  .public-page .public-container {
+    padding: 0 1.5rem;
+  }
+  .public-page .public-gallery-grid {
+    gap: 1.25rem;
+  }
+}
+
+/* телефоны */
+@media (max-width: 768px) {
+  .public-page .public-container {
+    padding: 0 1rem;
+  }
+  .public-page .public-title {
+    font-size: 1.6rem;
+  }
+  .public-page .dog-card {
+    max-width: 100%;
+    padding: 1rem;
+  }
+}
+
+/* узкие экраны ≤480px */
+@media (max-width: 480px) {
+  .public-page .public-main {
+    padding: 2rem 0;
+  }
+  .public-page .public-title {
+    font-size: 1.4rem;
+  }
+  .public-page .dog-card {
+    padding: .75rem;
+  }
+  .public-page .dog-card strong {
+    font-size: .95rem;
+  }
+  .public-page .dog-card .dog-info {
+    font-size: .8rem;
+  }
+  .public-page .public-contacts {
+    font-size: .85rem;
+  }
+}

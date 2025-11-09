@@ -1,0 +1,179 @@
+.public-winner-page .pw-main {
+    padding: 4rem 0;
+}
+
+.public-winner-page .pw-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Карточка-обертка */
+.public-winner-page .pw-card {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 24px;
+    box-shadow: var(--shadow-soft);
+    padding: 3rem;
+}
+
+/* Заголовок/описание */
+.public-winner-page .pw-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.public-winner-page .pw-title {
+    font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.2rem);
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-top: 0;
+}
+
+.public-winner-page .pw-subtitle {
+    margin-top: .6rem;
+    color: var(--text-light);
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Сетка 2 фр / 1 фр */
+.public-winner-page .pw-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+}
+
+/* Левая колонка */
+.public-winner-page .pw-left {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Правая колонка — победитель года */
+.public-winner-page .pw-right {
+    background: var(--ice-blue);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .05);
+}
+
+.public-winner-page .pw-winner-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: .75rem;
+    margin-top: 0;
+}
+
+/* Карточка собаки */
+.public-winner-page .pw-dog-card {
+    background: #f0f5ff;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 1rem;
+    text-align: center;
+    transition: transform .2s ease, box-shadow .2s ease;
+    box-shadow: var(--shadow-soft);
+}
+
+.public-winner-page .pw-dog-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+}
+
+.public-winner-page .pw-dog-card--tight {
+    margin-bottom: 1rem;
+}
+
+.public-winner-page .pw-dog-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.public-winner-page .pw-dog-name {
+    display: block;
+    margin-top: .5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.public-winner-page .pw-dog-meta {
+    display: block;
+    margin-top: .3rem;
+    font-size: .85rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+/* Бейдж рейтинга */
+.public-winner-page .pw-rating-badge,
+.public-winner-page .pw-rating-badge:where(*) {
+    /* совместимость */
+    display: inline-block;
+    margin-top: .45rem;
+    padding: .4rem .8rem;
+    font-size: .85rem;
+    border-radius: 12px;
+    background: #1e40af;
+    color: #fff;
+}
+
+/* Список достижений победителя */
+.public-winner-page .pw-winner-list {
+    margin-top: .75rem;
+    padding-left: 1.1rem;
+    color: #475569;
+    line-height: 1.6;
+    font-size: .95rem;
+}
+
+/* Адаптив */
+@media (max-width: 1200px) {
+    .public-winner-page .pw-container {
+        padding: 0 1.5rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .public-winner-page .pw-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .public-winner-page .pw-right {
+        order: 2;
+    }
+
+    .public-winner-page .pw-left {
+        order: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .public-winner-page .pw-container {
+        padding: 0 1rem;
+    }
+
+    .public-winner-page .pw-card {
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .public-winner-page .pw-card {
+        padding: 1.25rem;
+        border-radius: 18px;
+    }
+
+    .public-winner-page .pw-right {
+        padding: 1rem;
+    }
+}
