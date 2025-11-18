@@ -282,13 +282,21 @@ export default function Home() {
 
           <div className="home-map-container">
             <div className="home-russia-map">
-              <iframe
-                className="home-map-iframe"
-                src="/husky_kennels_map_v4_thebest.html"
-                title="Интерактивная карта питомников НКП"
-                loading="lazy"
-                scrolling="no"
-              />
+              <svg viewBox="0 0 1000 600" className="home-map-svg">
+                <path d="M100,200 L200,180 L300,160 L400,140 L500,130 L600,125 L700,120 L800,125 L850,140 L900,160 L920,200 L900,250 L850,300 L800,350 L700,380 L600,400 L500,420 L400,430 L300,425 L200,410 L150,380 L100,320 Z"
+                  fill="var(--ice-blue)" stroke="var(--bright-blue)" strokeWidth="2" />
+                {[
+                  { cx: 300, cy: 250, r: 12, t: "Москва — 45 питомников" },
+                  { cx: 320, cy: 280, r: 10, t: "Санкт-Петербург — 28 питомников" },
+                  { cx: 450, cy: 300, r: 8, t: "Екатеринбург — 15 питомников" },
+                  { cx: 600, cy: 280, r: 7, t: "Новосибирск — 12 питомников" },
+                  { cx: 750, cy: 250, r: 6, t: "Владивосток — 8 питомников" },
+                  { cx: 400, cy: 200, r: 5, t: "Архангельск — 6 питомников" },
+                ].map((p, i) => (
+                  <circle key={i} cx={p.cx} cy={p.cy} r={p.r} className="home-kennel-point"
+                    onClick={() => alert(`Информация: ${p.t}`)} />
+                ))}
+              </svg>
             </div>
 
             <div className="home-map-stats">
