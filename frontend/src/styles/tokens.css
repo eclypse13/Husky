@@ -96,6 +96,10 @@ body {
     width: 100%;
 }
 
+.mt-0 {
+    margin-top: 0;
+}
+
 @media (max-width: 600px) {
     .sidebar-card {
         padding: 1.25rem;

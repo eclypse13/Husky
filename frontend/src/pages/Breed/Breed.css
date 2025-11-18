@@ -118,6 +118,7 @@
     font-weight: 800;
     color: var(--text-dark);
     margin-bottom: 2rem;
+    margin-top: 0;
     position: relative;
     line-height: 1.25;
 }
@@ -272,6 +273,10 @@
 .breed-margin {
     margin: 0 0 1rem 0;
 }
+
+.breed-page .club-sidebar__document {
+    line-height: 1.6rem;
+  }
 
 /* Responsive */
 @media (max-width: 1200px) {

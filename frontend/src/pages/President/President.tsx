@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
+import { getDict, pickValue } from "@/lib/dict";
 import "./President.css";
 
 export default function President() {
     const pageRef = useRef<HTMLDivElement | null>(null);
+    const [presidentBio, setPresidentBio] = useState<string>("Президент НКП Сибирский Хаски");
 
     useEffect(() => {
         const root = pageRef.current;
@@ -50,6 +52,20 @@ export default function President() {
         });
     }, []);
 
+    useEffect(() => {
+        let ignore = false;
+        getDict()
+            .then((dict) => {
+                if (ignore) return;
+                const bio = pickValue(dict, "BOARD_1_BIO", "ru");
+                if (bio) setPresidentBio(bio);
+            })
+            .catch(() => {});
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
     return (
         <div ref={pageRef} className="president-page">
             <Breadcrumb
@@ -74,7 +90,7 @@ export default function President() {
 
                             <div className="president-profile-info">
                                 <h1 className="president-name">Татьяна Евграфова</h1>
-                                <div className="president-title">Президент НКП Сибирский Хаски</div>
+                                <div className="president-title">{presidentBio}</div>
                                 <p className="president-subtitle">
                                     Ведущий эксперт по породе сибирский хаски, организатор международных выставок,
                                     автор стандарта породы. Более 15 лет посвятила развитию и популяризации породы в России.

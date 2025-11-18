@@ -41,6 +41,7 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     margin-bottom: .5rem;
+    margin-top: 0;
 }
 
 .news-sub {
