@@ -12,15 +12,27 @@ class Command(BaseCommand):
         self.stdout.write('Создание тестовых данных...')
         
         # 1. Создать Django суперпользователя
-        if not DjangoUser.objects.filter(username='admin').exists():
+        if not DjangoUser.objects.filter(email='admin@example.com').exists():
+            if DjangoUser.objects.filter(username='admin').exists():
+                DjangoUser.objects.filter(username='admin').delete()
+            
             admin = DjangoUser.objects.create_superuser(
-                username='admin',
+                username='admin@example.com',  # Используем email как username
                 email='admin@example.com',
                 password='admin123'
             )
             admin.last_login = timezone.now()
             admin.save()
             self.stdout.write(self.style.SUCCESS('Django admin создан'))
+        else:
+            # Проверяем, может быть пользователь существует, но с другим username
+            existing_user = DjangoUser.objects.filter(email='admin@example.com').first()
+            if existing_user and not existing_user.is_superuser:
+                existing_user.is_superuser = True
+                existing_user.is_staff = True
+                existing_user.set_password('admin123')
+                existing_user.save()
+                self.stdout.write(self.style.SUCCESS('Django admin обновлен'))
         
         # 2. Контент-справочник - основа всего текста
         content_data = {

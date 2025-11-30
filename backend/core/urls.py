@@ -1,6 +1,8 @@
 from django.urls import path, include
+from django.contrib import admin
 from rest_framework.routers import DefaultRouter
 from .views import *
+from . import admin_views
 
 router = DefaultRouter()
 
@@ -25,6 +27,7 @@ router.register(r'me/applications', MyApplicationViewSet, basename='my-applicati
 router.register(r'me/achievements', MyAchievementViewSet, basename='my-achievements')
 
 urlpatterns = [
+
     # Auth
     path('auth/login/', login_view, name='login'),
     path('auth/logout/', logout_view, name='logout'),
@@ -38,4 +41,8 @@ urlpatterns = [
     
     # Router URLs
     path('', include(router.urls)),
+
+    # Админка для MongoEngine моделей
+    path('nkp-admin/', include(admin_views.get_admin_urls())),
+
 ]
