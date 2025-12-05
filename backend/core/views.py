@@ -1,3 +1,4 @@
+from datetime import datetime
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -6,7 +7,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from .models import *
+from . import models_django as models
 from .serializers import *
 from .permissions import IsNKPMember, IsOwnerOrReadOnly
 
@@ -17,7 +18,7 @@ from .permissions import IsNKPMember, IsOwnerOrReadOnly
 
 class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
     """API для контент-справочника"""
-    queryset = ContentDictionary.objects.all()
+    queryset = models.ContentDictionary.objects.all()
     serializer_class = ContentDictionarySerializer
     permission_classes = [AllowAny]
     
@@ -49,9 +50,9 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'Key parameter required'}, status=400)
         
         try:
-            content = ContentDictionary.objects.get(key=key)
+            content = models.ContentDictionary.objects.get(key=key)
             return Response({'key': content.key, 'value': content.value})
-        except ContentDictionary.DoesNotExist:
+        except models.ContentDictionary.DoesNotExist:
             return Response({'error': 'Key not found'}, status=404)
 
 
@@ -61,7 +62,7 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
 
 class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     """API новостей"""
-    queryset = News.objects.all()
+    queryset = models.News.objects.all()
     serializer_class = NewsSerializer
     permission_classes = [AllowAny]
     
@@ -89,7 +90,7 @@ class NewsViewSet(viewsets.ReadOnlyModelViewSet):
 
 class PageViewSet(viewsets.ReadOnlyModelViewSet):
     """API CMS страниц"""
-    queryset = Page.objects.all()
+    queryset = models.Page.objects.all()
     serializer_class = PageSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
@@ -101,21 +102,21 @@ class PageViewSet(viewsets.ReadOnlyModelViewSet):
 
 class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
     """API галерей"""
-    queryset = Gallery.objects.all()
+    queryset = models.Gallery.objects.all()
     serializer_class = GallerySerializer
     permission_classes = [AllowAny]
     
     @action(detail=False, methods=['get'])
     def highlights(self, request):
         """Избранные галереи для главной"""
-        galleries = Gallery.objects.filter(is_highlight=True)
+        galleries = models.Gallery.objects.filter(is_highlight=True)
         serializer = self.get_serializer(galleries, many=True)
         return Response(serializer.data)
 
 
 class EventViewSet(viewsets.ReadOnlyModelViewSet):
     """API мероприятий"""
-    queryset = Event.objects.all()
+    queryset = models.Event.objects.all()
     serializer_class = EventSerializer
     permission_classes = [AllowAny]
     
@@ -146,42 +147,42 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
 
 class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
     """API отчетов о мероприятиях"""
-    queryset = EventReport.objects.all()
+    queryset = models.EventReport.objects.all()
     serializer_class = EventReportSerializer
     permission_classes = [AllowAny]
 
 
 class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     """API судей"""
-    queryset = Judge.objects.all()
+    queryset = models.Judge.objects.all()
     serializer_class = JudgeSerializer
     permission_classes = [AllowAny]
 
 
 class ClubDocumentViewSet(viewsets.ReadOnlyModelViewSet):
     """API документов клуба"""
-    queryset = ClubDocument.objects.all()
+    queryset = models.ClubDocument.objects.all()
     serializer_class = ClubDocumentSerializer
     permission_classes = [AllowAny]
 
 
 class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
     """API членов Президиума"""
-    queryset = BoardMember.objects.all()
+    queryset = models.BoardMember.objects.all()
     serializer_class = BoardMemberSerializer
     permission_classes = [AllowAny]
 
 
 class BreedStandardViewSet(viewsets.ReadOnlyModelViewSet):
     """API стандартов породы"""
-    queryset = BreedStandard.objects.all()
+    queryset = models.BreedStandard.objects.all()
     serializer_class = BreedStandardSerializer
     permission_classes = [AllowAny]
 
 
 class BreedArticleViewSet(viewsets.ReadOnlyModelViewSet):
     """API статей о породе"""
-    queryset = BreedArticle.objects.all()
+    queryset = models.BreedArticle.objects.all()
     serializer_class = BreedArticleSerializer
     permission_classes = [AllowAny]
     
@@ -213,23 +214,23 @@ class MyProfileViewSet(viewsets.ViewSet):
     def me(self, request):
         """Получить информацию о себе"""
         try:
-            user = User.objects.get(email=request.user.email)
+            user = models.User.objects.get(email=request.user.email)
             serializer = UserProfileSerializer(user)
             return Response(serializer.data)
-        except User.DoesNotExist:
+        except models.User.DoesNotExist:
             return Response({'error': 'User not found'}, status=404)
     
     @action(detail=False, methods=['put'])
     def update_profile(self, request):
         """Обновить профиль"""
         try:
-            user = User.objects.get(email=request.user.email)
+            user = models.User.objects.get(email=request.user.email)
             serializer = UserProfileSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)
             return Response(serializer.errors, status=400)
-        except User.DoesNotExist:
+        except models.User.DoesNotExist:
             return Response({'error': 'User not found'}, status=404)
 
 
@@ -239,8 +240,8 @@ class MyDogViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     
     def get_queryset(self):
-        user = User.objects.get(email=self.request.user.email)
-        return Dog.objects.filter(owner=user)
+        user = models.User.objects.get(email=self.request.user.email)
+        return models.Dog.objects.filter(owner=user)
     
     @action(detail=False, methods=['get'])
     def champions(self, request):
@@ -256,8 +257,8 @@ class MyKennelViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     
     def get_queryset(self):
-        user = User.objects.get(email=self.request.user.email)
-        return Kennel.objects.filter(owner=user)
+        user = models.User.objects.get(email=self.request.user.email)
+        return models.Kennel.objects.filter(owner=user)
 
 
 class MyLitterViewSet(viewsets.ModelViewSet):
@@ -266,9 +267,9 @@ class MyLitterViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        user = User.objects.get(email=self.request.user.email)
-        kennels = Kennel.objects.filter(owner=user)
-        return Litter.objects.filter(kennel__in=kennels)
+        user = models.User.objects.get(email=self.request.user.email)
+        kennels = models.Kennel.objects.filter(owner=user)
+        return models.Litter.objects.filter(kennel__in=kennels)
 
 
 class MyApplicationViewSet(viewsets.ModelViewSet):
@@ -277,8 +278,8 @@ class MyApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        user = User.objects.get(email=self.request.user.email)
-        return Application.objects.filter(user=user)
+        user = models.User.objects.get(email=self.request.user.email)
+        return models.Application.objects.filter(user=user)
 
 
 class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
@@ -287,8 +288,8 @@ class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        user = User.objects.get(email=self.request.user.email)
-        return Achievement.objects.filter(user=user)
+        user = models.User.objects.get(email=self.request.user.email)
+        return models.Achievement.objects.filter(user=user)
 
 
 # ============================================
@@ -321,7 +322,7 @@ def login_view(request):
         
         # Получаем MongoDB пользователя
         try:
-            mongo_user = User.objects.get(email=email)
+            mongo_user = models.User.objects.get(email=email)
             return Response({
                 'success': True,
                 'user': {
@@ -367,9 +368,9 @@ def logout_view(request):
 @cache_page(60 * 5)
 def home_api(request):
     """API главной страницы"""
-    featured_news = News.objects.filter(is_featured=True)[:3]
-    upcoming_events = Event.objects.filter(starts_at__gte=datetime.utcnow())[:5]
-    highlight_galleries = Gallery.objects.filter(is_highlight=True)[:2]
+    featured_news = models.News.objects.filter(is_featured=True)[:3]
+    upcoming_events = models.Event.objects.filter(starts_at__gte=datetime.utcnow())[:5]
+    highlight_galleries = models.Gallery.objects.filter(is_highlight=True)[:2]
     
     return Response({
         'featured_news': NewsSerializer(featured_news, many=True).data,

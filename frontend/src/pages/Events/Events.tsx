@@ -91,13 +91,14 @@ export default function Events() {
             if (!event) return null;
             const titleKey = typeof event.title_key === "string" ? event.title_key : "";
             const descKey = typeof event.description_key === "string" ? event.description_key : "";
-            const title = titleKey ? pickValue(dict, titleKey, "ru") : null;
-            const desc = descKey ? pickValue(dict, descKey, "ru") : null;
+            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+            const title = titleFromDict || titleKey || `event-${index}`;
+            if (!title) return null;
+            const desc = descKey ? pickValue(dict, descKey, "ru") || descKey : null;
             const startsAt = typeof event.starts_at === "string" ? event.starts_at : null;
             const dateLabel = formatEventDate(startsAt);
             const location = typeof event.location === "string" ? event.location : null;
             const eventType = typeof event.event_type === "string" ? event.event_type : null;
-            if (!title) return null;
             return {
               id: String(event.id ?? titleKey ?? index),
               title,

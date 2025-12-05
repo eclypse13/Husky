@@ -513,3 +513,48 @@ __all__ = [
     'SiteMonitorAdmin',
     'AuditLogAdmin',
 ]
+
+
+# ============================================
+# Django ORM admin (new)
+# ============================================
+from . import models_django as dj_models
+
+
+class DefaultModelAdmin(admin.ModelAdmin):
+    list_display = ['__str__']
+
+
+DJANGO_MODELS = [
+    dj_models.ContentDictionary,
+    dj_models.ContentRevision,
+    dj_models.User,
+    dj_models.News,
+    dj_models.Page,
+    dj_models.Gallery,
+    dj_models.Judge,
+    dj_models.Event,
+    dj_models.EventReport,
+    dj_models.Seminar,
+    dj_models.BreedStandard,
+    dj_models.BreedArticle,
+    dj_models.ClubDocument,
+    dj_models.BoardMember,
+    dj_models.MembershipPlan,
+    dj_models.Kennel,
+    dj_models.Dog,
+    dj_models.Litter,
+    dj_models.Application,
+    dj_models.Achievement,
+    dj_models.MembershipPayment,
+    dj_models.MemberBenefit,
+    dj_models.ProtectedMaterial,
+    dj_models.SiteMonitor,
+    dj_models.AuditLog,
+]
+
+for model in DJANGO_MODELS:
+    try:
+        admin.site.register(model, DefaultModelAdmin)
+    except admin.sites.AlreadyRegistered:
+        pass

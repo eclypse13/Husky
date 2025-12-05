@@ -4,8 +4,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.urls import path, include
 from django import forms
-from mongoengine.queryset.visitor import Q
-from .models import *
+from django.db.models import Q
+from . import models_django as models
 
 
 # ============================================
@@ -186,13 +186,13 @@ def get_model_admin_urls(model, form_class, list_display=None, search_fields=Non
 def admin_dashboard(request):
     """Главная страница админки"""
     models_info = [
-        {'name': 'ContentDictionary', 'count': ContentDictionary.objects.count(),
+        {'name': 'ContentDictionary', 'count': models.ContentDictionary.objects.count(),
          'url': 'nkp_admin:contentdictionary_list'},
-        {'name': 'User', 'count': User.objects.count(), 'url': 'nkp_admin:user_list'},
-        {'name': 'News', 'count': News.objects.count(), 'url': 'nkp_admin:news_list'},
-        {'name': 'Event', 'count': Event.objects.count(), 'url': 'nkp_admin:event_list'},
-        {'name': 'Dog', 'count': Dog.objects.count(), 'url': 'nkp_admin:dog_list'},
-        {'name': 'Kennel', 'count': Kennel.objects.count(), 'url': 'nkp_admin:kennel_list'},
+        {'name': 'User', 'count': models.User.objects.count(), 'url': 'nkp_admin:user_list'},
+        {'name': 'News', 'count': models.News.objects.count(), 'url': 'nkp_admin:news_list'},
+        {'name': 'Event', 'count': models.Event.objects.count(), 'url': 'nkp_admin:event_list'},
+        {'name': 'Dog', 'count': models.Dog.objects.count(), 'url': 'nkp_admin:dog_list'},
+        {'name': 'Kennel', 'count': models.Kennel.objects.count(), 'url': 'nkp_admin:kennel_list'},
     ]
 
     context = {
@@ -214,22 +214,22 @@ def get_admin_urls():
 
     # Регистрируем модели с их формами и настройками
     models_config = [
-        (ContentDictionary, ContentDictionaryForm, ['key', 'page', 'locale'], ['key', 'value']),
-        (User, UserForm, ['email', 'first_name', 'last_name', 'is_nkp_member'], ['email', 'first_name', 'last_name']),
-        (News, NewsForm, ['title_key', 'slug', 'is_featured'], ['title_key', 'slug', 'tags']),
-        (Page, forms.Form, ['slug', 'title_key'], ['slug', 'title_key']),
-        (Event, forms.Form, ['title_key', 'event_type', 'location'], ['title_key', 'location']),
-        (Dog, forms.Form, ['name', 'registered_name', 'sex'], ['name', 'registered_name']),
-        (Kennel, forms.Form, ['name', 'prefix'], ['name', 'prefix']),
-        (Gallery, forms.Form, ['title_key', 'is_highlight'], ['title_key']),
-        (Judge, forms.Form, ['name', 'rank'], ['name', 'rank']),
-        (EventReport, forms.Form, [], []),
-        (BreedStandard, forms.Form, ['title_key', 'fci_number'], ['title_key']),
-        (BreedArticle, forms.Form, ['title_key', 'category'], ['title_key']),
-        (ClubDocument, forms.Form, ['title_key', 'document_type'], ['title_key']),
-        (BoardMember, forms.Form, ['name', 'position'], ['name']),
-        (Application, forms.Form, ['application_type', 'status'], []),
-        (Achievement, forms.Form, ['title', 'place'], ['title']),
+        (models.ContentDictionary, ContentDictionaryForm, ['key', 'page', 'locale'], ['key', 'value']),
+        (models.User, UserForm, ['email', 'first_name', 'last_name', 'is_nkp_member'], ['email', 'first_name', 'last_name']),
+        (models.News, NewsForm, ['title_key', 'slug', 'is_featured'], ['title_key', 'slug', 'tags']),
+        (models.Page, forms.Form, ['slug', 'title_key'], ['slug', 'title_key']),
+        (models.Event, forms.Form, ['title_key', 'event_type', 'location'], ['title_key', 'location']),
+        (models.Dog, forms.Form, ['name', 'registered_name', 'sex'], ['name', 'registered_name']),
+        (models.Kennel, forms.Form, ['name', 'prefix'], ['name', 'prefix']),
+        (models.Gallery, forms.Form, ['title_key', 'is_highlight'], ['title_key']),
+        (models.Judge, forms.Form, ['name', 'rank'], ['name', 'rank']),
+        (models.EventReport, forms.Form, [], []),
+        (models.BreedStandard, forms.Form, ['title_key', 'fci_number'], ['title_key']),
+        (models.BreedArticle, forms.Form, ['title_key', 'category'], ['title_key']),
+        (models.ClubDocument, forms.Form, ['title_key', 'document_type'], ['title_key']),
+        (models.BoardMember, forms.Form, ['name', 'position'], ['name']),
+        (models.Application, forms.Form, ['application_type', 'status'], []),
+        (models.Achievement, forms.Form, ['title', 'place'], ['title']),
     ]
 
     for model, form, list_display, search_fields in models_config:

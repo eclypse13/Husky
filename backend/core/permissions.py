@@ -9,10 +9,10 @@ class IsNKPMember(permissions.BasePermission):
             return False
         
         try:
-            from .models import User as MongoUser
-            mongo_user = MongoUser.objects.get(email=request.user.email)
-            return mongo_user.is_nkp_member
-        except:
+            from . import models_django as models
+            user = models.User.objects.get(email=request.user.email)
+            return user.is_nkp_member
+        except Exception:
             return False
 
 

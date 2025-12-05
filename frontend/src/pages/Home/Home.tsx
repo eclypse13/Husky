@@ -203,10 +203,11 @@ export default function Home() {
             const titleKey = typeof entry.title_key === "string" ? entry.title_key : "";
             const leadKey = typeof entry.lead_key === "string" ? entry.lead_key : "";
             const bodyKey = typeof entry.body_key === "string" ? entry.body_key : "";
-            const title = titleKey ? pickValue(dict, titleKey, "ru") : null;
+            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+            const title = titleFromDict || titleKey || entry.slug || `news-${index}`;
             if (!title) return null;
-            const lead = leadKey ? pickValue(dict, leadKey, "ru") : null;
-            const body = bodyKey ? pickValue(dict, bodyKey, "ru") : null;
+            const lead = leadKey ? pickValue(dict, leadKey, "ru") || leadKey : null;
+            const body = bodyKey ? pickValue(dict, bodyKey, "ru") || bodyKey : null;
             const tags = Array.isArray(entry.tags)
               ? entry.tags.filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
               : [];
