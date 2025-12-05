@@ -54,6 +54,11 @@
     margin-bottom: 2rem;
     position: relative;
     line-height: 1.25;
+    margin-top: 0;
+}
+
+.about-highlight-title {
+    margin-top: 0;
 }
 
 .about-section-title::after {
@@ -192,6 +197,7 @@
 .about-leader-highlight-title {
     color: var(--bright-blue);
     margin-bottom: 1rem;
+    margin-top: 0;
     font-size: 1.3rem;
 }
 
@@ -330,6 +336,7 @@
     font-weight: 800;
     color: var(--text-dark);
     margin-bottom: 1rem;
+    margin-top: 0;
     display: flex;
     align-items: center;
     gap: .5rem;

@@ -1,11 +1,13 @@
 import { Link, NavLink } from "react-router-dom";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { getDict, pickValue } from "@/lib/dict";
 import "./Header.css";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
   const [h, setH] = useState(0);
+  const [logoText, setLogoText] = useState<string>("НКП Сибирский Хаски");
 
   useLayoutEffect(() => {
     const measure = () => setH(headerRef.current?.offsetHeight ?? 0);
@@ -43,6 +45,21 @@ export default function Header() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Fetch logo text from dictionary API (deduped)
+  useEffect(() => {
+    let ignore = false;
+    getDict()
+      .then((dict) => {
+        if (ignore) return;
+        const v = pickValue(dict, "LOGO_TEXT", "ru");
+        if (v) setLogoText(v);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   return (
     <>
       <header
@@ -54,7 +71,7 @@ export default function Header() {
           <div className="site-header__logo-section">
             <div className="site-header__logo" aria-hidden>🐺</div>
             <div className="site-header__club-info">
-              <h1>НКП Сибирский Хаски</h1>
+              <h1>{logoText}</h1>
               <p className="site-header__club-subtitle">Национальный клуб породы</p>
             </div>
           </div>

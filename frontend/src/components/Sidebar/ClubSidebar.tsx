@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { getDict, pickValue } from "@/lib/dict";
 import "./ClubSidebar.css";
 
 export type Doc = { id: string; icon: string; title: string; sub?: string; to?: string };
@@ -43,6 +44,7 @@ export default function ClubSidebar({
 }: Props) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isSticky, setIsSticky] = useState(false);
+  const [docsState, setDocsState] = useState<Doc[]>(docs);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,6 +62,31 @@ export default function ClubSidebar({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isSticky, stickyTopPx]);
 
+  // Load document titles from dictionary API (STANDARD_FCI_270, DOCS_CHARTER, DOCS_REGULATIONS)
+  useEffect(() => {
+    let ignore = false;
+    getDict()
+      .then((dict) => {
+        if (ignore) return;
+        const standard = pickValue(dict, 'STANDARD_FCI_270', 'ru');
+        const charter = pickValue(dict, 'DOCS_CHARTER', 'ru');
+        const regulations = pickValue(dict, 'DOCS_REGULATIONS', 'ru');
+        setDocsState((prev) =>
+          prev.map((d) =>
+            d.id === 'd1' && standard
+              ? { ...d, title: standard }
+              : d.id === 'd2' && charter
+                ? { ...d, title: charter }
+                : d.id === 'd5' && regulations
+                  ? { ...d, title: regulations }
+                  : d
+          )
+        );
+      })
+      .catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+
   return (
     <aside className="club-sidebar" ref={sidebarRef}>
       <div className="club-sidebar__container">
@@ -70,7 +97,7 @@ export default function ClubSidebar({
           <div className="club-sidebar__card sidebar-card">
             <h3 className="club-sidebar__title">📄 Документы клуба</h3>
             <div className="club-sidebar__documents">
-              {docs.map((d) => (
+              {docsState.map((d) => (
                 <Link to={d.to ?? "#"} className="club-sidebar__document" key={d.id}>
                   <div className="club-sidebar__document-icon">{d.icon}</div>
                   <div>
@@ -87,7 +114,7 @@ export default function ClubSidebar({
             <div className="club-sidebar__stats">
               {stats.map((s) => (
                 <div className="club-sidebar__stat" key={s.id}>
-                  <div className="club-sidebar__stat-number stat-number">{s.value}</div>
+                  <div className="club-sidebar__stat-number">{s.value}</div>
                   <div className="club-sidebar__stat-label">{s.label}</div>
                 </div>
               ))}

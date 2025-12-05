@@ -17,4 +17,13 @@ export default defineConfig({
       '@types': fileURLToPath(new URL('./src/types', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      // Все запросы с /api пойдут в контейнер бэка
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

@@ -1,10 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { getDict, pickValue } from "@/lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import ClubSidebar from "@/components/Sidebar/ClubSidebar";
 import "./Breed.css";
 
 export default function Breed() {
   const pageRef = useRef<HTMLDivElement | null>(null);
+  const [breedTitle, setBreedTitle] = useState<string | null>(null);
+  const [breedStandard, setBreedStandard] = useState<string | null>(null);
+  const [breedCharacter, setBreedCharacter] = useState<string | null>(null);
+  const [breedCareTitle, setBreedCareTitle] = useState<string | null>(null);
+  const [breedCare, setBreedCare] = useState<string | null>(null);
+  const [breedHistory, setBreedHistory] = useState<string | null>(null);
 
   useEffect(() => {
     const root = pageRef.current;
@@ -49,6 +56,29 @@ export default function Breed() {
     });
   }, []);
 
+  // Load breed page content from dictionary API (deduped)
+  useEffect(() => {
+    let ignore = false;
+    getDict()
+      .then((dict) => {
+        if (ignore) return;
+        const t = pickValue(dict, 'BREED_TITLE', 'ru');
+        const s = pickValue(dict, 'BREED_STANDARD', 'ru');
+        const c = pickValue(dict, 'BREED_CHARACTER', 'ru');
+        const ct = pickValue(dict, 'BREED_CARE_TITLE', 'ru');
+        const cr = pickValue(dict, 'BREED_CARE', 'ru');
+        const ht = pickValue(dict, 'BREED_HISTORY', 'ru');
+        if (t) setBreedTitle(t);
+        if (s) setBreedStandard(s);
+        if (c) setBreedCharacter(c);
+        if (ct) setBreedCareTitle(ct);
+        if (cr) setBreedCare(cr);
+        if (ht) setBreedHistory(ht);
+      })
+      .catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+
   return (
     <div ref={pageRef} className="breed-page">
       <Breadcrumb
@@ -63,10 +93,8 @@ export default function Breed() {
             <div className="main-column">
               {/* Стандарт породы */}
               <section className="breed-section breed-history-section">
-                <h2 className="breed-section-title">📏 Стандарт породы</h2>
-                <p className="breed-section-subtitle">
-                  Национальный клуб породы Сибирский Хаски следует официальному стандарту FCI №270. Это рабочая ездовая порода, гармонично сложенная, с умеренным костяком, лёгкой и упругой походкой, типичной для северных пород.
-                </p>
+                <h2 className="breed-section-title">{breedTitle ?? "📏 Стандарт породы"}</h2>
+                <p className="breed-section-subtitle">{breedStandard ?? "Национальный клуб породы Сибирский Хаски следует официальному стандарту FCI №270. Это рабочая ездовая порода, гармонично сложенная, с умеренным костяком, лёгкой и упругой походкой, типичной для северных пород."}</p>
 
                 <img
                   className="breed-img-center"
@@ -86,9 +114,7 @@ export default function Breed() {
               <section className="breed-section breed-history-section">
                 <div className="breed-mission-content">
                   <h2 className="breed-section-title">🧠 Характер и особенности</h2>
-                  <p className="breed-section-subtitle">
-                    Сибирские хаски — дружелюбные, энергичные и умные собаки. Они не охранники, но прекрасно чувствуют себя в активной семье и команде.
-                  </p>
+                  <p className="breed-section-subtitle">{breedCharacter ?? "Сибирские хаски — дружелюбные, энергичные и умные собаки. Они не охранники, но прекрасно чувствуют себя в активной семье и команде."}</p>
                   <div className="breed-highlight-box">
                     <ul className="breed-mission-list">
                       {[
@@ -106,10 +132,8 @@ export default function Breed() {
 
               {/* Уход */}
               <section className="breed-section breed-history-section">
-                <h2 className="breed-section-title">✂️ Уход и груминг</h2>
-                <p className="breed-section-subtitle">
-                  Хаски имеют густую двойную шерсть, которая требует регулярного вычёсывания, особенно в периоды линьки.
-                </p>
+                <h2 className="breed-section-title">{breedCareTitle ?? "✂️ Уход и груминг"}</h2>
+                <p className="breed-section-subtitle">{breedCare ?? "Хаски имеют густую двойную шерсть, которая требует регулярного вычёсывания, особенно в периоды линьки."}</p>
                 <div className="breed-highlight-box">
                   <ul className="breed-mission-list">
                     <li>2–3 раза в неделю расчёсывание (ежедневно во время линьки)</li>
@@ -140,7 +164,7 @@ export default function Breed() {
 
               {/* История */}
               <section className="breed-section breed-history-section">
-                <h2 className="breed-section-title">📜 История породы</h2>
+                <h2 className="breed-section-title">{breedHistory ?? "📜 История породы"}</h2>
                 <p className="breed-section-subtitle">
                   Сибирские хаски происходят от ездовых собак коренных народов Северо-Восточной Сибири. В начале XX века они были вывезены на Аляску, где проявили себя в гонках и спасательных экспедициях.
                 </p>

@@ -1,19 +1,39 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { getDict, pickValue } from "@/lib/dict";
 import "./Footer.css";
 
 export default function Footer() {
+  const [footerName, setFooterName] = useState<string>("НКП Сибирский Хаски");
+  const [footerEmail, setFooterEmail] = useState<string>("info@example.org");
+
+  useEffect(() => {
+    let ignore = false;
+    getDict()
+      .then((dict) => {
+        if (ignore) return;
+        const name = pickValue(dict, "FOOTER_FULL_NAME", "ru");
+        const email = pickValue(dict, "FOOTER_EMAIL", "ru");
+        if (name) setFooterName(name);
+        if (email) setFooterEmail(email);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, []);
   return (
     <footer className="site-footer">
       <div className="site-footer__content">
 
         <div className="site-footer__section">
-          <h3>НКП Сибирский Хаски</h3>
+          <h3>{footerName}</h3>
           <p style={{ color: "rgba(255,255,255,.8)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
             Ведущая организация России по развитию и сохранению породы сибирский хаски.
             Объединяем профессионалов и любителей породы по всей стране.
           </p>
           <div style={{ display: "flex", gap: "1rem" }}>
-            <a href="mailto:info@example.org" style={{ color: "rgba(255,255,255,.8)", fontSize: "1.5rem" }}>📧</a>
+            <a href={`mailto:${footerEmail}`} style={{ color: "rgba(255,255,255,.8)", fontSize: "1.5rem" }}>📧</a>
             <a href="#" style={{ color: "rgba(255,255,255,.8)", fontSize: "1.5rem" }}>📱</a>
             <a href="#" style={{ color: "rgba(255,255,255,.8)", fontSize: "1.5rem" }}>🌐</a>
           </div>
