@@ -1,9 +1,9 @@
-#!/bin/bash
+﻿#!/bin/bash
 set -e
 
 echo "Waiting for MongoDB to be ready..."
 
-# Ждем готовности MongoDB
+# Р–РґРµРј РіРѕС‚РѕРІРЅРѕСЃС‚Рё MongoDB
 MAX_RETRIES=30
 RETRY_COUNT=0
 
