@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getDict, pickValue } from "@/lib/dict";
 import "./Header.css";
+import logo from "@/assets/logo.png";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function Header() {
         const v = pickValue(dict, "LOGO_TEXT", "ru");
         if (v) setLogoText(v);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       ignore = true;
     };
@@ -69,7 +70,12 @@ export default function Header() {
       >
         <div className="site-header__content">
           <div className="site-header__logo-section">
-            <div className="site-header__logo" aria-hidden>🐺</div>
+            <div className="v3-logo-wrapper">
+              <div className="v3-logo-backdrop"></div>
+              <NavLink to="/" className="v3-logo">
+                <img src={logo} alt="Логотип Национального клуба породы Сибирский Хаски" className="site-header__logo" />
+              </NavLink>
+            </div>
             <div className="site-header__club-info">
               <h1>{logoText}</h1>
               <p className="site-header__club-subtitle">Национальный клуб породы</p>

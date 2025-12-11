@@ -3,25 +3,18 @@ import { useEffect, useRef, useState } from "react";
 import { getDict, pickValue } from "@/lib/dict";
 import "./ClubSidebar.css";
 
+const CACHE_KEY = "club-documents-v1";
+const CACHE_EXPIRY_MS = 30 * 60 * 1000; // 30 минут
+
 export type Doc = { id: string; icon: string; title: string; sub?: string; to?: string };
 export type Stat = { id: string; value: string; label: string };
 export type Action = { id: string; label: string; to: string; kind?: "primary" | "info" | "neutral" };
 
 type Props = {
-  docs?: Doc[];
   stats?: Stat[];
   actions?: Action[];
   stickyTopPx?: number;
 };
-
-const defaultDocs: Doc[] = [
-  { id: "d1", icon: "📐", title: "Стандарт породы FCI", sub: "PDF, 0.9 МБ" },
-  { id: "d2", icon: "📋", title: "Устав НКП СХ", sub: "PDF, 2.1 МБ" },
-  { id: "d3", icon: "📜", title: "Племенное положение", sub: "PDF, 1.8 МБ" },
-  { id: "d4", icon: "🏆", title: "Выставочное положение", sub: "PDF, 1.5 МБ" },
-  { id: "d5", icon: "📝", title: "Заявление на членство", sub: "DOC, 0.2 МБ" },
-  { id: "d6", icon: "💰", title: "Реквизиты для оплаты", sub: "PDF, 0.1 МБ" },
-];
 
 const defaultStats: Stat[] = [
   { id: "s1", value: "1,250+", label: "Членов" },
@@ -36,22 +29,50 @@ const defaultActions: Action[] = [
   { id: "a3", label: "Календарь мероприятий", to: "/events", kind: "neutral" },
 ];
 
+const getIconByType = (type: string): string => {
+  switch (type) {
+    case "standard": return "📐";
+    case "charter": return "📋";
+    case "regulation": return "📜";
+    case "exhibition": return "🏆";
+    case "form": return "📝";
+    case "payment": return "💰";
+    default: return "📄";
+  }
+};
+
+const getFileMeta = (url: string | null, fallbackDesc?: string): string => {
+  if (!url) return fallbackDesc || "–";
+  try {
+    const u = new URL(url, window.location.origin);
+    const path = u.pathname;
+    const parts = path.split('/');
+    const filename = parts[parts.length - 1];
+    const extMatch = filename.match(/\.([a-z0-9]+)$/i);
+    const ext = extMatch ? extMatch[1].toUpperCase() : "–";
+    return `${ext}, файл`;
+  } catch {
+    return fallbackDesc || "Файл";
+  }
+};
+
 export default function ClubSidebar({
-  docs = defaultDocs,
   stats = defaultStats,
   actions = defaultActions,
   stickyTopPx = 120,
 }: Props) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isSticky, setIsSticky] = useState(false);
-  const [docsState, setDocsState] = useState<Doc[]>(docs);
+  const [docsState, setDocsState] = useState<Doc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Скролл-логика — без изменений
   useEffect(() => {
     const handleScroll = () => {
       if (sidebarRef.current) {
         const sidebarRect = sidebarRef.current.getBoundingClientRect();
         const shouldSticky = sidebarRect.top <= stickyTopPx;
-
         if (shouldSticky !== isSticky) {
           setIsSticky(shouldSticky);
         }
@@ -62,29 +83,95 @@ export default function ClubSidebar({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isSticky, stickyTopPx]);
 
-  // Load document titles from dictionary API (STANDARD_FCI_270, DOCS_CHARTER, DOCS_REGULATIONS)
+  // 🔥 ЕДИНЫЙ useEffect: кэш при старте + загрузка API + обновление кэша
   useEffect(() => {
     let ignore = false;
-    getDict()
-      .then((dict) => {
+
+    // 1️⃣ Пытаемся восстановить из кэша
+    const restoreFromCache = () => {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (
+            Array.isArray(data) &&
+            Date.now() - timestamp <= CACHE_EXPIRY_MS
+          ) {
+            if (!ignore) {
+              setDocsState(data);
+              setLoading(false);
+            }
+            return true; // кэш использован
+          } else {
+            localStorage.removeItem(CACHE_KEY);
+          }
+        } catch (e) {
+          console.warn("Invalid cache format", e);
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
+      return false;
+    };
+
+    const hasCache = restoreFromCache();
+    if (ignore) return;
+
+    // 2️⃣ Если кэша нет или он просрочен — грузим с API
+    if (!hasCache) {
+      setLoading(true);
+      setError(null);
+    }
+
+    const loadFromApi = async () => {
+      try {
+        const res = await fetch("/api/club/documents/");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const results: any[] = Array.isArray(data.results) ? data.results : [];
+        const dict = await getDict();
+
         if (ignore) return;
-        const standard = pickValue(dict, 'STANDARD_FCI_270', 'ru');
-        const charter = pickValue(dict, 'DOCS_CHARTER', 'ru');
-        const regulations = pickValue(dict, 'DOCS_REGULATIONS', 'ru');
-        setDocsState((prev) =>
-          prev.map((d) =>
-            d.id === 'd1' && standard
-              ? { ...d, title: standard }
-              : d.id === 'd2' && charter
-                ? { ...d, title: charter }
-                : d.id === 'd5' && regulations
-                  ? { ...d, title: regulations }
-                  : d
-          )
-        );
-      })
-      .catch(() => {});
-    return () => { ignore = true; };
+
+        const mappedDocs: Doc[] = results.map((entry) => ({
+          id: String(entry.id),
+          icon: getIconByType(entry.document_type),
+          title: entry.title_key
+            ? pickValue(dict, entry.title_key, "ru") || entry.title_key
+            : "Без названия",
+          sub: getFileMeta(entry.file, entry.description_key),
+          to: entry.file ?? "#",
+        }));
+
+        if (!ignore) {
+          setDocsState(mappedDocs);
+          // ✅ Сохраняем в кэш
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({
+              data: mappedDocs,
+              timestamp: Date.now(),
+            })
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Ошибка загрузки";
+        console.error("API load failed:", err);
+        if (!ignore) {
+          setError(msg);
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Запускаем API-запрос ВСЕГДА (даже при кэше — для актуализации!)
+    loadFromApi();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (
@@ -97,15 +184,29 @@ export default function ClubSidebar({
           <div className="club-sidebar__card sidebar-card">
             <h3 className="club-sidebar__title">📄 Документы клуба</h3>
             <div className="club-sidebar__documents">
-              {docsState.map((d) => (
-                <Link to={d.to ?? "#"} className="club-sidebar__document" key={d.id}>
-                  <div className="club-sidebar__document-icon">{d.icon}</div>
-                  <div>
-                    <div className="club-sidebar__document-title">{d.title}</div>
-                    {d.sub && <div className="club-sidebar__document-sub">{d.sub}</div>}
-                  </div>
-                </Link>
-              ))}
+              {loading ? (
+                <div className="club-sidebar__document-placeholder">Загрузка…</div>
+              ) : error ? (
+                <div className="club-sidebar__document-error">❌ {error}</div>
+              ) : docsState.length === 0 ? (
+                <div className="club-sidebar__document-empty">Нет документов</div>
+              ) : (
+                docsState.map((d) => (
+                  <Link
+                    to={d.to ?? "#"}
+                    target={d.to && d.to !== "#" ? "_blank" : undefined}
+                    rel={d.to && d.to !== "#" ? "noopener noreferrer" : undefined}
+                    className="club-sidebar__document"
+                    key={d.id}
+                  >
+                    <div className="club-sidebar__document-icon">{d.icon}</div>
+                    <div>
+                      <div className="club-sidebar__document-title">{d.title}</div>
+                      {d.sub && <div className="club-sidebar__document-sub">{d.sub}</div>}
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 

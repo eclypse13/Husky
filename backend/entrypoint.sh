@@ -3,7 +3,6 @@ set -e
 
 echo "Waiting for MongoDB to be ready..."
 
-# Ждем готовности MongoDB
 MAX_RETRIES=30
 RETRY_COUNT=0
 

@@ -19,7 +19,7 @@
 .site-header__content {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2px 2rem;
+    padding: 0 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -28,27 +28,112 @@
 
 .site-header__logo-section {
     display: flex;
-    align-items: center;
     gap: 1rem;
 }
 
-.site-header__logo {
-    width: 60px;
-    height: 60px;
-    background: var(--gradient-primary);
-    border-radius: 16px;
+.v3-logo-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+}
+
+.v3-logo-wrapper {
+    position: relative;
+    width: 140px;
+    height: 90px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.v3-logo-backdrop {
+    position: absolute;
+    top: 0;
+    width: 140px;
+    height: 140px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(59, 130, 246, 0.1) 100%);
+    border-radius: 0 0 60% 60%;
+    box-shadow:
+        0 8px 30px rgba(59, 130, 246, 0.15),
+        inset 0 -5px 15px rgba(59, 130, 246, 0.1);
+    border: 2px solid rgba(59, 130, 246, 1);
+    border-top: none;
+}
+
+.v3-logo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.8rem;
-    color: var(--snow-white);
-    font-weight: 700;
-    box-shadow: var(--shadow-glow);
-    transition: transform .2s ease;
+    text-decoration: none;
+    box-shadow:
+        0 8px 30px rgba(59, 130, 246, 0.4),
+        0 0 0 4px rgba(255, 255, 255, 0.8);
+    position: relative;
+    top: 10px;
+    z-index: 2;
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.site-header__logo:hover {
-    transform: scale(1.05);
+.v3-logo svg {
+    width: 50px;
+    height: 50px;
+    color: white;
+    /* или fill="white" в SVG */
+}
+
+.v3-logo:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow:
+        0 15px 50px rgba(59, 130, 246, 0.6),
+        0 0 0 6px rgba(255, 255, 255, 0.9);
+}
+
+.v3-logo:hover::before {
+    opacity: 0.2;
+    animation: ripple 1.5s ease-out infinite;
+}
+
+.v3-logo::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    opacity: 0;
+    z-index: -1;
+    transition: opacity 0.4s ease;
+}
+
+@keyframes ripple {
+    0% {
+        transform: scale(1);
+        opacity: 0.2;
+    }
+
+    100% {
+        transform: scale(1.1);
+        opacity: 0;
+    }
+}
+
+.v3-club-info {
+    margin-top: 20px;
+}
+
+.v3-club-info h1 {
+    font-size: 1.5rem;
+    color: var(--text-dark);
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.v3-subtitle {
+    color: var(--text-light);
+    font-size: 0.9rem;
 }
 
 .site-header__club-info h1 {
@@ -166,23 +251,6 @@
         z-index: 1002;
     }
 
-    .site-header__logo-section {
-        flex: 1 1 auto;
-        min-width: 0;
-    }
-
-    .site-header__backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, .25);
-        backdrop-filter: blur(1px);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .18s ease;
-        z-index: 998;
-        display: block;
-    }
-
     .site-header.is-open .site-header__backdrop {
         opacity: 1;
         pointer-events: auto;
@@ -231,16 +299,60 @@
     }
 }
 
-@media (max-width:480px) {
-    .site-header__content {
-        gap: .5rem;
-        padding: .75rem 1rem;
+@media (max-width:768px) {
+    .v3-logo-wrapper {
+        width: 100px;
+        height: 70px;
     }
 
-    .site-header__logo {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
+    .v3-logo-backdrop {
+        width: 120px;
+        height: 120px;
+    }
+
+    .v3-logo {
+        width: 100px;
+        height: 100px;
+        top: 5px;
+    }
+
+    .v3-logo svg {
+        width: 36px;
+        height: 36px;
+    }
+
+    .v3-club-info h1 {
+        font-size: 1.25rem;
+    }
+
+    .v3-club-info {
+        margin-top: 15px;
+    }
+}
+
+@media (max-width:480px) {
+    .v3-logo-backdrop {
+        width: 120px;
+        height: 120px;
+    }
+
+    .v3-logo {
+        width: 100px;
+        height: 100px;
+        top: 5px;
+    }
+
+    .v3-club-info h1 {
+        font-size: 1.1rem;
+    }
+
+    .v3-subtitle {
+        font-size: 0.8rem;
+    }
+
+    .site-header__content {
+        gap: .5rem;
+        padding: 0 1rem;
     }
 
     .site-header__club-info h1 {
