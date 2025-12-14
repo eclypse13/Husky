@@ -8,11 +8,13 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.contrib.admin.widgets import AdminTextareaWidget, AdminFileWidget
-from mongoengine.fields import StringField, EmailField, BooleanField, DateTimeField, IntField, FloatField, ListField, DictField, ReferenceField, URLField, FileField, ImageField
+from mongoengine.fields import StringField, EmailField, BooleanField, DateTimeField, IntField, FloatField, ListField, \
+    DictField, ReferenceField, URLField, FileField, ImageField
 from .models import (
     ContentDictionary, ContentRevision,
     User, News, Page, Gallery,
-    Judge, Event, EventReport, Seminar,
+    Judge, JudgeDetails, FastLink,
+    Event, EventReport, Seminar,
     BreedStandard, BreedArticle,
     ClubDocument, BoardMember, MembershipPlan,
     Kennel, Dog, Litter,
@@ -35,12 +37,12 @@ class MongoAdminForm(forms.Form):
 def create_mongo_form(model_class, fields=None, exclude=None):
     """Динамически создает форму для MongoEngine документа"""
     form_fields = {}
-    
+
     if fields is None:
         for field_name, field in model_class._fields.items():
             if exclude and field_name in exclude:
                 continue
-            
+
             if isinstance(field, StringField):
                 if field.max_length:
                     form_fields[field_name] = forms.CharField(
@@ -96,7 +98,7 @@ def create_mongo_form(model_class, fields=None, exclude=None):
                     required=field.required,
                     label=field_name.replace('_', ' ').title()
                 )
-    
+
     return type(f'{model_class.__name__}Form', (MongoAdminForm,), form_fields)
 
 
@@ -106,7 +108,8 @@ def create_mongo_form(model_class, fields=None, exclude=None):
 
 class ContentDictionaryAdminForm(forms.Form):
     key = forms.CharField(max_length=200, label='Ключ', help_text='Уникальный ключ для контента')
-    value = forms.CharField(widget=forms.Textarea(attrs={'rows': 10}), label='Значение', help_text='Markdown/HTML контент')
+    value = forms.CharField(widget=forms.Textarea(attrs={'rows': 10}), label='Значение',
+                            help_text='Markdown/HTML контент')
     page = forms.CharField(max_length=100, required=False, label='Страница', initial='general')
     locale = forms.CharField(max_length=10, required=False, label='Локаль', initial='ru')
     updated_by = forms.EmailField(required=False, label='Обновлено пользователем')
@@ -117,14 +120,14 @@ class UserAdminForm(forms.Form):
     first_name = forms.CharField(max_length=100, required=False, label='Имя')
     last_name = forms.CharField(max_length=100, required=False, label='Фамилия')
     password_hash = forms.CharField(widget=forms.PasswordInput, required=False, label='Пароль (хэш)')
-    
+
     roles = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={'rows': 3}),
         label='Роли',
         help_text='Одна роль на строку: admin_roles, section_admin, presidium, member_physical, member_legal'
     )
-    
+
     is_nkp_member = forms.BooleanField(required=False, label='Член НКП')
     membership_type = forms.ChoiceField(
         choices=[('', '---'), ('physical', 'Физ. лицо'), ('legal', 'Юр. лицо')],
@@ -133,7 +136,7 @@ class UserAdminForm(forms.Form):
     )
     membership_started_at = forms.DateTimeField(required=False, label='Членство началось')
     membership_expires_at = forms.DateTimeField(required=False, label='Членство истекает')
-    
+
     phone = forms.CharField(max_length=20, required=False, label='Телефон')
     city = forms.CharField(max_length=100, required=False, label='Город')
     is_active = forms.BooleanField(required=False, initial=True, label='Активен')
@@ -210,7 +213,7 @@ class ApplicationAdminForm(forms.Form):
 
 class MongoModelAdmin:
     """Базовый класс для администрирования MongoEngine моделей"""
-    
+
     model = None
     form_class = None
     list_display = ['__str__']
@@ -219,20 +222,20 @@ class MongoModelAdmin:
     readonly_fields = []
     fieldsets = None
     ordering = None
-    
+
     def __init__(self, model, admin_site):
         self.model = model
         self.admin_site = admin_site
-        
+
         if self.form_class is None:
             self.form_class = create_mongo_form(model)
-    
+
     def get_list_display(self):
         return self.list_display
-    
+
     def get_search_fields(self):
         return self.search_fields
-    
+
     def get_list_filter(self):
         return self.list_filter
 
@@ -263,7 +266,7 @@ class UserAdmin(MongoModelAdmin):
     list_filter = ['is_nkp_member', 'membership_type', 'is_active', 'roles']
     search_fields = ['email', 'first_name', 'last_name', 'phone']
     ordering = ['-created_at']
-    
+
     fieldsets = (
         ('Основная информация', {
             'fields': ('email', 'first_name', 'last_name', 'password_hash')
@@ -309,6 +312,18 @@ class JudgeAdmin(MongoModelAdmin):
     list_display = ['name', 'rank']
     search_fields = ['name', 'rank']
     ordering = ['name']
+
+
+class JudgeDetailsAdmin(MongoModelAdmin):
+    list_display = ['title']
+    search_fields = ['title']
+    ordering = ['title']
+
+
+class FastLinkAdmin(MongoModelAdmin):
+    list_display = ['title']
+    search_fields = ['title']
+    ordering = ['title']
 
 
 class EventAdmin(MongoModelAdmin):
@@ -452,6 +467,8 @@ ADMIN_REGISTRY = {
     Page: PageAdmin,
     Gallery: GalleryAdmin,
     Judge: JudgeAdmin,
+    JudgeDetails: JudgeDetailsAdmin,
+    FastLink: FastLinkAdmin,
     Event: EventAdmin,
     EventReport: EventReportAdmin,
     Seminar: SeminarAdmin,
@@ -483,11 +500,11 @@ def register_mongo_model(model, admin_class=None):
     """Регистрирует MongoEngine модель в админке"""
     if admin_class is None:
         admin_class = ADMIN_REGISTRY.get(model, MongoModelAdmin)
-    
+
     # Инициализируем админ класс
     admin_instance = admin_class(model, admin.site)
     ADMIN_REGISTRY[model] = admin_class
-    
+
     return admin_instance
 
 
@@ -514,7 +531,6 @@ __all__ = [
     'AuditLogAdmin',
 ]
 
-
 # ============================================
 # Django ORM admin (new)
 # ============================================
@@ -533,6 +549,8 @@ DJANGO_MODELS = [
     dj_models.Page,
     dj_models.Gallery,
     dj_models.Judge,
+    dj_models.JudgeDetails,
+    dj_models.FastLink,
     dj_models.Event,
     dj_models.EventReport,
     dj_models.Seminar,

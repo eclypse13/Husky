@@ -9,7 +9,8 @@ from .models_django import *  # noqa: F401,F403
 from .models_django import (
     ContentDictionary, ContentRevision,
     User, News, Page, Gallery,
-    Judge, Event, EventReport, Seminar,
+    Judge, JudgeDetails, FastLink,
+    Event, EventReport, Seminar,
     BreedStandard, BreedArticle,
     ClubDocument, BoardMember, MembershipPlan,
     Kennel, Dog, Litter,
@@ -22,7 +23,8 @@ from .models_django import (
 __all__ = [
     'ContentDictionary', 'ContentRevision',
     'User', 'News', 'Page', 'Gallery',
-    'Judge', 'Event', 'EventReport', 'Seminar',
+    'Judge', 'JudgeDetails', 'FastLink',
+    'Event', 'EventReport', 'Seminar',
     'BreedStandard', 'BreedArticle',
     'ClubDocument', 'BoardMember', 'MembershipPlan',
     'Kennel', 'Dog', 'Litter',
