@@ -238,9 +238,9 @@ export default function Events() {
 
               {/* Судьи */}
               <section className="events-section events-section--card">
-                <h2 className="events-section-title mt-0">Породные эксперты и судьи</h2>
+                <h2 className="events-section-title mt-0">Породные эксперты</h2>
                 <p className="events-text" style={{ marginBottom: "2rem" }}>
-                  Ниже представлен список судей, имеющих квалификацию по породе сибирский хаски:
+                  Ниже представлен список экспертов, заявленных на Национальных выставках по породе сибирский хаски:
                 </p>
                 <div className="events-leadership-grid">
                   <div className="events-leader-card">
