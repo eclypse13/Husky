@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рабочая группа "Информационные системы" - НКП Сибирский Хаски</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-blue: #1e40af;
+            --bright-blue: #3b82f6;
+            --ice-blue: #dbeafe;
+            --snow-white: #ffffff;
+            --arctic-gray: #f8fafc;
+            --dark-slate: #0f172a;
+            --accent-cyan: #06b6d4;
+            --accent-orange: #f59e0b;
+            --forest-green: #10b981;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --border-light: #e2e8f0;
+            --gradient-primary: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #06b6d4 100%);
+            --gradient-secondary: linear-gradient(135deg, #f59e0b 0%, #10b981 100%);
+            --shadow-glow: 0 0 30px rgba(59, 130, 246, 0.3);
+            --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--snow-white);
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+
+        .floating-shapes {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            animation: float 8s ease-in-out infinite;
+            opacity: 0.08;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+
+        .shape-1 {
+            width: 300px;
+            height: 300px;
+            background: var(--bright-blue);
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .shape-2 {
+            width: 200px;
+            height: 200px;
+            background: var(--accent-cyan);
+            top: 70%;
+            right: 15%;
+            animation-delay: 3s;
+        }
+
+        .shape-3 {
+            width: 150px;
+            height: 150px;
+            background: var(--accent-orange);
+            bottom: 30%;
+            left: 70%;
+            animation-delay: 6s;
+        }
+
+        @keyframes float {
+            0%, 100% { 
+                -webkit-transform: translateY(0px) rotate(0deg);
+                transform: translateY(0px) rotate(0deg); 
+            }
+            50% { 
+                -webkit-transform: translateY(-30px) rotate(180deg);
+                transform: translateY(-30px) rotate(180deg); 
+            }
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-light);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+
+        .header.scrolled {
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .logo:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .club-info h1 {
+            font-size: 1.5rem;
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+
+        .club-subtitle {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-primary);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 100%;
+        }
+
+        .cta-button {
+            padding: 0.75rem 1.5rem;
+            background: var(--gradient-primary);
+            color: var(--snow-white);
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            padding: 9rem 2rem 3rem 2rem;
+            background: var(--arctic-gray);
+        }
+
+        .breadcrumb-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .breadcrumb-nav {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .breadcrumb-nav a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .breadcrumb-nav a:hover {
+            color: var(--bright-blue);
+        }
+
+        .breadcrumb-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1400px;
+            margin: 3rem auto;
+            padding: 0 2rem 4rem 2rem;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 3rem;
+        }
+
+        .main-column {
+            max-width: 100%;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 120px;
+            align-self: start;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Sidebar Profile */
+        .sidebar-profile {
+            background: var(--snow-white);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-avatar {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: var(--gradient-primary);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            box-shadow: var(--shadow-glow);
+            margin: 0 auto 1.5rem auto;
+        }
+
+        .sidebar-avatar-ring {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border: 3px solid var(--ice-blue);
+            border-radius: 28px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .sidebar-profile h2 {
+            font-size: 1.5rem;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .sidebar-profile-title {
+            color: var(--bright-blue);
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .sidebar-profile-text {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .badge-it {
+            background: var(--ice-blue);
+            color: var(--bright-blue);
+        }
+
+        .badge-experience {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .sidebar-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: var(--snow-white);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-secondary {
+            background: var(--snow-white);
+            color: var(--bright-blue);
+            border: 2px solid var(--border-light);
+        }
+
+        .btn-secondary:hover {
+            background: var(--arctic-gray);
+            transform: translateY(-2px);
+        }
+
+        /* Quick Links */
+        .quick-links {
+            background: var(--snow-white);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .quick-links h3 {
+            font-size: 1.3rem;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .quick-links-list {
+            list-style: none;
+        }
+
+        .quick-links-list li {
+            margin-bottom: 0.75rem;
+        }
+
+        .quick-links-list a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            padding: 0.75rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .quick-links-list a:hover {
+            background: var(--arctic-gray);
+            color: var(--bright-blue);
+            transform: translateX(4px);
+        }
+
+        /* Biography Section */
+        .biography-section {
+            background: var(--snow-white);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 3rem;
+        }
+
+        .bio-content p {
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+            color: var(--text-dark);
+        }
+
+        .highlight-box {
+            background: var(--ice-blue);
+            border-left: 4px solid var(--bright-blue);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+
+        .highlight-box h4 {
+            color: var(--bright-blue);
+            margin-bottom: 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        /* Responsibilities Section */
+        .responsibilities-section {
+            background: var(--snow-white);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 3rem;
+        }
+
+        .responsibilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .responsibility-card {
+            background: var(--arctic-gray);
+            padding: 2rem;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .responsibility-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .responsibility-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .responsibility-icon {
+            font-size: 2rem;
+        }
+
+        .responsibility-description {
+            color: var(--text-light);
+            line-height: 1.7;
+        }
+
+        /* Projects Section */
+        .projects-section {
+            background: var(--snow-white);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 3rem;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+
+        .project-card {
+            background: var(--arctic-gray);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .project-card.active {
+            border-left-color: var(--forest-green);
+        }
+
+        .project-card.in-development {
+            border-left-color: var(--bright-blue);
+        }
+
+        .project-card.planning {
+            border-left-color: var(--text-light);
+        }
+
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: var(--forest-green);
+        }
+
+        .status-development {
+            background: var(--ice-blue);
+            color: var(--bright-blue);
+        }
+
+        .status-planning {
+            background: #f1f5f9;
+            color: var(--text-light);
+        }
+
+        .project-title {
+            font-size: 1.3rem;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .project-description {
+            color: var(--text-light);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+
+        .project-tech {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tech-tag {
+            padding: 0.4rem 0.8rem;
+            background: var(--snow-white);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        /* Team Section */
+        .team-section {
+            background: var(--gradient-primary);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 3rem;
+            color: var(--snow-white);
+        }
+
+        .team-content {
+            max-width: 800px;
+        }
+
+        .team-section .section-title {
+            color: var(--snow-white);
+        }
+
+        .team-description {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .join-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: var(--snow-white);
+            color: var(--bright-blue);
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .join-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark-slate);
+            color: var(--snow-white);
+            padding: 3rem 2rem 2rem 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+        }
+
+        .footer-section h3 {
+            margin-bottom: 1.5rem;
+            color: var(--snow-white);
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-section a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section a:hover {
+            color: var(--snow-white);
+        }
+
+        .footer-bottom {
+            max-width: 1400px;
+            margin: 3rem auto 0 auto;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .breadcrumb-title {
+                font-size: 2rem;
+            }
+
+            .biography-section,
+            .responsibilities-section,
+            .projects-section,
+            .team-section {
+                padding: 2rem;
+            }
+
+            .responsibilities-grid,
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="floating-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <a href="#" class="logo">🐺</a>
+                <div class="club-info">
+                    <h1>НКП Сибирский Хаски</h1>
+                    <p class="club-subtitle">Национальный клуб породы</p>
+                </div>
+            </div>
+            
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="#" class="nav-link">О клубе</a></li>
+                    <li><a href="#" class="nav-link">О породе</a></li>
+                    <li><a href="#" class="nav-link">Мероприятия</a></li>
+                    <li><a href="#" class="nav-link">Архив</a></li>
+                    <li><a href="#" class="cta-button">Стать членом</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Breadcrumb -->
+    <section class="breadcrumb">
+        <div class="breadcrumb-content">
+            <nav class="breadcrumb-nav">
+                <a href="#">Главная</a>
+                <span>→</span>
+                <a href="#">О клубе</a>
+                <span>→</span>
+                <a href="#">Рабочие группы</a>
+                <span>→</span>
+                <span>Информационные системы</span>
+            </nav>
+            <h1 class="breadcrumb-title" style="color: var(--bright-blue);">Информационные системы</h1>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="main-column">
+            <!-- Biography Section -->
+            <section class="biography-section fade-in">
+                <div class="bio-content">
+                    <p>
+                        Рабочая группа отвечает за развитие и поддержку всей цифровой 
+                        инфраструктуры НКП Сибирский Хаски. Наша миссия — создание современных технологичных 
+                        решений, которые помогают заводчикам, владельцам и экспертам в работе с породой.
+                    </p>
+                    
+                    <div class="highlight-box">
+                        <h4>Ключевая роль в развитии клуба</h4>
+                        <p>
+                            Группа объединяет профессиональных IT-специалистов и студентов-разработчиков, 
+                            совместными усилиями создающих инновационные инструменты для работы с породным 
+                            архивом, генетическим анализом и управлением клубом.
+                        </p>
+                    </div>
+
+                    <p>
+                        За последние годы мы создали комплексную экосистему цифровых сервисов: от официального 
+                        сайта клуба и породного архива до специализированных инструментов для анализа родословных 
+                        и генетического планирования. Под научным руководством Влады Кугураковой работает 
+                        команда из 70+ студентов-разработчиков, которые ежегодно реализуют самые амбициозные 
+                        проекты в области веб-разработки, баз данных, машинного обучения и компьютерного зрения.
+                    </p>
+
+                    <p>
+                        Особое внимание уделяется интеграции с международными системами — наш породный архив 
+                        связан с крупнейшей мировой базой данных breedarchive.com, что обеспечивает российским 
+                        заводчикам доступ к глобальной информации о породе.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Responsibilities Section -->
+            <section class="responsibilities-section fade-in">
+                <h2 class="section-title">Основные направления работы</h2>
+                <div class="responsibilities-grid">
+                    <div class="responsibility-card">
+                        <h3 class="responsibility-title">
+                            <div class="responsibility-icon">🌐</div>
+                            Веб-платформа НКП
+                        </h3>
+                        <p class="responsibility-description">
+                            Развитие и поддержка официального сайта клуба, обеспечение его функциональности, 
+                            безопасности и удобства использования для всех членов НКП.
+                        </p>
+                    </div>
+
+                    <div class="responsibility-card">
+                        <h3 class="responsibility-title">
+                            <div class="responsibility-icon">📚</div>
+                            Породный архив
+                        </h3>
+                        <p class="responsibility-description">
+                            Создание и поддержка цифрового архива родословных с более чем 15,000 записей, 
+                            интеграция с международными базами родословных. Создание API для нативных инъекций 
+                            интерактивных родословных на другие сайты.
+                        </p>
+                    </div>
+
+                    <div class="responsibility-card">
+                        <h3 class="responsibility-title">
+                            <div class="responsibility-icon">👤</div>
+                            Персональные страницы
+                        </h3>
+                        <p class="responsibility-description">
+                            Разработка функциональных личных кабинетов для членов клуба с различными 
+                            уровнями доступа и персонализированным функционалом.
+                        </p>
+                    </div>
+
+                    <div class="responsibility-card">
+                        <h3 class="responsibility-title">
+                            <div class="responsibility-icon">🔬</div>
+                            Генетический анализ
+                        </h3>
+                        <p class="responsibility-description">
+                            Создание инструментов для анализа генетических линий, поиска "генетических близнецов" 
+                            и планирования вязок с учетом генетического разнообразия.
+                        </p>
+                    </div>
+
+                    <div class="responsibility-card">
+                        <h3 class="responsibility-title">
+                            <div class="responsibility-icon">🔍</div>
+                            Мониторинг сайтов питомников
+                        </h3>
+                        <p class="responsibility-description">
+                            Система автоматического мониторинга и анализа сайтов питомников-партнеров для 
+                            отслеживания обновлений.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Projects Section -->
+            <section class="projects-section fade-in">
+                <h2 class="section-title">Активные проекты</h2>
+                <div class="projects-grid">
+                    <div class="project-card active">
+                        <span class="project-status status-active">✓ Активный</span>
+                        <h3 class="project-title">Система личных кабинетов</h3>
+                        <p class="project-description">
+                            Многоуровневая система авторизации и персональных кабинетов для различных 
+                            ролей пользователей — от членов клуба до администраторов.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">React</span>
+                            <span class="tech-tag">Node.js</span>
+                            <span class="tech-tag">PostgreSQL</span>
+                        </div>
+                    </div>
+
+                    <div class="project-card active">
+                        <span class="project-status status-active">✓ Активный</span>
+                        <h3 class="project-title">Породный рейтинг</h3>
+                        <p class="project-description">
+                            Автоматизированная система подсчета и отображения породного рейтинга собак 
+                            на основе выставочных результатов с визуализацией динамики.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">Django</span>
+                            <span class="tech-tag">Chart.js</span>
+                        </div>
+                    </div>
+
+                    <div class="project-card in-development">
+                        <span class="project-status status-development">⚙ В разработке</span>
+                        <h3 class="project-title">Интеграция с BreedArchive</h3>
+                        <p class="project-description">
+                            Связь российского архива с международной базой данных BreedArchive.com для 
+                            глобального доступа к родословным и генетической информации.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">API</span>
+                            <span class="tech-tag">REST</span>
+                            <span class="tech-tag">JSON</span>
+                        </div>
+                    </div>
+
+                    <div class="project-card in-development">
+                        <span class="project-status status-development">⚙ В разработке</span>
+                        <h3 class="project-title">Генетические близнецы</h3>
+                        <p class="project-description">
+                            Инновационная система поиска собак с похожими генетическими профилями для 
+                            подбора замены производителям и планирования селекционных программ.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">ML</span>
+                            <span class="tech-tag">Vector DB</span>
+                        </div>
+                    </div>
+
+                    <div class="project-card planning">
+                        <span class="project-status status-planning">📋 Планирование</span>
+                        <h3 class="project-title">Мобильное приложение НКП</h3>
+                        <p class="project-description">
+                            Нативное мобильное приложение для iOS и Android с основными функциями 
+                            сайта и push-уведомлениями о важных событиях.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">React Native</span>
+                            <span class="tech-tag">Firebase</span>
+                            <span class="tech-tag">Push</span>
+                        </div>
+                    </div>
+
+                    <div class="project-card planning">
+                        <span class="project-status status-planning">📋 Планирование</span>
+                        <h3 class="project-title">AI-ассистент НКП</h3>
+                        <p class="project-description">
+                            Чат-бот на основе базы знаний клуба для консультаций по породе, 
+                            разведению и документообороту с использованием современных LLM.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">GPT</span>
+                            <span class="tech-tag">NLP</span>
+                            <span class="tech-tag">Vector DB</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Team Section -->
+            <section class="team-section fade-in">
+                <div class="team-content">
+                    <h2 class="section-title">Присоединяйтесь к команде</h2>
+                    <p class="team-description">
+                        Мы всегда открыты для сотрудничества с IT-специалистами, студентами и энтузиастами, 
+                        которые хотят внести вклад в развитие породы сибирский хаски. Работа в нашей группе — 
+                        это возможность применить свои навыки в реальных проектах, получить опыт работы с 
+                        большими данными, генетикой и создать что-то действительно значимое для сообщества.
+                    </p>
+                    <p class="team-description">
+                        Независимо от вашего уровня опыта — найдется задача по силам. Мы предлагаем 
+                        разнообразные направления: от веб-разработки и баз данных до машинного обучения, 
+                        компьютерного зрения и разработки мобильных приложений.
+                    </p>
+                    <a href="/cdn-cgi/l/email-protection#026b76426c69722f6a7771697b2c7077" class="join-button">
+                        🚀 Присоединиться к команде
+                    </a>
+                </div>
+            </section>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Profile Card -->
+            <div class="sidebar-profile fade-in">
+                <div class="sidebar-avatar">
+                    <div class="sidebar-avatar-ring"></div>
+                    💻
+                </div>
+                <h2>Влада Кугуракова</h2>
+                <div class="sidebar-profile-title">Руководитель группы</div>
+                <p class="sidebar-profile-text">
+                    CEO в IT более 30 лет, к.т.н., доцент. Заведующий кафедрой индустрии разработки видеоигр 
+                    ИТИС КФУ. Питомник "Семаргл" FCI 9438.
+                </p>
+                <div class="sidebar-badges">
+                    <span class="sidebar-badge badge-it">🐺 В породе с 2005 года</span>
+                    <span class="sidebar-badge badge-experience">📅 30+ лет в IT</span>
+                </div>
+                <div class="sidebar-actions">
+                    <a href="/cdn-cgi/l/email-protection#9cf5e8dcf2f7ecb1f4e9eff7e5b2eee9" class="sidebar-btn btn-primary">
+                        📧 Написать письмо
+                    </a>
+                    <a href="https://siberians.ru" class="sidebar-btn btn-secondary" target="_blank">
+                        🌐 Питомник "Семаргл"
+                    </a>
+                    <a href="#" class="sidebar-btn btn-secondary">
+                        💡 Предложить идею
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="quick-links fade-in">
+                <h3>🔗 Быстрые ссылки</h3>
+                <ul class="quick-links-list">
+                    <li><a href="#">🏠 Личный кабинет</a></li>
+                    <li><a href="#">📊 Породный архив</a></li>
+                    <li><a href="#">📈 Рейтинг собак</a></li>
+                    <li><a href="#">🔧 Техническая поддержка</a></li>
+                    <li><a href="#">📘 API документация</a></li>
+                    <li><a href="#">🐛 Сообщить об ошибке</a></li>
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Архив и данные</h3>
+                <ul>
+                    <li><a href="#">Поиск собак</a></li>
+                    <li><a href="#">Родословные</a></li>
+                    <li><a href="#">Здоровье породы</a></li>
+                    <li><a href="#">Статистика</a></li>
+                    <li><a href="#">Рейтинги</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Мероприятия</h3>
+                <ul>
+                    <li><a href="#">Календарь выставок</a></li>
+                    <li><a href="#">Ездовой спорт</a></li>
+                    <li><a href="#">Семинары</a></li>
+                    <li><a href="#">Результаты</a></li>
+                    <li><a href="#">Фотоотчеты</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Сообщество</h3>
+                <ul>
+                    <li><a href="#">Членство в клубе</a></li>
+                    <li><a href="#">Питомники-партнеры</a></li>
+                    <li><a href="#">Форум заводчиков</a></li>
+                    <li><a href="#">Помощь новичкам</a></li>
+                    <li><a href="#">Контакты</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Рабочие группы</h3>
+                <ul>
+                    <li><a href="#">Информационные системы</a></li>
+                    <li><a href="#">СМИ и материалы</a></li>
+                    <li><a href="#">Стандарт породы</a></li>
+                    <li><a href="#">Племенная комиссия</a></li>
+                    <li><a href="#">Международное сотрудничество</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2025 НКП Сибирский Хаски. Все права защищены.</p>
+            <p>Интеграция с breedarchive.com</p>
+        </div>
+    </footer>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        // Header scroll effect
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('.header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Fade-in animation on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+

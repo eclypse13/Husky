@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { getDict, pickValue } from "@/lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./Events.css";
@@ -29,7 +30,19 @@ export default function Events() {
     eventType?: string | null;
   };
   const [events, setEvents] = useState<EventItem[]>([]);
-
+  type JudgeItem = {
+    id: string;
+    name: string;
+    rank?: string | null;
+    email?: string | null;
+    photo?: string | null;
+  };
+  const [judges, setJudges] = useState<JudgeItem[]>([]);
+  const getJudgeInitial = (name?: string | null) => {
+    if (!name) return "J";
+    const letter = name.trim().charAt(0);
+    return letter || "J";
+  };
   // Плавное появление секций/карточек
   useEffect(() => {
     const root = pageRef.current;
@@ -124,6 +137,53 @@ export default function Events() {
     };
 
     loadPage();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Load judges from API
+  useEffect(() => {
+    let ignore = false;
+
+    const loadJudges = async () => {
+      try {
+        const res = await fetch("/api/judges/");
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (ignore) return;
+
+        const fromApi = Array.isArray((payload as any)?.results)
+          ? (payload as any).results
+          : Array.isArray(payload)
+          ? payload
+          : [];
+
+        const normalized: JudgeItem[] = fromApi
+          .map((judge: any, index: number): JudgeItem | null => {
+            if (!judge) return null;
+            const name = typeof judge.name === "string" ? judge.name : null;
+            if (!name) return null;
+            const rank = typeof judge.rank === "string" ? judge.rank : null;
+            const email = typeof judge.email === "string" ? judge.email : null;
+            const photo = typeof judge.photo === "string" ? judge.photo : null;
+            return {
+              id: String(judge.id ?? index),
+              name,
+              rank,
+              email,
+              photo,
+            };
+          })
+          .filter((item: JudgeItem | null): item is JudgeItem => Boolean(item));
+
+        setJudges(normalized);
+      } catch {
+        // ignore judges errors silently
+      }
+    };
+
+    loadJudges();
     return () => {
       ignore = true;
     };
@@ -242,20 +302,36 @@ export default function Events() {
                 <p className="events-text" style={{ marginBottom: "2rem" }}>
                   Ниже представлен список экспертов, заявленных на Национальных выставках по породе сибирский хаски:
                 </p>
-                <div className="events-leadership-grid">
-                  <div className="events-leader-card">
-                    <div className="events-leader-avatar">👩‍⚖️</div>
-                    <h3 className="events-leader-name">Анна Фалунина</h3>
-                    <p className="events-leader-position">Судья РКФ, FCI</p>
-                    <div className="events-leader-contact">anna.falunina@nkp-husky.ru</div>
+                {judges.length > 0 ? (
+                  <div className="events-leadership-grid">
+                    {judges.map((judge) => (
+                      <article className="events-leader-card" key={judge.id}>
+                        <div className="events-leader-avatar">
+                          {judge.photo ? (
+                            <img src={judge.photo} alt={judge.name} />
+                          ) : (
+                            <span aria-hidden="true">{getJudgeInitial(judge.name)}</span>
+                          )}
+                        </div>
+                        <h3 className="events-leader-name">{judge.name}</h3>
+                        {judge.rank && (
+                          <Link className="events-leader-position" to={`/judges/${judge.id}`}>
+                            {judge.rank}
+                          </Link>
+                        )}
+                        {judge.email && (
+                          <div className="events-leader-contact">
+                            <a href={`mailto:${judge.email}`}>{judge.email}</a>
+                          </div>
+                        )}
+                      </article>
+                    ))}
                   </div>
-                  <div className="events-leader-card">
-                    <div className="events-leader-avatar">👨‍⚖️</div>
-                    <h3 className="events-leader-name">Александр Смирнов</h3>
-                    <p className="events-leader-position">Судья по ездовым породам</p>
-                    <div className="events-leader-contact">smirnov@nkp-husky.ru</div>
+                ) : (
+                  <div className="events-judges-placeholder">
+                    Список экспертов скоро появится.
                   </div>
-                </div>
+                )}
               </section>
 
               {/* Семинары */}
