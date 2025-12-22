@@ -26,12 +26,6 @@ type JudgeDetailsPayload = {
   kennel?: string | null;
 };
 
-type MaterialItem = {
-  id: string;
-  title: string;
-  url?: string | null;
-};
-
 type WorkDirection = {
   title: string;
   desc: string;
@@ -88,30 +82,6 @@ function parseList(raw: unknown): string[] {
     return parsed
       .map((item) => (typeof item === "string" ? item : null))
       .filter((p): p is string => Boolean(p));
-  } catch {
-    return [];
-  }
-}
-
-function parseMaterials(raw: unknown): MaterialItem[] {
-  try {
-    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item, index): MaterialItem | null => {
-        if (typeof item === "string") {
-          return { id: `${index}`, title: item, url: item.startsWith("http") ? item : null };
-        }
-        if (item && typeof item === "object") {
-          const title = typeof (item as any).title === "string" ? (item as any).title : null;
-          const url = typeof (item as any).url === "string" ? (item as any).url : null;
-          if (title || url) {
-            return { id: String((item as any).id ?? index), title: title || url || "Материал", url };
-          }
-        }
-        return null;
-      })
-      .filter((m): m is MaterialItem => Boolean(m));
   } catch {
     return [];
   }
