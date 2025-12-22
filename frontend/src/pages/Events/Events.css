@@ -174,6 +174,14 @@
     box-shadow: var(--shadow-glow);
 }
 
+.events-leader-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
 .events-leader-name {
     font-size: 1.3rem;
     font-weight: 800;
@@ -190,6 +198,7 @@
 .events-leader-contact {
     font-size: .9rem;
     color: var(--text-light);
+    margin-top: 8px;
 }
 
 /* Cards */

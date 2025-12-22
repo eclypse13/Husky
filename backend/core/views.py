@@ -159,6 +159,13 @@ class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
+
+
+class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
+    """API ??????? ?????"""
+    queryset = models.JudgeDetails.objects.all()
+    serializer_class = JudgeDetailsSerializer
+    permission_classes = [AllowAny]
 class ClubDocumentViewSet(viewsets.ReadOnlyModelViewSet):
     """API документов клуба"""
     queryset = models.ClubDocument.objects.all()

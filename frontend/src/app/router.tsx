@@ -15,6 +15,7 @@ import SmartTools from "@/pages/SmartTools/SmartTools";
 import Profile from "@/pages/Profile/Profile";
 import PublicGallery from "@/pages/PublicGallery/PublicGallery";
 import PublicWinner from "@/pages/PublicWinner/PublicWinner";
+import Judge from "@/pages/Judge/Judge";
 
 
 export const router = createBrowserRouter([
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
             { path: "/smart-tools", element: <SmartTools /> },
             { path: "/public-gallery", element: <PublicGallery /> },
             { path: "/public-winner", element: <PublicWinner /> },
+            { path: "judges/:id", element: <Judge /> },
         ],
     },
 ]);

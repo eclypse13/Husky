@@ -3,6 +3,7 @@
 }
 
 .club-sidebar__container {
+    height: 100%;
     display: flex;
     position: relative;
     flex-direction: column;

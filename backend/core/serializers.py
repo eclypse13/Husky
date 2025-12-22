@@ -44,6 +44,11 @@ class JudgeSerializer(serializers.ModelSerializer):
         model = models.Judge
         fields = '__all__'
 
+class JudgeDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.JudgeDetails
+        fields = '__all__'
+
 
 class ClubDocumentSerializer(serializers.ModelSerializer):
     class Meta:

@@ -1,4 +1,13 @@
 from django.db import models
+import os
+from django.core.exceptions import ValidationError
+
+
+def validate_svg(value):
+    ext = os.path.splitext(value.name)[1]
+    valid_exts = ['.svg']
+    if not ext.lower() in valid_exts:
+        raise ValidationError('Формат файла не поддерживается, выберите файл в формате SVG')
 
 
 # Choice tuples
@@ -56,6 +65,12 @@ DOCUMENT_TYPES = [
     ('regulation', 'regulation'),
     ('standard', 'standard'),
     ('form', 'form'),
+]
+
+INITIATIVE_STATES = [
+    ('active', 'Активный'),
+    ('in developing', 'В разработке'),
+    ('planning', 'Планирование'),
 ]
 
 
@@ -180,17 +195,60 @@ class Gallery(models.Model):
 
 
 class Judge(models.Model):
-    name = models.CharField(max_length=200)
-    rank = models.CharField(max_length=200, blank=True)
-    bio_key = models.CharField(max_length=200, blank=True)
-    photo = models.ImageField(upload_to='judges/', blank=True, null=True)
-    materials = models.JSONField(default=list, blank=True)
+    name = models.CharField(max_length=200, verbose_name='Имя')
+    rank = models.CharField(max_length=200, blank=True, verbose_name='Должность')
+    email = models.EmailField(max_length=200, blank=True, verbose_name='Эл. почта')
+    photo = models.ImageField(upload_to='judges/', blank=True, null=True, verbose_name='Фотография')
+    materials = models.CharField(max_length=1000, blank=True, verbose_name='Доп. информация')
+    judge_id = models.ForeignKey('JudgeDetails', on_delete=models.SET_NULL,
+                                 null=True, blank=True, db_column='judge_id', related_name='judge',
+                                 verbose_name='Детальная информация')
 
     class Meta:
         ordering = ['name']
+        verbose_name = "Породный эксперт"
+        verbose_name_plural = "Породные эксперты"
 
     def __str__(self):
         return self.name
+
+
+class JudgeDetails(models.Model):
+    id = models.AutoField(primary_key=True, verbose_name='ID')
+    title = models.CharField(max_length=200, verbose_name='Заголовок')
+    info = models.JSONField(default=list, blank=True, verbose_name='Информация')
+    additional_info_title = models.JSONField(default=list, blank=True, verbose_name='Доп. информация заголовок')
+    additional_info_text = models.JSONField(default=list, blank=True, verbose_name='Доп. информация текст')
+    work_directions = models.JSONField(default=list, blank=True, verbose_name='Направления работы')
+    initiatives = models.JSONField(default=list, blank=True, verbose_name='Инициативы и проекты')
+    sidebar_text = models.CharField(max_length=200, verbose_name='Текст')
+    sidebar_achievements = models.JSONField(default=list, verbose_name='Достижения')
+    kennel = models.ForeignKey('Kennel', on_delete=models.SET_NULL, null=True, blank=True, related_name='details',
+                               verbose_name='Питомник')
+    kennel_url = models.URLField(blank=True, verbose_name='Ссылка на питомник')
+
+    class Meta:
+        ordering = ['title']
+        verbose_name = "Породный эксперт (подробно)"
+        verbose_name_plural = "Породные эксперты (подробно)"
+
+    def __str__(self):
+        return self.title
+
+
+class FastLink(models.Model):
+    title = models.CharField(max_length=200, verbose_name='Заголовок')
+    link = models.URLField(verbose_name='Ссылка')
+    image = models.FileField(upload_to='svgs/', blank=True, null=True,
+                             validators=[validate_svg], verbose_name='SVG-картинка')
+
+    class Meta:
+        ordering = ['title']
+        verbose_name = "Быстрая ссылка"
+        verbose_name_plural = "Быстрые ссылки"
+
+    def __str__(self):
+        return self.title
 
 
 class Event(models.Model):

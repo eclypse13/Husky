@@ -18,6 +18,11 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   mongodb:
     image: mongo:7
@@ -34,6 +39,11 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
@@ -45,6 +55,11 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   celery:
     build: .
@@ -59,6 +74,11 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   celery_beat:
     build: .
@@ -73,6 +93,11 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:alpine
@@ -88,6 +113,11 @@ services:
     depends_on:
       - web
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx-proxy:
     image: jwilder/nginx-proxy
