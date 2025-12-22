@@ -1,6 +1,5 @@
 ﻿.judge-page {
     position: relative;
-    overflow: hidden;
     background: var(--snow-white);
     line-height: 1.6;
 }
@@ -169,6 +168,10 @@
 
 .judge-card {
     background: var(--snow-white);
+}
+
+.judge-col .judge-section:last-of-type {
+    margin-bottom: 0;
 }
 
 .judge-section-title {
@@ -364,12 +367,36 @@
 }
 
 .judge-sidebar {
+    height: 100%;
+    width: 100%;
+}
+
+.judge-sidebar__container {
+    height: 100%;
+    display: flex;
+    position: relative;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.judge-sidebar__empty {
+    flex: 1;
+}
+
+.judge-sidebar__sticky {
     position: sticky;
-    top: 120px;
-    align-self: start;
+    top: auto;
+    bottom: 30px;
+    align-self: flex-start;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.judge-sidebar__sticky--fixed {
+    transform: translateY(0);
 }
 
 .judge-aside-card {
@@ -536,8 +563,11 @@
     .judge-grid {
         grid-template-columns: 1fr;
     }
-    .judge-sidebar {
+    .judge-sidebar__sticky {
         position: static;
+        top: auto;
+        bottom: auto;
+        transform: none;
     }
 }
 
@@ -547,10 +577,24 @@
         text-align: center;
         justify-items: center;
     }
-    .judge-section {
-        padding: 1.5rem;
-    }
     .judge-container {
         padding: 0 1.25rem;
+    }
+    .judge-section {
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .judge-aside-card {
+        padding: 1.5rem;
+    }
+    .judge-resp-grid,
+    .judge-projects-grid {
+        grid-template-columns: 1fr;
+    }
+    .judge-cta {
+        text-align: center;
+    }
+    .judge-cta-actions {
+        justify-content: center;
     }
 }

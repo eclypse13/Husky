@@ -220,11 +220,7 @@ class JudgeDetails(models.Model):
     additional_info_title = models.JSONField(default=list, blank=True, verbose_name='Доп. информация заголовок')
     additional_info_text = models.JSONField(default=list, blank=True, verbose_name='Доп. информация текст')
     work_directions = models.JSONField(default=list, blank=True, verbose_name='Направления работы')
-    initiative_title = models.CharField(max_length=200, verbose_name='Заголовок')
-    initiative_state = models.CharField(max_length=20, choices=INITIATIVE_STATES, blank=True, null=True,
-                                        verbose_name='Состояние')
-    initiative_text = models.TextField(max_length=500, verbose_name='Текст')
-    initiative_stack = models.JSONField(default=list, verbose_name='Стэк')
+    initiatives = models.JSONField(default=list, blank=True, verbose_name='Инициативы и проекты')
     sidebar_text = models.CharField(max_length=200, verbose_name='Текст')
     sidebar_achievements = models.JSONField(default=list, verbose_name='Достижения')
     kennel = models.ForeignKey('Kennel', on_delete=models.SET_NULL, null=True, blank=True, related_name='details',

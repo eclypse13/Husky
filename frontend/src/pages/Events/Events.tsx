@@ -36,6 +36,7 @@ export default function Events() {
     rank?: string | null;
     email?: string | null;
     photo?: string | null;
+    judgeId?: string | null;
   };
   const [judges, setJudges] = useState<JudgeItem[]>([]);
   const getJudgeInitial = (name?: string | null) => {
@@ -167,12 +168,14 @@ export default function Events() {
             const rank = typeof judge.rank === "string" ? judge.rank : null;
             const email = typeof judge.email === "string" ? judge.email : null;
             const photo = typeof judge.photo === "string" ? judge.photo : null;
+            const judgeId = judge.judge_id != null ? String(judge.judge_id) : null;
             return {
               id: String(judge.id ?? index),
               name,
               rank,
               email,
               photo,
+              judgeId,
             };
           })
           .filter((item: JudgeItem | null): item is JudgeItem => Boolean(item));
@@ -314,10 +317,12 @@ export default function Events() {
                           )}
                         </div>
                         <h3 className="events-leader-name">{judge.name}</h3>
-                        {judge.rank && (
+                        {judge.rank && judge.judgeId ? (
                           <Link className="events-leader-position" to={`/judges/${judge.id}`}>
                             {judge.rank}
                           </Link>
+                        ) : (
+                          judge.rank && <span className="events-leader-position">{judge.rank}</span>
                         )}
                         {judge.email && (
                           <div className="events-leader-contact">

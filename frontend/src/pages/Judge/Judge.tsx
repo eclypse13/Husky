@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./Judge.css";
@@ -19,10 +19,7 @@ type JudgeDetailsPayload = {
   additional_info_title?: unknown;
   additional_info_text?: unknown;
   work_directions?: unknown;
-  initiative_title?: string | null;
-  initiative_state?: string | null;
-  initiative_text?: string | null;
-  initiative_stack?: unknown;
+  initiatives?: unknown;
   sidebar_text?: string | null;
   sidebar_achievements?: unknown;
   kennel_url?: string | null;
@@ -40,6 +37,22 @@ type WorkDirection = {
   desc: string;
   icon?: string | null;
 };
+
+type Initiative = {
+  title: string;
+  desc: string;
+  status: string;
+  tech: string[];
+};
+
+function normalizeStatus(value: string): string {
+  const raw = (value || "").toString().trim().toLowerCase();
+  if (!raw) return "active";
+  if (["active", "активно", "активный"].includes(raw)) return "active";
+  if (["in developing", "developing", "development", "в разработке", "разработка"].includes(raw)) return "in developing";
+  if (["planning", "plan", "планирование", "в планировании", "план"].includes(raw)) return "planning";
+  return raw;
+}
 
 const defaultProjects = [
   {
@@ -118,18 +131,44 @@ function parseWorkDirections(raw: unknown): WorkDirection[] {
   return result;
 }
 
+function parseInitiatives(raw: unknown): Initiative[] {
+  const list = parseList(raw);
+  const result: Initiative[] = [];
+  for (let i = 0; i < list.length; i += 4) {
+    const title = list[i] || "";
+    const desc = list[i + 1] || "";
+    const status = normalizeStatus(list[i + 2] || "active");
+    const stackRaw = list[i + 3] || "";
+    const parsedStack = parseList(stackRaw);
+    const tech =
+      parsedStack.length > 0
+        ? parsedStack
+        : String(stackRaw)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+    if (title || desc || status || tech.length) {
+      result.push({ title, desc, status, tech });
+    }
+  }
+  return result;
+}
+
 export default function Judge() {
   const { id } = useParams();
   const pageRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [judge, setJudge] = useState<JudgePayload | null>(null);
   const [details, setDetails] = useState<JudgeDetailsPayload | null>(null);
   const [bio, setBio] = useState<string[]>([]);
   const [workDirections, setWorkDirections] = useState<WorkDirection[]>([]);
-  const [initiativeStack, setInitiativeStack] = useState<string[]>([]);
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [sidebarAchievements, setSidebarAchievements] = useState<string[]>([]);
-
+  const [isSticky, setIsSticky] = useState(false);
+  const stickyTopPx = 120;
   useEffect(() => {
     const root = pageRef.current;
     if (!root) return;
@@ -151,6 +190,19 @@ export default function Judge() {
 
     return () => io.disconnect();
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!sidebarRef.current) return;
+      const rect = sidebarRef.current.getBoundingClientRect();
+      const shouldStick = rect.top <= stickyTopPx;
+      setIsSticky((prev) => (prev !== shouldStick ? shouldStick : prev));
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [stickyTopPx]);
 
   useEffect(() => {
     let ignore = false;
@@ -177,7 +229,7 @@ export default function Judge() {
                 setDetails(det);
                 setBio(parseList(det.info));
                 setWorkDirections(parseWorkDirections(det.work_directions));
-                setInitiativeStack(parseList(det.initiative_stack));
+                setInitiatives(parseInitiatives(det.initiatives));
                 setSidebarAchievements(parseList(det.sidebar_achievements));
               }
             }
@@ -207,17 +259,7 @@ export default function Judge() {
   const highlightTitle = parseList(details?.additional_info_title)[0] || "";
   const highlightText = parseList(details?.additional_info_text)[0] || "";
   const responsibilities = workDirections;
-  const projects =
-    details?.initiative_title || details?.initiative_state || details?.initiative_text
-      ? [
-          {
-            status: details?.initiative_state || "active",
-            title: details?.initiative_title || "Инициатива",
-            desc: details?.initiative_text || "Описание инициативы в процессе обновления.",
-            tech: initiativeStack.length ? initiativeStack : ["API", "Data"],
-          },
-        ]
-      : defaultProjects;
+  const projects = initiatives.length ? initiatives : defaultProjects;
 
   const getStatusClass = (status?: string | null) => {
     if (!status) return "status-active";
@@ -294,7 +336,7 @@ export default function Judge() {
               </section>
 
               <section className="judge-section judge-card">
-                <h2 className="judge-section-title">Инициативы и проекты</h2>
+                <h2 className="judge-section-title mt-0">Инициативы и проекты</h2>
                 <div className="judge-projects-grid">
                   {projects.map((project, idx) => {
                     const statusClass = getStatusClass(project.status);
@@ -302,8 +344,8 @@ export default function Judge() {
                       project.status === "planning"
                         ? "Планирование"
                         : project.status === "in developing" || project.status === "development"
-                        ? "В разработке"
-                        : "Активный";
+                          ? "В разработке"
+                          : "Активный";
                     return (
                       <article key={idx} className={`judge-project-card ${statusClass}`}>
                         <span className={`judge-project-status ${statusClass}`}>{statusLabel}</span>
@@ -323,73 +365,97 @@ export default function Judge() {
                   })}
                 </div>
               </section>
+
+              <section className="judge-section judge-cta">
+                <div className="judge-cta-inner">
+                  <h2 className="judge-section-title judge-section-title--light mt-0 section-title--no-underline">Присоединяйтесь к работе группы</h2>
+                  <p className="judge-cta-text">
+                    Мы открыты для IT-специалистов, студентов и энтузиастов, которые хотят внести вклад в развитие породы
+                    сибирский хаски. Это возможность применить навыки в реальных проектах, поработать с данными и создать значимые сервисы.
+                  </p>
+                  <p className="judge-cta-text">
+                    Независимо от опыта — найдется задача: веб-разработка, базы данных, машинное обучение, компьютерное зрение
+                    или мобильные приложения. Присоединяйтесь к команде и помогайте развивать цифровую экосистему НКП.
+                  </p>
+                  <div className="judge-cta-actions">
+                    <Link className="judge-pill-link" to="/support">
+                      🚀 Присоединиться к команде
+                    </Link>
+                  </div>
+                </div>
+              </section>
             </div>
 
             <aside className="judge-sidebar">
-              <div className="judge-aside-card judge-aside-profile">
-                <div className="judge-aside-avatar">
-                  <div className="judge-aside-avatar-ring" />
-                  {judge?.photo ? <img src={judge.photo} alt={judge.name} /> : <span>{heroInitial}</span>}
-                </div>
-                <h3 className="judge-aside-name">{judge?.name || "Влада Кугуракова"}</h3>
-                <div className="judge-aside-role">{judge?.rank || "Руководитель группы"}</div>
-                <p className="judge-aside-text">{sidebarText}</p>
-                {sidebarAchievements.length > 0 && (
-                  <div className="judge-aside-badges">
-                    {sidebarAchievements.map((item, idx) => {
-                      const badgeClass = getBadgeClass(idx);
-                      return (
-                        <span key={`${item}-${idx}`} className={`judge-aside-badge ${badgeClass}`}>
-                          {item}
-                        </span>
-                      );
-                    })}
+              <div className="judge-sidebar__container">
+                <div className="judge-sidebar__empty"></div>
+                <div
+                  className={`judge-sidebar__sticky ${isSticky ? "judge-sidebar__sticky--fixed" : ""}`}
+                  ref={sidebarRef}
+                >
+                  <div className="judge-aside-card judge-aside-profile">
+                    <div className="judge-aside-avatar">
+                      <div className="judge-aside-avatar-ring" />
+                      {judge?.photo ? <img src={judge.photo} alt={judge.name} /> : <span>{heroInitial}</span>}
+                    </div>
+                    <h3 className="judge-aside-name">{judge?.name || "Влада Кугуракова"}</h3>
+                    <div className="judge-aside-role">{judge?.rank || "Руководитель группы"}</div>
+                    <p className="judge-aside-text">{sidebarText}</p>
+                    {sidebarAchievements.length > 0 && (
+                      <div className="judge-aside-badges">
+                        {sidebarAchievements.map((item, idx) => {
+                          const badgeClass = getBadgeClass(idx);
+                          return (
+                            <span key={`${item}-${idx}`} className={`judge-aside-badge ${badgeClass}`}>
+                              {item}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="judge-aside-actions">
+                      {judge?.email && (
+                        <a className="judge-pill-link" href={`mailto:${judge.email}`}>
+                          📧   Написать письмо
+                        </a>
+                      )}
+                      {details?.kennel_url && (
+                        <a
+                          className="judge-pill-link judge-pill-link--ghost"
+                          href={details.kennel_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          🌐 {details?.kennel || "Питомник"}
+                        </a>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className="judge-aside-actions">
-                  {judge?.email && (
-                    <a className="judge-pill-link" href={`mailto:${judge.email}`}>
-                      ?? Написать письмо
-                    </a>
-                  )}
-                  {details?.kennel_url && (
-                    <a
-                      className="judge-pill-link judge-pill-link--ghost"
-                      href={details.kennel_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      ?? {details?.kennel || "Питомник"}
-                    </a>
-                  )}
-                  <Link className="judge-pill-link judge-pill-link--ghost" to="/events">
-                    ?? Предложить идею
-                  </Link>
-                </div>
-              </div>
 
-              <div className="judge-aside-card judge-aside-quick">
-                <h4 className="judge-aside-quick-title">?? Быстрые ссылки</h4>
-                <ul className="judge-aside-links">
-                  <li>
-                    <Link to="/">?? Личный кабинет</Link>
-                  </li>
-                  <li>
-                    <Link to="/archive">?? Породный архив</Link>
-                  </li>
-                  <li>
-                    <Link to="/rating">?? Рейтинг собак</Link>
-                  </li>
-                  <li>
-                    <Link to="/support">?? Техническая поддержка</Link>
-                  </li>
-                  <li>
-                    <Link to="/api">?? API документация</Link>
-                  </li>
-                  <li>
-                    <Link to="/feedback">?? Сообщить об ошибке</Link>
-                  </li>
-                </ul>
+                  <div className="judge-aside-card judge-aside-quick">
+                    <h4 className="judge-aside-quick-title">🔗 Быстрые ссылки</h4>
+                    <ul className="judge-aside-links">
+                      <li>
+                        <Link to="/">🏠 Личный кабинет</Link>
+                      </li>
+                      <li>
+                        <Link to="/archive">📊 Породный архив</Link>
+                      </li>
+                      <li>
+                        <Link to="/rating">📈 Рейтинг собак</Link>
+                      </li>
+                      <li>
+                        <Link to="/support">🔧 Техническая поддержка</Link>
+                      </li>
+                      <li>
+                        <Link to="/api">📘 API документация</Link>
+                      </li>
+                      <li>
+                        <Link to="/feedback">🐛 Сообщить об ошибке</Link>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </aside>
           </div>

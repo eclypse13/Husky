@@ -198,6 +198,7 @@
 .events-leader-contact {
     font-size: .9rem;
     color: var(--text-light);
+    margin-top: 8px;
 }
 
 /* Cards */
