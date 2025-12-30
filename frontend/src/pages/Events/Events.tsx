@@ -45,6 +45,8 @@ export default function Events() {
     title?: string | null;            // готовое название для UI
     event_title_key?: string | null;  // ключ из API (на всякий)
     created_at?: string | null;
+    photosCount?: number;
+    videosCount?: number;
   };
 
   const [reports, setReports] = useState<EventReportItem[]>([]);
@@ -230,6 +232,8 @@ export default function Events() {
 
             const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
             const title = titleFromDict || titleKey || null;
+            const photos = Array.isArray(r?.photos) ? r.photos : [];
+            const videos = Array.isArray(r?.videos) ? r.videos : [];
 
             return {
               id: String(r?.id ?? idx),
@@ -237,6 +241,8 @@ export default function Events() {
               event_title_key: titleKey || null,
               title,
               created_at: typeof r?.created_at === "string" ? r.created_at : null,
+              photosCount: photos.length,
+              videosCount: videos.length,
             };
           })
           .filter((x: EventReportItem) => Boolean(x.id));
@@ -494,9 +500,23 @@ export default function Events() {
               <div className="sidebar-card">
                 <h3 className="events-sidebar-title mt-0">📸 Фото и видео отчёты</h3>
                 <ul className="events-links">
-                  <li><a href="#">📷 «Сибирская Красота 2025»</a></li>
-                  <li><a href="#">🎥 Чемпионат по драйленду</a></li>
-                  <li><a href="#">📷 Семинар хендлеров</a></li>
+                  {(reports.length > 0 ? reports.slice(0, 3) : []).map((r) => {
+                    const icon = (r.videosCount ?? 0) > 0 ? "🎥" : "📷";
+                    const label = r.title ?? `Отчёт #${r.id}`;
+
+                    return (
+                      <li key={r.id}>
+                        <Link to={`/event-report/${r.id}`}>{icon} {label}</Link>
+                      </li>
+                    );
+                  })}
+
+                  {reports.length === 0 && (
+                    <li>Пока нет отчётов</li>
+                  )}
+                  {/*<li><a href="#">📷 «Сибирская Красота 2025»</a></li>*/}
+                  {/*<li><a href="#">🎥 Чемпионат по драйленду</a></li>*/}
+                  {/*<li><a href="#">📷 Семинар хендлеров</a></li>*/}
                 </ul>
                 <a className="events-pill events-pill--info" href="#">Все отчёты</a>
               </div>
