@@ -4,6 +4,7 @@ import Home from "@/pages/Home/Home";
 import NewsList from "@/pages/News/News";
 import EventsList from "@/pages/Events/Events";
 import EventReport from "@/pages/EventReport/EventReport";
+import EventReports from "@/pages/EventReports/EventReports";
 import About from "@/pages/About/About";
 import Breed from "@/pages/Breed/Breed";
 import PuppiesList from "@/pages/Puppies/AllPuppies";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
             { index: true, element: <Home /> },
             { path: "news", element: <NewsList /> },
             { path: "events", element: <EventsList /> },
+            { path: "event-reports", element: <EventReports /> },
             { path: "event-report/:id", element: <EventReport />},
             { path: "about", element: <About /> },
             { path: "breed", element: <Breed /> },

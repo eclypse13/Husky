@@ -291,12 +291,14 @@ class EventReport(models.Model):
 class Seminar(models.Model):
     title_key = models.CharField(max_length=200)
     description_key = models.TextField(blank=True)
-    speaker = models.ForeignKey(Judge, on_delete=models.SET_NULL, null=True, blank=True, related_name='seminars')
-    date = models.DateTimeField(blank=True, null=True)
-    materials = models.JSONField(default=list, blank=True)
+    speaker = models.ForeignKey(Judge, on_delete=models.SET_NULL, null=True, blank=True, related_name='seminars', verbose_name='Спикер')
+    date = models.DateTimeField(blank=True, null=True, verbose_name='Дата')
+    materials = models.JSONField(default=list, blank=True, verbose_name="Материалы")
 
     class Meta:
         ordering = ['-date']
+        verbose_name = "Семинар"
+        verbose_name_plural = "Семинары"
 
     def __str__(self):
         return self.title_key

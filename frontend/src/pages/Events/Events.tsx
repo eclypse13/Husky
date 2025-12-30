@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import { Link } from "react-router-dom";
 import { getDict, pickValue } from "@/lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
@@ -30,6 +30,14 @@ export default function Events() {
     eventType?: string | null;
   };
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1); // 1-е число текущего месяца
+  });
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+
+
   type JudgeItem = {
     id: string;
     name: string;
@@ -301,6 +309,105 @@ export default function Events() {
     }
   }, [events]);
 
+    const monthNames = [
+    "Январь","Февраль","Март","Апрель","Май","Июнь",
+    "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь",
+  ];
+  const weekNames = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+  const toDateKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const eventDays = useMemo(() => {
+    const s = new Set<string>();
+    events.forEach((e) => {
+      if (!e.startsAt) return;
+      const d = new Date(e.startsAt);
+      if (Number.isNaN(d.getTime())) return;
+      s.add(toDateKey(d));
+    });
+    return s;
+  }, [events]);
+
+  const calendarCells = useMemo(() => {
+    const y = calendarMonth.getFullYear();
+    const m = calendarMonth.getMonth();
+
+    const first = new Date(y, m, 1);
+    const last = new Date(y, m + 1, 0);
+
+    // хотим Пн..Вс, поэтому сдвиг: (Вс=0) -> 6, (Пн=1) -> 0 ...
+    const startOffset = (first.getDay() + 6) % 7;
+
+    const cells: Array<{ date: Date; inMonth: boolean; key: string }> = [];
+    const start = new Date(y, m, 1 - startOffset);
+
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+
+      cells.push({
+        date: d,
+        inMonth: d.getMonth() === m,
+        key: toDateKey(d),
+      });
+    }
+
+    return { first, last, cells };
+  }, [calendarMonth]);
+
+  const fullDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    []
+  );
+
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
+
+  const selectedDayDate = useMemo(() => {
+    if (!selectedDayKey) return null;
+    const [y, m, d] = selectedDayKey.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  }, [selectedDayKey]);
+
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDayKey) return [];
+    return events
+      .filter((e) => e.startsAt && toDateKey(new Date(e.startsAt)) === selectedDayKey)
+      .sort((a, b) => {
+        const at = a.startsAt ? new Date(a.startsAt).getTime() : 0;
+        const bt = b.startsAt ? new Date(b.startsAt).getTime() : 0;
+        return at - bt;
+      });
+  }, [events, selectedDayKey]);
+
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCalendarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [calendarOpen]);
+
+
   return (
     <div className="events-page" ref={pageRef}>
       <Breadcrumb
@@ -493,7 +600,18 @@ export default function Events() {
                   <div className="events-side-note events-side-note--orange">
                     <strong>❄️ 7 сен:</strong> Ездовой спорт — Казань
                   </div>
-                  <a className="events-pill events-pill--primary" href="#">Посмотреть календарь</a>
+                  <a
+                    className="events-pill events-pill--primary"
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCalendarOpen(true);
+                    }}
+                  >
+                    Посмотреть календарь
+                  </a>
+
+
                 </div>
               </div>
 
@@ -518,7 +636,7 @@ export default function Events() {
                   {/*<li><a href="#">🎥 Чемпионат по драйленду</a></li>*/}
                   {/*<li><a href="#">📷 Семинар хендлеров</a></li>*/}
                 </ul>
-                <a className="events-pill events-pill--info" href="#">Все отчёты</a>
+                <a className="events-pill events-pill--info" href="/event-reports">Все отчёты</a>
               </div>
 
               <div className="sidebar-card">
@@ -534,6 +652,131 @@ export default function Events() {
           </div>
         </div>
       </main>
+            {calendarOpen && (
+        <div
+          className="events-calendar-overlay"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setCalendarOpen(false);
+          }}
+        >
+          <div className="events-calendar-modal">
+            <div className="events-calendar-head">
+              <div className="events-calendar-title">
+                {monthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+              </div>
+
+              <div className="events-calendar-actions">
+                <button
+                  type="button"
+                  className="events-calendar-nav"
+                  onClick={() =>
+                    setCalendarMonth(
+                      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                    )
+                  }
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  className="events-calendar-nav"
+                  onClick={() =>
+                    setCalendarMonth(
+                      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                    )
+                  }
+                >
+                  →
+                </button>
+                <button
+                  type="button"
+                  className="events-calendar-close"
+                  onClick={() => setCalendarOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="events-calendar-week">
+              {weekNames.map((w) => (
+                <div key={w} className="events-calendar-weekday">{w}</div>
+              ))}
+            </div>
+
+            <div className="events-calendar-grid">
+              {calendarCells.cells.map((c) => {
+                const hasEvent = eventDays.has(c.key);
+                return (
+                  <div
+                    key={c.key}
+                    className={[
+                      "events-calendar-cell",
+                      c.inMonth ? "in-month" : "out-month",
+                      hasEvent ? "has-event" : "",
+                      selectedDayKey === c.key ? "is-selected" : "",
+                    ].join(" ")}
+                    title={hasEvent ? "Есть мероприятие" : ""}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedDayKey(c.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setSelectedDayKey(c.key);
+                    }}
+                  >
+                    <div className="events-calendar-day">{c.date.getDate()}</div>
+                    {hasEvent && <div className="events-calendar-dot" />}
+                  </div>
+
+                );
+              })}
+            </div>
+
+            <div className="events-calendar-daypanel">
+              <div className="events-calendar-daypanel-title">
+                {selectedDayDate
+                  ? `Мероприятия — ${fullDateFormatter.format(selectedDayDate)}`
+                  : "Выберите дату в календаре"}
+              </div>
+
+              {selectedDayKey && (
+                selectedDayEvents.length > 0 ? (
+                  <ul className="events-calendar-daypanel-list">
+                    {selectedDayEvents.map((e) => (
+                      <li key={e.id} className="events-calendar-daypanel-item">
+                        <div className="events-calendar-daypanel-line">
+                          <strong>
+                            {e.startsAt ? timeFormatter.format(new Date(e.startsAt)) : ""}
+                          </strong>
+                          {" "}
+                          {e.title}
+                        </div>
+                        {(e.location || e.desc) && (
+                          <div className="events-calendar-daypanel-sub">
+                            {e.location ?? e.desc}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="events-calendar-daypanel-empty">
+                    В этот день мероприятий нет.
+                  </div>
+                )
+              )}
+            </div>
+
+
+            <div className="events-calendar-hint">
+              Подсвечены даты, в которые запланированы мероприятия.
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
