@@ -140,7 +140,7 @@ export default function EventReports() {
             {filtered.map((r) => (
               <Link
                 key={r.id}
-                to={`/event-report/${r.id}`}
+                to={`/events/reports/${r.id}`}
                 style={{
                   display: "block",
                   textDecoration: "none",

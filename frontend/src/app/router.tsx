@@ -18,6 +18,7 @@ import Profile from "@/pages/Profile/Profile";
 import PublicGallery from "@/pages/PublicGallery/PublicGallery";
 import PublicWinner from "@/pages/PublicWinner/PublicWinner";
 import Judge from "@/pages/Judge/Judge";
+import Judges from "@/pages/Judges/Judges";
 
 
 export const router = createBrowserRouter([
@@ -28,8 +29,8 @@ export const router = createBrowserRouter([
             { index: true, element: <Home /> },
             { path: "news", element: <NewsList /> },
             { path: "events", element: <EventsList /> },
-            { path: "event-reports", element: <EventReports /> },
-            { path: "event-report/:id", element: <EventReport />},
+            { path: "events/reports", element: <EventReports /> },
+            { path: "events/reports/:id", element: <EventReport />},
             { path: "about", element: <About /> },
             { path: "breed", element: <Breed /> },
             { path: "puppies", element: <PuppiesList /> },
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
             { path: "/smart-tools", element: <SmartTools /> },
             { path: "/public-gallery", element: <PublicGallery /> },
             { path: "/public-winner", element: <PublicWinner /> },
+            { path: "judges", element: <Judges /> },
             { path: "judges/:id", element: <Judge /> },
         ],
     },

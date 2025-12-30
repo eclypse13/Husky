@@ -467,7 +467,7 @@ export default function Events() {
                           {/*<strong>{r.event_title ?? `Отчёт #${r.id}`}:</strong>*/}
                           <strong>{r.title ?? `Отчёт #${r.id}`}:</strong>
                           {" "}
-                          <Link to={`/event-report/${r.id}`}>фотоальбом и видеоотчёт</Link>
+                          <Link to={`/events/reports/${r.id}`}>фотоальбом и видеоотчёт</Link>
                         </div>
                       </li>
                     ))}
@@ -553,24 +553,40 @@ export default function Events() {
                 <p className="events-text">
                   Образовательные мероприятия для судей, хендлеров и заводчиков:
                 </p>
-                <div className="events-cards-grid">
-                  <article className="events-card">
-                    <h3 className="events-card-title">🎓 Основы судейства</h3>
-                    <ul className="events-benefits">
-                      <li><span className="events-check">✓</span> Стандарты породы и типы экстерьера</li>
-                      <li><span className="events-check">✓</span> Ошибки в оценке и методики работы</li>
-                      <li><span className="events-check">✓</span> Работа на крупных выставках</li>
-                    </ul>
-                  </article>
-                  <article className="events-card">
-                    <h3 className="events-card-title">🐾 Подготовка хендлеров</h3>
-                    <ul className="events-benefits">
-                      <li><span className="events-check">✓</span> Поведение в ринге</li>
-                      <li><span className="events-check">✓</span> Демонстрация движений и стойки</li>
-                      <li><span className="events-check">✓</span> Работа с молодой собакой</li>
-                    </ul>
-                  </article>
-                </div>
+                {events.filter((e) => e.eventType === "seminar").length > 0 ? (
+                  <div className="events-cards-grid">
+                    {events
+                      .filter((e) => e.eventType === "seminar")
+                      .map((e) => (
+                        <article className="events-card" key={e.id}>
+                          <h3 className="events-card-title">{e.title}</h3>
+                          {e.desc && <p className="events-card-desc">{e.desc}</p>}
+                        </article>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="events-judges-placeholder">Семинары скоро появятся.</div>
+                )}
+
+
+                {/*<div className="events-cards-grid">*/}
+                {/*  <article className="events-card">*/}
+                {/*    <h3 className="events-card-title">🎓 Основы судейства</h3>*/}
+                {/*    <ul className="events-benefits">*/}
+                {/*      <li><span className="events-check">✓</span> Стандарты породы и типы экстерьера</li>*/}
+                {/*      <li><span className="events-check">✓</span> Ошибки в оценке и методики работы</li>*/}
+                {/*      <li><span className="events-check">✓</span> Работа на крупных выставках</li>*/}
+                {/*    </ul>*/}
+                {/*  </article>*/}
+                {/*  <article className="events-card">*/}
+                {/*    <h3 className="events-card-title">🐾 Подготовка хендлеров</h3>*/}
+                {/*    <ul className="events-benefits">*/}
+                {/*      <li><span className="events-check">✓</span> Поведение в ринге</li>*/}
+                {/*      <li><span className="events-check">✓</span> Демонстрация движений и стойки</li>*/}
+                {/*      <li><span className="events-check">✓</span> Работа с молодой собакой</li>*/}
+                {/*    </ul>*/}
+                {/*  </article>*/}
+                {/*</div>*/}
               </section>
             </div>
 
@@ -624,7 +640,7 @@ export default function Events() {
 
                     return (
                       <li key={r.id}>
-                        <Link to={`/event-report/${r.id}`}>{icon} {label}</Link>
+                        <Link to={`/events/reports/${r.id}`}>{icon} {label}</Link>
                       </li>
                     );
                   })}
@@ -636,7 +652,7 @@ export default function Events() {
                   {/*<li><a href="#">🎥 Чемпионат по драйленду</a></li>*/}
                   {/*<li><a href="#">📷 Семинар хендлеров</a></li>*/}
                 </ul>
-                <a className="events-pill events-pill--info" href="/event-reports">Все отчёты</a>
+                <a className="events-pill events-pill--info" href="/events/reports">Все отчёты</a>
               </div>
 
               <div className="sidebar-card">
@@ -646,7 +662,10 @@ export default function Events() {
                   <li><a href="#">🎓 Программа обучения</a></li>
                   <li><a href="#">📧 Заявка на семинар</a></li>
                 </ul>
-                <a className="events-pill events-pill--secondary" href="#">Судейский раздел</a>
+                <Link className="events-pill events-pill--secondary" to="/judges">
+                  Судейский раздел
+                </Link>
+
               </div>
             </aside>
           </div>

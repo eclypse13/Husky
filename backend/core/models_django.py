@@ -25,26 +25,26 @@ MEMBERSHIP_TYPES = [
 ]
 
 EVENT_TYPES = [
-    ('exhibition', 'exhibition'),
-    ('seminar', 'seminar'),
-    ('meeting', 'meeting'),
-    ('other', 'other'),
+    ('exhibition', 'Выставка'),
+    ('seminar', 'Семинар'),
+    ('meeting', 'Встреча'),
+    ('other', 'Другое'),
 ]
 
 APPLICATION_TYPES = [
-    ('membership', 'membership'),
-    ('litter_registration', 'litter_registration'),
-    ('kennel_registration', 'kennel_registration'),
-    ('document_request', 'document_request'),
-    ('complaint', 'complaint'),
-    ('other', 'other'),
+    ('membership', 'Членство'),
+    ('litter_registration', 'Регистрация помёта'),
+    ('kennel_registration', 'Регистрация питомника'),
+    ('document_request', 'Запрос документов'),
+    ('complaint', 'Жалоба'),
+    ('other', 'Другое'),
 ]
 
 APPLICATION_STATUSES = [
-    ('new', 'new'),
-    ('in_progress', 'in_progress'),
-    ('done', 'done'),
-    ('rejected', 'rejected'),
+    ('new', 'Новая'),
+    ('in_progress', 'В процессе'),
+    ('done', 'Рассмотрена'),
+    ('rejected', 'Отклонена'),
 ]
 
 LITTER_STATUSES = [
@@ -252,16 +252,17 @@ class FastLink(models.Model):
 
 
 class Event(models.Model):
-    title_key = models.CharField(max_length=200)
-    description_key = models.TextField(blank=True)
-    event_type = models.CharField(max_length=20, choices=EVENT_TYPES, blank=True)
-    location = models.CharField(max_length=255, blank=True)
-    starts_at = models.DateTimeField()
-    ends_at = models.DateTimeField(blank=True, null=True)
+    title_key = models.CharField(max_length=200, verbose_name="Название")
+    description_key = models.TextField(blank=True, verbose_name="Описание")
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES, blank=True,
+                                  verbose_name="Тип мероприятия")
+    location = models.CharField(max_length=255, blank=True, verbose_name="Локация")
+    starts_at = models.DateTimeField(verbose_name="Начало")
+    ends_at = models.DateTimeField(blank=True, null=True, verbose_name="Завершение")
 
-    judges = models.ManyToManyField(Judge, related_name='events', blank=True)
-    registration_link = models.URLField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    judges = models.ManyToManyField(Judge, related_name='events', blank=True, verbose_name="Породные эксперты")
+    registration_link = models.URLField(blank=True, verbose_name="Ссылка на регистрацию")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
         ordering = ['starts_at']
