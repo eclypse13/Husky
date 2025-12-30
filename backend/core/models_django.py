@@ -265,23 +265,27 @@ class Event(models.Model):
 
     class Meta:
         ordering = ['starts_at']
+        verbose_name = "Мероприятие"
+        verbose_name_plural = "Мероприятия"
 
     def __str__(self):
         return self.title_key
 
 
 class EventReport(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='reports')
-    photos = models.JSONField(default=list, blank=True)
-    videos = models.JSONField(default=list, blank=True)
-    results = models.JSONField(default=list, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='reports', verbose_name="Мероприятие")
+    photos = models.JSONField(default=list, blank=True, verbose_name="Фото")
+    videos = models.JSONField(default=list, blank=True, verbose_name="Видео")
+    results = models.JSONField(default=list, blank=True, verbose_name="Результаты")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
         ordering = ['-created_at']
+        verbose_name = "Отчёт о мероприятии"
+        verbose_name_plural = "Отчёты о мероприятиях"
 
     def __str__(self):
-        return f'Report for {self.event}'
+        return f'Отчёт для {self.event}'
 
 
 class Seminar(models.Model):

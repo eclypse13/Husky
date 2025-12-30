@@ -38,6 +38,17 @@ export default function Events() {
     photo?: string | null;
     judgeId?: string | null;
   };
+  // ОТЧЕТ
+  type EventReportItem = {
+    id: string;
+    event: string | number;
+    title?: string | null;            // готовое название для UI
+    event_title_key?: string | null;  // ключ из API (на всякий)
+    created_at?: string | null;
+  };
+
+  const [reports, setReports] = useState<EventReportItem[]>([]);
+
   const [judges, setJudges] = useState<JudgeItem[]>([]);
   const getJudgeInitial = (name?: string | null) => {
     if (!name) return "J";
@@ -192,6 +203,68 @@ export default function Events() {
     };
   }, []);
 
+  // загрузка ОТЧЕТА из API
+  useEffect(() => {
+    let ignore = false;
+
+    const loadReports = async () => {
+      try {
+        const res = await fetch("/api/event-reports/");
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (ignore) return;
+
+        const dict = await getDict();
+        if (ignore) return;
+
+        const fromApi = Array.isArray((payload as any)?.results)
+          ? (payload as any).results
+          : Array.isArray(payload)
+          ? payload
+          : [];
+
+        const normalized: EventReportItem[] = fromApi
+          .map((r: any, idx: number): EventReportItem => {
+            const titleKey =
+              typeof r?.event_title_key === "string" ? r.event_title_key : "";
+
+            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+            const title = titleFromDict || titleKey || null;
+
+            return {
+              id: String(r?.id ?? idx),
+              event: r?.event,
+              event_title_key: titleKey || null,
+              title,
+              created_at: typeof r?.created_at === "string" ? r.created_at : null,
+            };
+          })
+          .filter((x: EventReportItem) => Boolean(x.id));
+
+        normalized.sort((a, b) => {
+          const aTimeRaw = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTimeRaw = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+          const aTime = Number.isNaN(aTimeRaw) ? 0 : aTimeRaw;
+          const bTime = Number.isNaN(bTimeRaw) ? 0 : bTimeRaw;
+
+          return bTime - aTime; // САМЫЕ СВЕЖИЕ СНАЧАЛА
+        });
+
+        setReports(normalized);
+      } catch {
+        // игнор
+      }
+    };
+
+    loadReports();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+
+
   // Inject first 3 events into sidebar stack and remove extra card if present
   useEffect(() => {
     const root = pageRef.current;
@@ -274,27 +347,49 @@ export default function Events() {
                     Отчёты о прошедших мероприятиях
                   </h2>
                   <ul className="events-mission-list">
-                    <li>
-                      <div className="events-mission-icon">📷</div>
-                      <div>
-                        <strong>Выставка «Сибирская Красота 2025»:</strong>{" "}
-                        <a href="#">фотоальбом и видеоотчёт</a>
-                      </div>
-                    </li>
-                    <li>
-                      <div className="events-mission-icon">🎓</div>
-                      <div>
-                        <strong>Семинар по экспертной оценке (май 2025):</strong>{" "}
-                        <a href="#">методические материалы</a>
-                      </div>
-                    </li>
-                    <li>
-                      <div className="events-mission-icon">❄️</div>
-                      <div>
-                        <strong>Чемпионат по драйленду:</strong>{" "}
-                        <a href="#">результаты и интервью с участниками</a>
-                      </div>
-                    </li>
+                    {(reports.length > 0 ? reports.slice(0, 3) : []).map((r, i) => (
+                      <li key={r.id}>
+                        <div className="events-mission-icon">{i === 0 ? "📷" : i === 1 ? "🎓" : "❄️"}</div>
+                        <div>
+                          {/*<strong>{r.event_title ?? `Отчёт #${r.id}`}:</strong>*/}
+                          <strong>{r.title ?? `Отчёт #${r.id}`}:</strong>
+                          {" "}
+                          <Link to={`/event-report/${r.id}`}>фотоальбом и видеоотчёт</Link>
+                        </div>
+                      </li>
+                    ))}
+
+                    {reports.length === 0 && (
+                      <li>
+                        <div className="events-mission-icon">📷</div>
+                        <div>
+                          <strong>Пока нет отчётов</strong>
+                        </div>
+                      </li>
+                    )}
+
+
+                    {/*<li>*/}
+                    {/*  <div className="events-mission-icon">📷</div>*/}
+                    {/*  <div>*/}
+                    {/*    <strong>Выставка «Сибирская Красота 2025»:</strong>{" "}*/}
+                    {/*    <a href="#">фотоальбом и видеоотчёт</a>*/}
+                    {/*  </div>*/}
+                    {/*</li>*/}
+                    {/*<li>*/}
+                    {/*  <div className="events-mission-icon">🎓</div>*/}
+                    {/*  <div>*/}
+                    {/*    <strong>Семинар по экспертной оценке (май 2025):</strong>{" "}*/}
+                    {/*    <a href="#">методические материалы</a>*/}
+                    {/*  </div>*/}
+                    {/*</li>*/}
+                    {/*<li>*/}
+                    {/*  <div className="events-mission-icon">❄️</div>*/}
+                    {/*  <div>*/}
+                    {/*    <strong>Чемпионат по драйленду:</strong>{" "}*/}
+                    {/*    <a href="#">результаты и интервью с участниками</a>*/}
+                    {/*  </div>*/}
+                    {/*</li>*/}
                   </ul>
                 </div>
               </section>

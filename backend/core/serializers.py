@@ -33,10 +33,35 @@ class EventSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# class EventReportSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = models.EventReport
+#         fields = '__all__'
+
+# serializers.py
+
+
 class EventReportSerializer(serializers.ModelSerializer):
+    event_title_key = serializers.CharField(source="event.title_key", read_only=True)
+    event_description_key = serializers.CharField(source="event.description_key", read_only=True)
+    event_starts_at = serializers.DateTimeField(source="event.starts_at", read_only=True)
+    event_location = serializers.CharField(source="event.location", read_only=True)
+
     class Meta:
         model = models.EventReport
-        fields = '__all__'
+        fields = [
+            "id",
+            "event",                 # id события
+            "event_title_key",       # ключ заголовка (потом переведёшь через dict на фронте)
+            "event_description_key",
+            "event_starts_at",
+            "event_location",
+            "photos",
+            "videos",
+            "results",
+            "created_at",
+        ]
+
 
 
 class JudgeSerializer(serializers.ModelSerializer):
