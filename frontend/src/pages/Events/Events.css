@@ -504,10 +504,14 @@
   gap: 10px;
 }
 
+/*.events-calendar-daypanel-item{*/
+/*  border: 1px solid rgba(0,0,0,.08);*/
+/*  border-radius: 14px;*/
+/*  padding: 12px;*/
+/*}*/
+
 .events-calendar-daypanel-item{
-  border: 1px solid rgba(0,0,0,.08);
-  border-radius: 14px;
-  padding: 12px;
+  padding: 0; /* чтобы не было двойного паддинга (паддинг будет на ссылке) */
 }
 
 .events-calendar-daypanel-line{
@@ -530,5 +534,61 @@
     cursor: pointer;
 }
 
+.events-calendar-daypanel-link{
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
 
 
+
+.events-calendar-daypanel-link{
+  padding: 12px; /* перенесли паддинг сюда, как был у item */
+  border-radius: 14px;
+}
+
+.events-calendar-daypanel-link:hover{
+  cursor: pointer;
+  background: rgba(64, 122, 255, .06);
+}
+
+/* Метаданные мероприятия (тип/даты/место) */
+.event-meta{
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.event-meta-item{
+  background: var(--arctic-gray);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 700px){
+  .event-meta{ grid-template-columns: 1fr; }
+}
+
+/* Чтобы карточка судьи (Link) не подчёркивалась и была блочной */
+.events-leader-card--link{
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+/* Подпись как на карточках judges */
+.judge-card-cta-like{
+  margin-top: 10px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--bright-blue);
+}
+
+.event-register{
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}

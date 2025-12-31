@@ -47,6 +47,9 @@ class EventReportSerializer(serializers.ModelSerializer):
     event_starts_at = serializers.DateTimeField(source="event.starts_at", read_only=True)
     event_location = serializers.CharField(source="event.location", read_only=True)
 
+    photos = serializers.SerializerMethodField()
+    videos = serializers.SerializerMethodField()
+
     class Meta:
         model = models.EventReport
         fields = [
@@ -59,9 +62,25 @@ class EventReportSerializer(serializers.ModelSerializer):
             "photos",
             "videos",
             "results",
+            "result_description",
             "created_at",
         ]
 
+    def get_photos(self, obj):
+        request = self.context.get("request")
+        urls = []
+        for p in obj.photo_items.all():
+            url = p.file.url
+            urls.append(request.build_absolute_uri(url) if request else url)
+        return urls
+
+    def get_videos(self, obj):
+        request = self.context.get("request")
+        urls = []
+        for v in obj.video_items.all():
+            url = v.file.url
+            urls.append(request.build_absolute_uri(url) if request else url)
+        return urls
 
 
 class JudgeSerializer(serializers.ModelSerializer):

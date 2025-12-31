@@ -1,3 +1,4 @@
+from django.core.validators import FileExtensionValidator
 from django.db import models
 import os
 from django.core.exceptions import ValidationError
@@ -275,9 +276,29 @@ class Event(models.Model):
 
 class EventReport(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='reports', verbose_name="Мероприятие")
-    photos = models.JSONField(default=list, blank=True, verbose_name="Фото")
-    videos = models.JSONField(default=list, blank=True, verbose_name="Видео")
-    results = models.JSONField(default=list, blank=True, verbose_name="Результаты")
+    # photos = models.JSONField(default=list, blank=True, verbose_name="Фото")
+    # videos = models.JSONField(default=list, blank=True, verbose_name="Видео")
+    results = models.FileField(
+        upload_to="event_reports/results/",
+        blank=True,
+        null=True,
+        verbose_name="Файл с результатами",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=[
+                    "pdf", "docx", "doc", "rtf",
+                    "xlsx", "xls", "ppt", "pptx",
+                    "txt"
+                ]
+            )
+        ],
+    )
+
+    result_description = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Содержание"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
@@ -287,6 +308,39 @@ class EventReport(models.Model):
 
     def __str__(self):
         return f'Отчёт для {self.event}'
+
+
+class EventReportPhoto(models.Model):
+    report = models.ForeignKey(
+        EventReport,
+        on_delete=models.CASCADE,
+        related_name="photo_items",
+        verbose_name="Отчёт",
+    )
+    file = models.ImageField(upload_to="event_reports/photos/", verbose_name="Фото")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Фото отчёта"
+        verbose_name_plural = "Фото отчёта"
+
+
+class EventReportVideo(models.Model):
+    report = models.ForeignKey(
+        EventReport,
+        on_delete=models.CASCADE,
+        related_name="video_items",
+        verbose_name="Отчёт",
+    )
+    file = models.FileField(upload_to="event_reports/videos/", verbose_name="Видео")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Видео отчёта"
+        verbose_name_plural = "Видео отчёта"
+
 
 
 class Seminar(models.Model):

@@ -765,6 +765,11 @@ export default function Events() {
                   <ul className="events-calendar-daypanel-list">
                     {selectedDayEvents.map((e) => (
                       <li key={e.id} className="events-calendar-daypanel-item">
+                        <Link
+                          to={`/events/${e.id}`}
+                          className="events-calendar-daypanel-link"
+                          onClick={() => setCalendarOpen(false)}
+                        >
                         <div className="events-calendar-daypanel-line">
                           <strong>
                             {e.startsAt ? timeFormatter.format(new Date(e.startsAt)) : ""}
@@ -777,6 +782,7 @@ export default function Events() {
                             {e.location ?? e.desc}
                           </div>
                         )}
+                        </Link>
                       </li>
                     ))}
                   </ul>

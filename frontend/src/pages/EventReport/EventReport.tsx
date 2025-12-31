@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import { useParams, Link } from "react-router-dom";
 import {getDict, pickValue} from "@lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
+import "./EventReport.css";
+
 
 
 type MediaItem = string | { url: string; title?: string };
@@ -13,7 +15,8 @@ type EventReport = {
   event_starts_at?: string | null;
   photos?: MediaItem[];
   videos?: MediaItem[];
-  results?: any[];
+  results?: string | null; // URL на docx/pdf/...
+  result_description?: string[];
   created_at?: string;
 };
 
@@ -42,7 +45,32 @@ function youtubeEmbed(url: string) {
   return url;
 }
 
+function getFileMeta(url: string | null): string {
+  if (!url) return "—";
+  try {
+    const u = new URL(url, window.location.origin);
+    const filename = u.pathname.split("/").pop() || "";
+    const extMatch = filename.match(/\.([a-z0-9]+)$/i);
+    const ext = extMatch ? extMatch[1].toUpperCase() : "—";
+    return `${ext}, файл`;
+  } catch {
+    return "Файл";
+  }
+}
+
+function getFileIcon(url: string | null): string {
+  if (!url) return "📄";
+  const lower = url.toLowerCase();
+  if (lower.endsWith(".pdf")) return "📕";
+  if (lower.endsWith(".doc") || lower.endsWith(".docx") || lower.endsWith(".rtf")) return "📝";
+  if (lower.endsWith(".xls") || lower.endsWith(".xlsx")) return "📊";
+  if (lower.endsWith(".ppt") || lower.endsWith(".pptx")) return "📽️";
+  return "📄";
+}
+
+
 export default function EventReportPage() {
+  const pageRef = useRef<HTMLDivElement | null>(null);
   const { id } = useParams();
   const [report, setReport] = useState<EventReport | null>(null);
   const [dict, setDict] = useState<any>(null);
@@ -89,10 +117,46 @@ export default function EventReportPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const root = pageRef.current;
+    if (!root) return;
+
+    // запускаем только когда данные уже есть
+    if (loading) return;
+
+    const targets = root.querySelectorAll<HTMLElement>(".events-section");
+    if (!targets.length) return;
+
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) e.target.setAttribute("data-visible", "1");
+        }),
+      { threshold: 0.12, rootMargin: "0px 0px -50px 0px" }
+    );
+
+    targets.forEach((el) => {
+      el.setAttribute("data-visible", "0");
+      io.observe(el);
+    });
+
+    return () => io.disconnect();
+  }, [loading, report]);
+
+
 
   const photos = useMemo(() => asList<MediaItem>(report?.photos), [report]);
   const videos = useMemo(() => asList<MediaItem>(report?.videos), [report]);
-  const results = useMemo(() => asList<any>(report?.results), [report]);
+  const resultsFileUrl = useMemo(() => {
+    return typeof report?.results === "string" && report.results ? report.results : null;
+  }, [report]);
+
+  const paragraphs = useMemo(() => {
+    // поддержим оба названия, если вдруг на бэке по-разному
+    const raw = (report as any)?.result_description ?? (report as any)?.result_paragraphs;
+    return asList<string>(raw);
+  }, [report]);
+
 
   const title = useMemo(() => {
     const key = report?.event_title_key;
@@ -106,92 +170,120 @@ export default function EventReportPage() {
 
 
 
-  if (loading) return <div style={{ padding: 24 }}>Загрузка…</div>;
-  if (err) return <div style={{ padding: 24 }}>Ошибка: {err}</div>;
-  if (!report) return <div style={{ padding: 24 }}>Отчёт не найден</div>;
+  if (loading) return <div className="event-report-state">Загрузка…</div>;
+  if (err) return <div className="event-report-state">Ошибка: {err}</div>;
+  if (!report) return <div className="event-report-state">Отчёт не найден</div>;
+
 
   return (
-      <div>
-
-        <div>
-          <Breadcrumb
-            title={title ?? `Отчёт #${id}`}
-            items={[
-              { label: "Главная", to: "/" },
-              { label: "Мероприятия", to: "/events" },
-              { label: "Отчёт" },
-            ]}
-          />
-        </div>
-
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
-
-
-
-      {photos.length > 0 && (
-        <>
-          <h2>Фото</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-            {photos.map((p, idx) => {
-              const url = getUrl(p);
-              if (!url) return null;
-              return (
-                <a key={idx} href={url} target="_blank" rel="noreferrer">
-                  <img
-                    src={url}
-                    alt=""
-                    style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 12 }}
-                  />
-                </a>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {videos.length > 0 && (
-        <>
-          <h2 style={{ marginTop: 24 }}>Видео</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-            {videos.map((v, idx) => {
-              const url = getUrl(v);
-              if (!url) return null;
-
-              return isYoutube(url) ? (
-                <iframe
-                  key={idx}
-                  src={youtubeEmbed(url)}
-                  title={`video-${idx}`}
-                  style={{ width: "100%", aspectRatio: "16/9", border: 0, borderRadius: 12 }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  key={idx}
-                  controls
-                  src={url}
-                  style={{ width: "100%", borderRadius: 12 }}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {results.length > 0 && (
-        <>
-          <h2 style={{ marginTop: 24 }}>Результаты</h2>
-          <ul>
-            {results.map((r, idx) => (
-              <li key={idx}>
-                {typeof r === "string" ? r : JSON.stringify(r)}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
+    <div className="event-report-page" ref={pageRef}>
+      {/* Breadcrumb шире (1400), контент ниже уже (1100) */}
+      <div className="event-report-breadcrumb-wrap">
+        <Breadcrumb
+          title={title ?? `Отчёт #${id}`}
+          items={[
+            { label: "Главная", to: "/" },
+            { label: "Мероприятия", to: "/events" },
+            { label: "Отчёт" },
+          ]}
+        />
       </div>
+
+      <main className="events-main">
+        <div className="events-container">
+          <div className="event-report-content">
+            {/* Документ отчёта */}
+            {resultsFileUrl && (
+              <section className="events-section events-section--card">
+                <h2 className="event-report-section-title">📄 Документ отчёта</h2>
+
+                <a
+                  href={resultsFileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="event-report-doc"
+                >
+                  <div className="event-report-doc-icon">{getFileIcon(resultsFileUrl)}</div>
+                  <div className="event-report-doc-body">
+                    <div className="event-report-doc-title">Результаты</div>
+                    <div className="event-report-doc-sub">{getFileMeta(resultsFileUrl)}</div>
+                  </div>
+                </a>
+              </section>
+            )}
+
+            {/* Фото */}
+            {photos.length > 0 && (
+              <section className="events-section events-section--card">
+                <h2 className="event-report-section-title">Фото</h2>
+
+                <div className="event-report-photos">
+                  {photos.map((p, idx) => {
+                    const url = getUrl(p);
+                    if (!url) return null;
+                    return (
+                      <a key={idx} href={url} target="_blank" rel="noreferrer" className="event-report-photoLink">
+                        <img src={url} alt="" className="event-report-photo" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Видео */}
+            {videos.length > 0 && (
+              <section className="events-section events-section--card">
+                <h2 className="event-report-section-title">Видео</h2>
+
+                <div className="event-report-videos">
+                  {videos.map((v, idx) => {
+                    const url = getUrl(v);
+                    if (!url) return null;
+
+                    return (
+                      <div className="event-report-videoBox" key={idx}>
+                        {isYoutube(url) ? (
+                          <iframe
+                            src={youtubeEmbed(url)}
+                            title={`video-${idx}`}
+                            className="event-report-video"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            controls
+                            src={url}
+                            className="event-report-video event-report-video--file"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Содержание (абзацы) */}
+            {paragraphs.length > 0 && (
+              <section className="events-section events-section--card">
+                <h2 className="event-report-section-title">🧾 Содержание</h2>
+
+                <div className="event-report-paragraphs">
+                  {paragraphs.map((p, idx) => (
+                    <p key={idx} className="event-report-paragraph">
+                      {p}
+                    </p>
+                  ))}
+                </div>
+              </section>
+            )}
+
+          </div>
+        </div>
+      </main>
+    </div>
   );
+
 }

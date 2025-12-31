@@ -15,6 +15,7 @@ from .models import (
     User, News, Page, Gallery,
     Judge, JudgeDetails, FastLink,
     Event, EventReport, Seminar,
+    EventReportPhoto, EventReportVideo,
     BreedStandard, BreedArticle,
     ClubDocument, BoardMember, MembershipPlan,
     Kennel, Dog, Litter,
@@ -334,11 +335,24 @@ class EventAdmin(MongoModelAdmin):
     ordering = ['-starts_at']
 
 
+class EventReportPhotoAdmin(MongoModelAdmin):
+    list_display = ["report", "file", "created_at"]
+    list_filter = ["created_at"]
+    search_fields = ["report__event__title_key"]
+
+class EventReportVideoAdmin(MongoModelAdmin):
+    list_display = ["report", "file", "created_at"]
+    list_filter = ["created_at"]
+    search_fields = ["report__event__title_key"]
+
 class EventReportAdmin(MongoModelAdmin):
     list_display = ['event', 'created_at']
     list_filter = ['created_at']
     search_fields = ['event__title_key']
     ordering = ['-created_at']
+
+    # чтобы не путались старые JSON поля (если пока оставляешь их в модели)
+    exclude = ("photos", "videos")
 
 
 class SeminarAdmin(MongoModelAdmin):
@@ -471,6 +485,8 @@ ADMIN_REGISTRY = {
     FastLink: FastLinkAdmin,
     Event: EventAdmin,
     EventReport: EventReportAdmin,
+    EventReportPhoto: EventReportPhotoAdmin,
+    EventReportVideo: EventReportVideoAdmin,
     Seminar: SeminarAdmin,
     BreedStandard: BreedStandardAdmin,
     BreedArticle: BreedArticleAdmin,
@@ -552,6 +568,8 @@ DJANGO_MODELS = [
     dj_models.JudgeDetails,
     dj_models.FastLink,
     dj_models.Event,
+    dj_models.EventReportPhoto,
+    dj_models.EventReportVideo,
     dj_models.EventReport,
     dj_models.Seminar,
     dj_models.BreedStandard,
