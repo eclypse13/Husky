@@ -1,0 +1,137 @@
+.judges-main {
+  padding: 2rem 0 4rem;
+}
+
+.judges-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.judges-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.judges-title {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.judges-search {
+  flex: 0 0 440px;
+  max-width: 100%;
+}
+
+.judges-search-input {
+  width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 12px 14px;
+  outline: none;
+  background: var(--snow-white);
+  box-shadow: var(--shadow-soft);
+}
+
+.judges-search-input:focus {
+  border-color: rgba(64, 122, 255, 0.45);
+}
+
+.judges-muted {
+  opacity: 0.75;
+  font-size: 1rem;
+  padding: 24px 0;
+}
+
+.judges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.judge-card {
+  text-decoration: none;
+  color: inherit;
+  background: var(--snow-white);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.judge-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.judge-card-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  margin: 0 auto 12px;
+  background: var(--gradient-primary);
+  box-shadow: var(--shadow-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--snow-white);
+  font-size: 2rem;
+  font-weight: 800;
+  overflow: hidden;
+}
+
+.judge-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.judge-card-name {
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.judge-card-rank {
+  text-align: center;
+  color: var(--bright-blue);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.judge-card-email {
+  text-align: center;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.judge-card-email a {
+  color: var(--text-light);
+  text-decoration: none;
+}
+
+.judge-card-cta {
+  margin-top: 10px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--bright-blue);
+}
+
+@media (max-width: 700px) {
+  .judges-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .judges-search {
+    flex: 1 1 auto;
+  }
+}

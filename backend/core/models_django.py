@@ -1,3 +1,4 @@
+from django.core.validators import FileExtensionValidator
 from django.db import models
 import os
 from django.core.exceptions import ValidationError
@@ -25,26 +26,26 @@ MEMBERSHIP_TYPES = [
 ]
 
 EVENT_TYPES = [
-    ('exhibition', 'exhibition'),
-    ('seminar', 'seminar'),
-    ('meeting', 'meeting'),
-    ('other', 'other'),
+    ('exhibition', 'Выставка'),
+    ('seminar', 'Семинар'),
+    ('meeting', 'Встреча'),
+    ('other', 'Другое'),
 ]
 
 APPLICATION_TYPES = [
-    ('membership', 'membership'),
-    ('litter_registration', 'litter_registration'),
-    ('kennel_registration', 'kennel_registration'),
-    ('document_request', 'document_request'),
-    ('complaint', 'complaint'),
-    ('other', 'other'),
+    ('membership', 'Членство'),
+    ('litter_registration', 'Регистрация помёта'),
+    ('kennel_registration', 'Регистрация питомника'),
+    ('document_request', 'Запрос документов'),
+    ('complaint', 'Жалоба'),
+    ('other', 'Другое'),
 ]
 
 APPLICATION_STATUSES = [
-    ('new', 'new'),
-    ('in_progress', 'in_progress'),
-    ('done', 'done'),
-    ('rejected', 'rejected'),
+    ('new', 'Новая'),
+    ('in_progress', 'В процессе'),
+    ('done', 'Рассмотрена'),
+    ('rejected', 'Отклонена'),
 ]
 
 LITTER_STATUSES = [
@@ -252,47 +253,107 @@ class FastLink(models.Model):
 
 
 class Event(models.Model):
-    title_key = models.CharField(max_length=200)
-    description_key = models.TextField(blank=True)
-    event_type = models.CharField(max_length=20, choices=EVENT_TYPES, blank=True)
-    location = models.CharField(max_length=255, blank=True)
-    starts_at = models.DateTimeField()
-    ends_at = models.DateTimeField(blank=True, null=True)
+    title_key = models.CharField(max_length=200, verbose_name="Название")
+    description_key = models.TextField(blank=True, verbose_name="Описание")
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES, blank=True,
+                                  verbose_name="Тип мероприятия")
+    location = models.CharField(max_length=255, blank=True, verbose_name="Локация")
+    starts_at = models.DateTimeField(verbose_name="Начало")
+    ends_at = models.DateTimeField(blank=True, null=True, verbose_name="Завершение")
 
-    judges = models.ManyToManyField(Judge, related_name='events', blank=True)
-    registration_link = models.URLField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    judges = models.ManyToManyField(Judge, related_name='events', blank=True, verbose_name="Породные эксперты")
+    registration_link = models.URLField(blank=True, verbose_name="Ссылка на регистрацию")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
         ordering = ['starts_at']
+        verbose_name = "Мероприятие"
+        verbose_name_plural = "Мероприятия"
 
     def __str__(self):
         return self.title_key
 
 
 class EventReport(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='reports')
-    photos = models.JSONField(default=list, blank=True)
-    videos = models.JSONField(default=list, blank=True)
-    results = models.JSONField(default=list, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='reports', verbose_name="Мероприятие")
+    # photos = models.JSONField(default=list, blank=True, verbose_name="Фото")
+    # videos = models.JSONField(default=list, blank=True, verbose_name="Видео")
+    results = models.FileField(
+        upload_to="event_reports/results/",
+        blank=True,
+        null=True,
+        verbose_name="Файл с результатами",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=[
+                    "pdf", "docx", "doc", "rtf",
+                    "xlsx", "xls", "ppt", "pptx",
+                    "txt"
+                ]
+            )
+        ],
+    )
+
+    result_description = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Содержание"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
         ordering = ['-created_at']
+        verbose_name = "Отчёт о мероприятии"
+        verbose_name_plural = "Отчёты о мероприятиях"
 
     def __str__(self):
-        return f'Report for {self.event}'
+        return f'Отчёт для {self.event}'
+
+
+class EventReportPhoto(models.Model):
+    report = models.ForeignKey(
+        EventReport,
+        on_delete=models.CASCADE,
+        related_name="photo_items",
+        verbose_name="Отчёт",
+    )
+    file = models.ImageField(upload_to="event_reports/photos/", verbose_name="Фото")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Фото отчёта"
+        verbose_name_plural = "Фото отчёта"
+
+
+class EventReportVideo(models.Model):
+    report = models.ForeignKey(
+        EventReport,
+        on_delete=models.CASCADE,
+        related_name="video_items",
+        verbose_name="Отчёт",
+    )
+    file = models.FileField(upload_to="event_reports/videos/", verbose_name="Видео")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Видео отчёта"
+        verbose_name_plural = "Видео отчёта"
+
 
 
 class Seminar(models.Model):
     title_key = models.CharField(max_length=200)
     description_key = models.TextField(blank=True)
-    speaker = models.ForeignKey(Judge, on_delete=models.SET_NULL, null=True, blank=True, related_name='seminars')
-    date = models.DateTimeField(blank=True, null=True)
-    materials = models.JSONField(default=list, blank=True)
+    speaker = models.ForeignKey(Judge, on_delete=models.SET_NULL, null=True, blank=True, related_name='seminars', verbose_name='Спикер')
+    date = models.DateTimeField(blank=True, null=True, verbose_name='Дата')
+    materials = models.JSONField(default=list, blank=True, verbose_name="Материалы")
 
     class Meta:
         ordering = ['-date']
+        verbose_name = "Семинар"
+        verbose_name_plural = "Семинары"
 
     def __str__(self):
         return self.title_key

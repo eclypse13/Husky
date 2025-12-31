@@ -33,10 +33,54 @@ class EventSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# class EventReportSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = models.EventReport
+#         fields = '__all__'
+
+# serializers.py
+
+
 class EventReportSerializer(serializers.ModelSerializer):
+    event_title_key = serializers.CharField(source="event.title_key", read_only=True)
+    event_description_key = serializers.CharField(source="event.description_key", read_only=True)
+    event_starts_at = serializers.DateTimeField(source="event.starts_at", read_only=True)
+    event_location = serializers.CharField(source="event.location", read_only=True)
+
+    photos = serializers.SerializerMethodField()
+    videos = serializers.SerializerMethodField()
+
     class Meta:
         model = models.EventReport
-        fields = '__all__'
+        fields = [
+            "id",
+            "event",                 # id события
+            "event_title_key",       # ключ заголовка (потом переведёшь через dict на фронте)
+            "event_description_key",
+            "event_starts_at",
+            "event_location",
+            "photos",
+            "videos",
+            "results",
+            "result_description",
+            "created_at",
+        ]
+
+    def get_photos(self, obj):
+        request = self.context.get("request")
+        urls = []
+        for p in obj.photo_items.all():
+            url = p.file.url
+            urls.append(request.build_absolute_uri(url) if request else url)
+        return urls
+
+    def get_videos(self, obj):
+        request = self.context.get("request")
+        urls = []
+        for v in obj.video_items.all():
+            url = v.file.url
+            urls.append(request.build_absolute_uri(url) if request else url)
+        return urls
 
 
 class JudgeSerializer(serializers.ModelSerializer):

@@ -147,7 +147,8 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
 
 class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
     """API отчетов о мероприятиях"""
-    queryset = models.EventReport.objects.all()
+    # queryset = models.EventReport.objects.all()
+    queryset = models.EventReport.objects.all().prefetch_related("photo_items", "video_items")
     serializer_class = EventReportSerializer
     permission_classes = [AllowAny]
 

@@ -3,6 +3,9 @@ import RootLayout from "./layouts/RootLayout";
 import Home from "@/pages/Home/Home";
 import NewsList from "@/pages/News/News";
 import EventsList from "@/pages/Events/Events";
+import Event from "@/pages/Event/Event";
+import EventReport from "@/pages/EventReport/EventReport";
+import EventReports from "@/pages/EventReports/EventReports";
 import About from "@/pages/About/About";
 import Breed from "@/pages/Breed/Breed";
 import PuppiesList from "@/pages/Puppies/AllPuppies";
@@ -16,6 +19,7 @@ import Profile from "@/pages/Profile/Profile";
 import PublicGallery from "@/pages/PublicGallery/PublicGallery";
 import PublicWinner from "@/pages/PublicWinner/PublicWinner";
 import Judge from "@/pages/Judge/Judge";
+import Judges from "@/pages/Judges/Judges";
 
 
 export const router = createBrowserRouter([
@@ -26,6 +30,9 @@ export const router = createBrowserRouter([
             { index: true, element: <Home /> },
             { path: "news", element: <NewsList /> },
             { path: "events", element: <EventsList /> },
+            { path: "events/:id", element: <Event /> },
+            { path: "events/reports", element: <EventReports /> },
+            { path: "events/reports/:id", element: <EventReport />},
             { path: "about", element: <About /> },
             { path: "breed", element: <Breed /> },
             { path: "puppies", element: <PuppiesList /> },
@@ -38,6 +45,7 @@ export const router = createBrowserRouter([
             { path: "/smart-tools", element: <SmartTools /> },
             { path: "/public-gallery", element: <PublicGallery /> },
             { path: "/public-winner", element: <PublicWinner /> },
+            { path: "judges", element: <Judges /> },
             { path: "judges/:id", element: <Judge /> },
         ],
     },

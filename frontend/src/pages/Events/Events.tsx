@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import { Link } from "react-router-dom";
 import { getDict, pickValue } from "@/lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
@@ -30,6 +30,14 @@ export default function Events() {
     eventType?: string | null;
   };
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1); // 1-е число текущего месяца
+  });
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+
+
   type JudgeItem = {
     id: string;
     name: string;
@@ -38,6 +46,19 @@ export default function Events() {
     photo?: string | null;
     judgeId?: string | null;
   };
+  // ОТЧЕТ
+  type EventReportItem = {
+    id: string;
+    event: string | number;
+    title?: string | null;            // готовое название для UI
+    event_title_key?: string | null;  // ключ из API (на всякий)
+    created_at?: string | null;
+    photosCount?: number;
+    videosCount?: number;
+  };
+
+  const [reports, setReports] = useState<EventReportItem[]>([]);
+
   const [judges, setJudges] = useState<JudgeItem[]>([]);
   const getJudgeInitial = (name?: string | null) => {
     if (!name) return "J";
@@ -192,6 +213,72 @@ export default function Events() {
     };
   }, []);
 
+  // загрузка ОТЧЕТА из API
+  useEffect(() => {
+    let ignore = false;
+
+    const loadReports = async () => {
+      try {
+        const res = await fetch("/api/event-reports/");
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (ignore) return;
+
+        const dict = await getDict();
+        if (ignore) return;
+
+        const fromApi = Array.isArray((payload as any)?.results)
+          ? (payload as any).results
+          : Array.isArray(payload)
+          ? payload
+          : [];
+
+        const normalized: EventReportItem[] = fromApi
+          .map((r: any, idx: number): EventReportItem => {
+            const titleKey =
+              typeof r?.event_title_key === "string" ? r.event_title_key : "";
+
+            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+            const title = titleFromDict || titleKey || null;
+            const photos = Array.isArray(r?.photos) ? r.photos : [];
+            const videos = Array.isArray(r?.videos) ? r.videos : [];
+
+            return {
+              id: String(r?.id ?? idx),
+              event: r?.event,
+              event_title_key: titleKey || null,
+              title,
+              created_at: typeof r?.created_at === "string" ? r.created_at : null,
+              photosCount: photos.length,
+              videosCount: videos.length,
+            };
+          })
+          .filter((x: EventReportItem) => Boolean(x.id));
+
+        normalized.sort((a, b) => {
+          const aTimeRaw = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTimeRaw = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+          const aTime = Number.isNaN(aTimeRaw) ? 0 : aTimeRaw;
+          const bTime = Number.isNaN(bTimeRaw) ? 0 : bTimeRaw;
+
+          return bTime - aTime; // САМЫЕ СВЕЖИЕ СНАЧАЛА
+        });
+
+        setReports(normalized);
+      } catch {
+        // игнор
+      }
+    };
+
+    loadReports();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+
+
   // Inject first 3 events into sidebar stack and remove extra card if present
   useEffect(() => {
     const root = pageRef.current;
@@ -221,6 +308,105 @@ export default function Events() {
       firstCard?.remove();
     }
   }, [events]);
+
+    const monthNames = [
+    "Январь","Февраль","Март","Апрель","Май","Июнь",
+    "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь",
+  ];
+  const weekNames = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+  const toDateKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const eventDays = useMemo(() => {
+    const s = new Set<string>();
+    events.forEach((e) => {
+      if (!e.startsAt) return;
+      const d = new Date(e.startsAt);
+      if (Number.isNaN(d.getTime())) return;
+      s.add(toDateKey(d));
+    });
+    return s;
+  }, [events]);
+
+  const calendarCells = useMemo(() => {
+    const y = calendarMonth.getFullYear();
+    const m = calendarMonth.getMonth();
+
+    const first = new Date(y, m, 1);
+    const last = new Date(y, m + 1, 0);
+
+    // хотим Пн..Вс, поэтому сдвиг: (Вс=0) -> 6, (Пн=1) -> 0 ...
+    const startOffset = (first.getDay() + 6) % 7;
+
+    const cells: Array<{ date: Date; inMonth: boolean; key: string }> = [];
+    const start = new Date(y, m, 1 - startOffset);
+
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+
+      cells.push({
+        date: d,
+        inMonth: d.getMonth() === m,
+        key: toDateKey(d),
+      });
+    }
+
+    return { first, last, cells };
+  }, [calendarMonth]);
+
+  const fullDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    []
+  );
+
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
+
+  const selectedDayDate = useMemo(() => {
+    if (!selectedDayKey) return null;
+    const [y, m, d] = selectedDayKey.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  }, [selectedDayKey]);
+
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDayKey) return [];
+    return events
+      .filter((e) => e.startsAt && toDateKey(new Date(e.startsAt)) === selectedDayKey)
+      .sort((a, b) => {
+        const at = a.startsAt ? new Date(a.startsAt).getTime() : 0;
+        const bt = b.startsAt ? new Date(b.startsAt).getTime() : 0;
+        return at - bt;
+      });
+  }, [events, selectedDayKey]);
+
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCalendarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [calendarOpen]);
+
 
   return (
     <div className="events-page" ref={pageRef}>
@@ -274,27 +460,49 @@ export default function Events() {
                     Отчёты о прошедших мероприятиях
                   </h2>
                   <ul className="events-mission-list">
-                    <li>
-                      <div className="events-mission-icon">📷</div>
-                      <div>
-                        <strong>Выставка «Сибирская Красота 2025»:</strong>{" "}
-                        <a href="#">фотоальбом и видеоотчёт</a>
-                      </div>
-                    </li>
-                    <li>
-                      <div className="events-mission-icon">🎓</div>
-                      <div>
-                        <strong>Семинар по экспертной оценке (май 2025):</strong>{" "}
-                        <a href="#">методические материалы</a>
-                      </div>
-                    </li>
-                    <li>
-                      <div className="events-mission-icon">❄️</div>
-                      <div>
-                        <strong>Чемпионат по драйленду:</strong>{" "}
-                        <a href="#">результаты и интервью с участниками</a>
-                      </div>
-                    </li>
+                    {(reports.length > 0 ? reports.slice(0, 3) : []).map((r, i) => (
+                      <li key={r.id}>
+                        <div className="events-mission-icon">{i === 0 ? "📷" : i === 1 ? "🎓" : "❄️"}</div>
+                        <div>
+                          {/*<strong>{r.event_title ?? `Отчёт #${r.id}`}:</strong>*/}
+                          <strong>{r.title ?? `Отчёт #${r.id}`}:</strong>
+                          {" "}
+                          <Link to={`/events/reports/${r.id}`}>фотоальбом и видеоотчёт</Link>
+                        </div>
+                      </li>
+                    ))}
+
+                    {reports.length === 0 && (
+                      <li>
+                        <div className="events-mission-icon">📷</div>
+                        <div>
+                          <strong>Пока нет отчётов</strong>
+                        </div>
+                      </li>
+                    )}
+
+
+                    {/*<li>*/}
+                    {/*  <div className="events-mission-icon">📷</div>*/}
+                    {/*  <div>*/}
+                    {/*    <strong>Выставка «Сибирская Красота 2025»:</strong>{" "}*/}
+                    {/*    <a href="#">фотоальбом и видеоотчёт</a>*/}
+                    {/*  </div>*/}
+                    {/*</li>*/}
+                    {/*<li>*/}
+                    {/*  <div className="events-mission-icon">🎓</div>*/}
+                    {/*  <div>*/}
+                    {/*    <strong>Семинар по экспертной оценке (май 2025):</strong>{" "}*/}
+                    {/*    <a href="#">методические материалы</a>*/}
+                    {/*  </div>*/}
+                    {/*</li>*/}
+                    {/*<li>*/}
+                    {/*  <div className="events-mission-icon">❄️</div>*/}
+                    {/*  <div>*/}
+                    {/*    <strong>Чемпионат по драйленду:</strong>{" "}*/}
+                    {/*    <a href="#">результаты и интервью с участниками</a>*/}
+                    {/*  </div>*/}
+                    {/*</li>*/}
                   </ul>
                 </div>
               </section>
@@ -345,24 +553,40 @@ export default function Events() {
                 <p className="events-text">
                   Образовательные мероприятия для судей, хендлеров и заводчиков:
                 </p>
-                <div className="events-cards-grid">
-                  <article className="events-card">
-                    <h3 className="events-card-title">🎓 Основы судейства</h3>
-                    <ul className="events-benefits">
-                      <li><span className="events-check">✓</span> Стандарты породы и типы экстерьера</li>
-                      <li><span className="events-check">✓</span> Ошибки в оценке и методики работы</li>
-                      <li><span className="events-check">✓</span> Работа на крупных выставках</li>
-                    </ul>
-                  </article>
-                  <article className="events-card">
-                    <h3 className="events-card-title">🐾 Подготовка хендлеров</h3>
-                    <ul className="events-benefits">
-                      <li><span className="events-check">✓</span> Поведение в ринге</li>
-                      <li><span className="events-check">✓</span> Демонстрация движений и стойки</li>
-                      <li><span className="events-check">✓</span> Работа с молодой собакой</li>
-                    </ul>
-                  </article>
-                </div>
+                {events.filter((e) => e.eventType === "seminar").length > 0 ? (
+                  <div className="events-cards-grid">
+                    {events
+                      .filter((e) => e.eventType === "seminar")
+                      .map((e) => (
+                        <article className="events-card" key={e.id}>
+                          <h3 className="events-card-title">{e.title}</h3>
+                          {e.desc && <p className="events-card-desc">{e.desc}</p>}
+                        </article>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="events-judges-placeholder">Семинары скоро появятся.</div>
+                )}
+
+
+                {/*<div className="events-cards-grid">*/}
+                {/*  <article className="events-card">*/}
+                {/*    <h3 className="events-card-title">🎓 Основы судейства</h3>*/}
+                {/*    <ul className="events-benefits">*/}
+                {/*      <li><span className="events-check">✓</span> Стандарты породы и типы экстерьера</li>*/}
+                {/*      <li><span className="events-check">✓</span> Ошибки в оценке и методики работы</li>*/}
+                {/*      <li><span className="events-check">✓</span> Работа на крупных выставках</li>*/}
+                {/*    </ul>*/}
+                {/*  </article>*/}
+                {/*  <article className="events-card">*/}
+                {/*    <h3 className="events-card-title">🐾 Подготовка хендлеров</h3>*/}
+                {/*    <ul className="events-benefits">*/}
+                {/*      <li><span className="events-check">✓</span> Поведение в ринге</li>*/}
+                {/*      <li><span className="events-check">✓</span> Демонстрация движений и стойки</li>*/}
+                {/*      <li><span className="events-check">✓</span> Работа с молодой собакой</li>*/}
+                {/*    </ul>*/}
+                {/*  </article>*/}
+                {/*</div>*/}
               </section>
             </div>
 
@@ -392,18 +616,43 @@ export default function Events() {
                   <div className="events-side-note events-side-note--orange">
                     <strong>❄️ 7 сен:</strong> Ездовой спорт — Казань
                   </div>
-                  <a className="events-pill events-pill--primary" href="#">Посмотреть календарь</a>
+                  <a
+                    className="events-pill events-pill--primary"
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCalendarOpen(true);
+                    }}
+                  >
+                    Посмотреть календарь
+                  </a>
+
+
                 </div>
               </div>
 
               <div className="sidebar-card">
                 <h3 className="events-sidebar-title mt-0">📸 Фото и видео отчёты</h3>
                 <ul className="events-links">
-                  <li><a href="#">📷 «Сибирская Красота 2025»</a></li>
-                  <li><a href="#">🎥 Чемпионат по драйленду</a></li>
-                  <li><a href="#">📷 Семинар хендлеров</a></li>
+                  {(reports.length > 0 ? reports.slice(0, 3) : []).map((r) => {
+                    const icon = (r.videosCount ?? 0) > 0 ? "🎥" : "📷";
+                    const label = r.title ?? `Отчёт #${r.id}`;
+
+                    return (
+                      <li key={r.id}>
+                        <Link to={`/events/reports/${r.id}`}>{icon} {label}</Link>
+                      </li>
+                    );
+                  })}
+
+                  {reports.length === 0 && (
+                    <li>Пока нет отчётов</li>
+                  )}
+                  {/*<li><a href="#">📷 «Сибирская Красота 2025»</a></li>*/}
+                  {/*<li><a href="#">🎥 Чемпионат по драйленду</a></li>*/}
+                  {/*<li><a href="#">📷 Семинар хендлеров</a></li>*/}
                 </ul>
-                <a className="events-pill events-pill--info" href="#">Все отчёты</a>
+                <a className="events-pill events-pill--info" href="/events/reports">Все отчёты</a>
               </div>
 
               <div className="sidebar-card">
@@ -413,12 +662,146 @@ export default function Events() {
                   <li><a href="#">🎓 Программа обучения</a></li>
                   <li><a href="#">📧 Заявка на семинар</a></li>
                 </ul>
-                <a className="events-pill events-pill--secondary" href="#">Судейский раздел</a>
+                <Link className="events-pill events-pill--secondary" to="/judges">
+                  Судейский раздел
+                </Link>
+
               </div>
             </aside>
           </div>
         </div>
       </main>
+            {calendarOpen && (
+        <div
+          className="events-calendar-overlay"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setCalendarOpen(false);
+          }}
+        >
+          <div className="events-calendar-modal">
+            <div className="events-calendar-head">
+              <div className="events-calendar-title">
+                {monthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+              </div>
+
+              <div className="events-calendar-actions">
+                <button
+                  type="button"
+                  className="events-calendar-nav"
+                  onClick={() =>
+                    setCalendarMonth(
+                      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                    )
+                  }
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  className="events-calendar-nav"
+                  onClick={() =>
+                    setCalendarMonth(
+                      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                    )
+                  }
+                >
+                  →
+                </button>
+                <button
+                  type="button"
+                  className="events-calendar-close"
+                  onClick={() => setCalendarOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="events-calendar-week">
+              {weekNames.map((w) => (
+                <div key={w} className="events-calendar-weekday">{w}</div>
+              ))}
+            </div>
+
+            <div className="events-calendar-grid">
+              {calendarCells.cells.map((c) => {
+                const hasEvent = eventDays.has(c.key);
+                return (
+                  <div
+                    key={c.key}
+                    className={[
+                      "events-calendar-cell",
+                      c.inMonth ? "in-month" : "out-month",
+                      hasEvent ? "has-event" : "",
+                      selectedDayKey === c.key ? "is-selected" : "",
+                    ].join(" ")}
+                    title={hasEvent ? "Есть мероприятие" : ""}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedDayKey(c.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setSelectedDayKey(c.key);
+                    }}
+                  >
+                    <div className="events-calendar-day">{c.date.getDate()}</div>
+                    {hasEvent && <div className="events-calendar-dot" />}
+                  </div>
+
+                );
+              })}
+            </div>
+
+            <div className="events-calendar-daypanel">
+              <div className="events-calendar-daypanel-title">
+                {selectedDayDate
+                  ? `Мероприятия — ${fullDateFormatter.format(selectedDayDate)}`
+                  : "Выберите дату в календаре"}
+              </div>
+
+              {selectedDayKey && (
+                selectedDayEvents.length > 0 ? (
+                  <ul className="events-calendar-daypanel-list">
+                    {selectedDayEvents.map((e) => (
+                      <li key={e.id} className="events-calendar-daypanel-item">
+                        <Link
+                          to={`/events/${e.id}`}
+                          className="events-calendar-daypanel-link"
+                          onClick={() => setCalendarOpen(false)}
+                        >
+                        <div className="events-calendar-daypanel-line">
+                          <strong>
+                            {e.startsAt ? timeFormatter.format(new Date(e.startsAt)) : ""}
+                          </strong>
+                          {" "}
+                          {e.title}
+                        </div>
+                        {(e.location || e.desc) && (
+                          <div className="events-calendar-daypanel-sub">
+                            {e.location ?? e.desc}
+                          </div>
+                        )}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="events-calendar-daypanel-empty">
+                    В этот день мероприятий нет.
+                  </div>
+                )
+              )}
+            </div>
+
+
+            <div className="events-calendar-hint">
+              Подсвечены даты, в которые запланированы мероприятия.
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

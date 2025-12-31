@@ -375,3 +375,220 @@
         padding: 1.25rem;
     }
 }
+
+
+.events-calendar-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 18, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+
+.events-calendar-modal{
+  width: min(860px, 100%);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  padding: 18px;
+}
+
+.events-calendar-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.events-calendar-title{
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.events-calendar-actions{
+  display: flex;
+  gap: 8px;
+}
+
+.events-calendar-nav,
+.events-calendar-close{
+  border: 1px solid rgba(0,0,0,.12);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.events-calendar-week{
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.events-calendar-weekday{
+  text-align: center;
+  font-weight: 700;
+  opacity: .7;
+  font-size: 13px;
+}
+
+.events-calendar-grid{
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.events-calendar-cell{
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 14px;
+  padding: 10px;
+  min-height: 54px;
+  position: relative;
+}
+
+.events-calendar-cell.out-month{
+  opacity: .35;
+}
+
+.events-calendar-cell.has-event{
+  border-color: rgba(64, 122, 255, .45);
+  background: rgba(64, 122, 255, .08);
+}
+
+.events-calendar-day{
+  font-weight: 800;
+}
+
+.events-calendar-dot{
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(64, 122, 255, 1);
+}
+
+.events-calendar-hint{
+  margin-top: 12px;
+  opacity: .7;
+  font-size: 13px;
+}
+
+.events-calendar-cell.is-selected{
+  outline: 2px solid rgba(64, 122, 255, 1);
+  outline-offset: 2px;
+}
+
+.events-calendar-daypanel{
+  margin-top: 14px;
+  border-top: 1px solid rgba(0,0,0,.08);
+  padding-top: 12px;
+}
+
+.events-calendar-daypanel-title{
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.events-calendar-daypanel-list{
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+/*.events-calendar-daypanel-item{*/
+/*  border: 1px solid rgba(0,0,0,.08);*/
+/*  border-radius: 14px;*/
+/*  padding: 12px;*/
+/*}*/
+
+.events-calendar-daypanel-item{
+  padding: 0; /* чтобы не было двойного паддинга (паддинг будет на ссылке) */
+}
+
+.events-calendar-daypanel-line{
+  font-size: 14px;
+}
+
+.events-calendar-daypanel-sub{
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: .75;
+}
+
+.events-calendar-daypanel-empty{
+  opacity: .75;
+  font-size: 14px;
+}
+
+
+.events-calendar-cell.has-event {
+    cursor: pointer;
+}
+
+.events-calendar-daypanel-link{
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
+
+
+
+.events-calendar-daypanel-link{
+  padding: 12px; /* перенесли паддинг сюда, как был у item */
+  border-radius: 14px;
+}
+
+.events-calendar-daypanel-link:hover{
+  cursor: pointer;
+  background: rgba(64, 122, 255, .06);
+}
+
+/* Метаданные мероприятия (тип/даты/место) */
+.event-meta{
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.event-meta-item{
+  background: var(--arctic-gray);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 700px){
+  .event-meta{ grid-template-columns: 1fr; }
+}
+
+/* Чтобы карточка судьи (Link) не подчёркивалась и была блочной */
+.events-leader-card--link{
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+/* Подпись как на карточках judges */
+.judge-card-cta-like{
+  margin-top: 10px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--bright-blue);
+}
+
+.event-register{
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}

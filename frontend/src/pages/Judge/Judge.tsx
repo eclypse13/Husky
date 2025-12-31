@@ -143,7 +143,13 @@ export default function Judge() {
     const root = pageRef.current;
     if (!root) return;
 
-    const targets = root.querySelectorAll<HTMLElement>(".judge-section, .judge-aside-card, .judge-hero-card");
+    // важно: запускать только когда страница уже не в загрузке
+    if (loading) return;
+
+    const targets = root.querySelectorAll<HTMLElement>(
+      ".judge-section, .judge-aside-card, .judge-hero-card"
+    );
+    if (!targets.length) return;
 
     const io = new IntersectionObserver(
       (entries) =>
@@ -159,7 +165,16 @@ export default function Judge() {
     });
 
     return () => io.disconnect();
-  }, []);
+  }, [
+    loading,
+    judge,
+    details,
+    bio.length,
+    workDirections.length,
+    initiatives.length,
+    sidebarAchievements.length,
+  ]);
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -180,6 +195,14 @@ export default function Judge() {
 
     const load = async () => {
       setLoading(true);
+      setNotFound(false);
+      setJudge(null);
+      setDetails(null);
+      setBio([]);
+      setWorkDirections([]);
+      setInitiatives([]);
+      setSidebarAchievements([]);
+
       try {
         const res = await fetch(`/api/judges/${id}/`);
         if (!res.ok) {
@@ -244,6 +267,54 @@ export default function Judge() {
 
   const badgePalette = ["badge-blue", "badge-green", "badge-orange"];
   const getBadgeClass = (idx: number) => badgePalette[idx] || badgePalette[badgePalette.length - 1];
+  if (loading) {
+  return (
+    <div className="judge-page" ref={pageRef}>
+      <Breadcrumb
+        title="Эксперт"
+        items={[
+          { label: "Главная", to: "/" },
+          { label: "Судьи", to: "/judges" },
+          { label: "Эксперт" },
+        ]}
+      />
+      <main className="judge-main">
+        <div className="judge-container">
+          <section className="judge-section judge-card" data-visible="1">
+            <p className="judge-muted">Загрузка данных...</p>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+if (notFound || !judge) {
+  return (
+    <div className="judge-page" ref={pageRef}>
+      <Breadcrumb
+        title="Эксперт"
+        items={[
+          { label: "Главная", to: "/" },
+          { label: "Судьи", to: "/judges" },
+          { label: "Эксперт" },
+        ]}
+      />
+      <main className="judge-main">
+        <div className="judge-container">
+          <section className="judge-section judge-card" data-visible="1">
+            <p className="judge-muted">Эксперт не найден.</p>
+            <div style={{ marginTop: 12 }}>
+              <Link className="judge-pill-link" to="/judges">
+                ← К списку судей
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
 
   return (
     <div className="judge-page" ref={pageRef}>
@@ -268,7 +339,7 @@ export default function Judge() {
             <div className="judge-col">
               <section className="judge-section judge-card">
                 {loading && <p className="judge-muted">Загрузка данных...</p>}
-                {notFound && !loading && <p className="judge-muted">Эксперт не найден.</p>}
+                {/*{notFound && !loading && <p className="judge-muted">Эксперт не найден.</p>}*/}
                 {!loading && (
                   <>
                     {bioParagraphs.map((p, idx) => (
