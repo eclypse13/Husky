@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams} from "react-router-dom";
 import {getDict, pickValue} from "@lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./EventReport.css";
