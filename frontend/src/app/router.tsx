@@ -14,6 +14,7 @@ import Health from "@/pages/Health/Health"
 import Rating from "@/pages/Rating/Rating";
 import Pedigree from "@/pages/Pedigree/Pedigree";
 import President from "@/pages/President/President";
+import WorkingGroup from "@/pages/WorkingGroup/WorkingGroup";
 import SmartTools from "@/pages/SmartTools/SmartTools";
 import Profile from "@/pages/Profile/Profile";
 import PublicGallery from "@/pages/PublicGallery/PublicGallery";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
             { path: "rating", element: <Rating /> },
             { path: "pedigree", element: <Pedigree /> },
             { path: "president", element: <President /> },
+            { path: "working-groups/:id", element: <WorkingGroup /> },
             { path: "profile", element: <Profile /> },
             { path: "/smart-tools", element: <SmartTools /> },
             { path: "/public-gallery", element: <PublicGallery /> },

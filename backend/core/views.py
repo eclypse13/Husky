@@ -160,13 +160,13 @@ class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
-
-
 class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
     """API ??????? ?????"""
     queryset = models.JudgeDetails.objects.all()
     serializer_class = JudgeDetailsSerializer
     permission_classes = [AllowAny]
+
+
 class ClubDocumentViewSet(viewsets.ReadOnlyModelViewSet):
     """API документов клуба"""
     queryset = models.ClubDocument.objects.all()
@@ -174,10 +174,38 @@ class ClubDocumentViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
+class ClubStatsViewSet(viewsets.ViewSet):
+    """API статистики клуба (одна запись)"""
+    permission_classes = [AllowAny]
+
+    def list(self, request):
+        obj = models.ClubStats.objects.order_by("-updated_at").first()
+        if not obj:
+            # если запись ещё не создана в админке
+            return Response(
+                {
+                    "members_count": 0,
+                    "kennels_count": 0,
+                    "dogs_in_archive_count": 0,
+                    "regions_count": 0,
+                    "updated_at": None,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(ClubStatsSerializer(obj).data)
+
+
 class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
     """API членов Президиума"""
     queryset = models.BoardMember.objects.all()
     serializer_class = BoardMemberSerializer
+    permission_classes = [AllowAny]
+
+
+class WorkingGroupViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.WorkingGroup.objects.all().prefetch_related("members")
+    serializer_class = WorkingGroupSerializer
     permission_classes = [AllowAny]
 
 

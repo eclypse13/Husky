@@ -23,7 +23,6 @@ export default function About() {
   const [missionLead, setMissionLead] = useState<string | null>(null);
 
   type LeaderCard = {
-
     id: string;
 
     icon?: string;
@@ -37,6 +36,8 @@ export default function About() {
     phone?: string | null;
 
     extra?: string;
+
+    working_group_id: number | null;
 
   };
 
@@ -236,6 +237,8 @@ export default function About() {
           mail: member?.email ?? undefined,
 
           phone: member?.phone ?? undefined,
+
+          working_group_id: member?.working_group_id ?? undefined,
 
         });
 
@@ -455,11 +458,20 @@ export default function About() {
                 <h2 className="about-section-title">Руководство клуба</h2>
 
                 <div className="about-leader-highlight">
-                  <h3 className="about-leader-highlight-title">{highlightLeader.role}</h3>
+                  <h3 className="about-leader-highlight-title">
+                    {highlightLeader.role}
+                  </h3>
                   <div className="about-leader-card about-leader-card--plain">
                     <div className="about-leader-avatar">{highlightLeader.icon ?? "👤"}</div>
                     <h3 className="about-leader-name">{highlightLeader.name}</h3>
-                    <p className="about-leader-position">{highlightLeader.role}</p>
+                    <p className="about-leader-position">
+                      <Link
+                            to={`/president`}
+                            className="about-leader-position about-leader-position-link"
+                    >
+                    {highlightLeader.role}
+                    </Link>
+                    </p>
                     {(highlightLeader.mail || highlightLeader.phone) && (
                       <div className="about-leader-contact">
                         {highlightLeader.mail && <p>{highlightLeader.mail}</p>}
@@ -475,7 +487,18 @@ export default function About() {
                     <div key={p.id} className="about-leader-card">
                       <div className="about-leader-avatar">{p.icon ?? "👤"}</div>
                       <h3 className="about-leader-name">{p.name}</h3>
-                      <p className="about-leader-position">{p.role}</p>
+                      <p className="about-leader-position">
+                        {p.working_group_id ? (
+                          <Link
+                            to={`/working-groups/${p.working_group_id}`}
+                            className="about-leader-position about-leader-position-link"
+                          >
+                            {p.role}
+                          </Link>
+                        ) : (
+                          <span className="about-leader-position">{p.role}</span>
+                        )}
+                      </p>
                       <div className="about-leader-contact">
                         {p.extra && <p className="about-leader-note">{p.extra}</p>}
                         {p.mail && <p>{p.mail}</p>}
