@@ -357,19 +357,15 @@ def logout_view(request):
 # ГЛАВНАЯ СТРАНИЦА API
 # ============================================
 
+class HomeResponseSerializer(serializers.Serializer):
+    featured_news = NewsSerializer(many=True)
+    upcoming_events = EventSerializer(many=True)
+    highlight_galleries = GallerySerializer(many=True)
+
 @extend_schema(
-    responses={200: {
-        'description': 'Home page data',
-        'content': {
-            'application/json': {
-                'example': {
-                    'featured_news': [],
-                    'upcoming_events': [],
-                    'highlight_galleries': []
-                }
-            }
-        }
-    }}
+    responses={
+        200: HomeResponseSerializer  # Автоматическая схема из сериализатора
+    }
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
