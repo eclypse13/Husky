@@ -433,6 +433,15 @@
     font-size: .9rem;
     color: var(--text-light);
 }
+.archive-partner-link {
+    text-decoration: none;
+}
+.archive-partner-link:hover,
+.archive-partner-link:visited,
+.archive-partner-link:active {
+    text-decoration: none;
+}
+
 
 .archive-labs {
     border-top: 1px solid var(--border-light);
