@@ -1,18 +1,22 @@
+/* ── Страница ──────────────────────────────────────────────────────────────── */
+
 .pedigree-page {
   padding-bottom: 4rem;
 }
 
+/* ── Шапка ─────────────────────────────────────────────────────────────────── */
+
 .pedigree-header {
   max-width: 1400px;
   margin: 1.5rem auto 1.5rem;
-  padding: 0 clamp(1rem, 2vw, 2rem);
+  padding: 0 2rem;
   text-align: center;
 }
 
 .pedigree-title {
   font-size: clamp(1.8rem, 2.4vw, 2.4rem);
   font-weight: 900;
-  margin: 0 0 .75rem;
+  margin: 0 0 .5rem;
 }
 
 .pedigree-title-accent {
@@ -24,105 +28,93 @@
 
 .pedigree-sub {
   color: var(--text-light);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  font-size: .95rem;
 }
 
-.pedigree-filter {
+/* ── Управление ──────────────────────────────────────────────────────────────── */
+
+.pedigree-controls {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
 }
 
 .pedigree-select {
-  padding: .9rem 2.5rem .9rem 1rem;
+  padding: .9rem 2.75rem .9rem 1.1rem;
   border: 2px solid var(--border-light);
   border-radius: 12px;
-  background: var(--snow-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 1rem center;
+  background:
+    var(--snow-white)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
+    no-repeat right 1rem center;
   background-size: 12px;
   appearance: none;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: .95rem;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
 }
 
-.pedigree-frame {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.25rem;
-  background: var(--snow-white);
-  border: 1px solid var(--border-light);
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
+.pedigree-select:hover,
+.pedigree-select:focus {
+  border-color: var(--bright-blue);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
 }
 
-.pedigree-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.pdg-link {
-  fill: none;
-  stroke: #3b82f6;
-  stroke-width: 3px;
-}
-
-.pdg-node rect {
-  fill: #1e3a8a;
-  stroke: #93c5fd;
-  stroke-width: 2px;
-}
-
-.pdg-fo {
+.pedigree-stats {
   display: flex;
   align-items: center;
   gap: .5rem;
-  line-height: 1.35;
-  color: #fff;
-  font-size: 12px;
+  font-size: .82rem;
 }
 
-.pdg-img {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid #fff;
-  display: block;
+.pedigree-stats-badge {
+  display: inline-block;
+  padding: .3rem .75rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: .75rem;
+  letter-spacing: .02em;
 }
 
-.pdg-title {
-  color: #93c5fd;
+.pedigree-stats-badge--male {
+  background: rgba(59, 130, 246, .12);
+  color: var(--bright-blue);
+  border: 1px solid rgba(59, 130, 246, .25);
 }
 
-@media (max-width: 900px) {
-  .pedigree-frame {
-    padding: .75rem;
-    border-radius: 18px;
-  }
+.pedigree-stats-badge--female {
+  background: rgba(192, 38, 211, .1);
+  color: #c026d3;
+  border: 1px solid rgba(192, 38, 211, .2);
 }
 
-@media (max-width: 600px) {
-  .pedigree-header {
-    padding: 0 1rem;
-  }
-
-  .pedigree-title {
-    font-size: 1.6rem;
-  }
+.pedigree-stats-count {
+  color: var(--text-light);
+  font-weight: 600;
 }
+
+/* ── Основной фрейм ──────────────────────────────────────────────────────────── */
 
 .pedigree-frame {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: 1.5rem 1.25rem 1rem;
   background: var(--snow-white);
   border: 1px solid var(--border-light);
   border-radius: 24px;
   box-shadow: var(--shadow-soft);
   overflow: hidden;
+  transition: box-shadow .3s;
+  position: relative;
 }
 
-.pedigree-scroll {
-  width: 100%;
+.pedigree-frame:hover {
+  box-shadow: var(--shadow-hover);
 }
 
 .pedigree-frame.is-scroll {
@@ -132,14 +124,161 @@
   overscroll-behavior-x: contain;
 }
 
+.pedigree-scroll { width: 100%; }
+
 .pedigree-svg {
   display: block;
   width: 100%;
   height: auto;
 }
 
+/* ── Легенда ─────────────────────────────────────────────────────────────────── */
+
+.pedigree-legend {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
+  margin-top: .75rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.pdg-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.pdg-legend-item--male::before {
+  content: '';
+  display: inline-block;
+  width: 12px; height: 12px;
+  background: linear-gradient(135deg, #1a3a7a, #0a1e4a);
+  border: 1.5px solid #4f86e8;
+  border-radius: 3px;
+}
+
+.pdg-legend-item--female::before {
+  content: '';
+  display: inline-block;
+  width: 12px; height: 12px;
+  background: linear-gradient(135deg, #5c1144, #3a0828);
+  border: 1.5px solid #d46faf;
+  border-radius: 3px;
+}
+
+/* ── SVG элементы ────────────────────────────────────────────────────────────── */
+
+.pdg-link {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 2px;
+  opacity: .9;
+}
+
+.pdg-fo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  color: #fff;
+  overflow: hidden;
+}
+
+.pdg-titles {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255,255,255,.5);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  margin-bottom: 1px;
+}
+
+.pdg-name {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+
+.pdg-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.pdg-year {
+  font-size: 10px;
+  color: rgba(255,255,255,.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdg-color-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.25);
+  flex-shrink: 0;
+}
+
+/* ── Состояния ───────────────────────────────────────────────────────────────── */
+
+.pedigree-error {
+  max-width: 1400px;
+  margin: 1.5rem auto;
+  padding: 1rem 1.5rem;
+  background: rgba(239,68,68,.06);
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: 16px;
+  color: #ef4444;
+  text-align: center;
+  font-weight: 700;
+}
+
+.pedigree-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem;
+  color: var(--text-light);
+}
+
+.pedigree-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--bright-blue);
+  border-radius: 50%;
+  animation: pdg-spin .8s linear infinite;
+}
+
+@keyframes pdg-spin { to { transform: rotate(360deg); } }
+
+/* ── Адаптив ──────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .pedigree-frame { padding: .75rem; border-radius: 18px; }
+}
+
+@media (max-width: 600px) {
+  .pedigree-header { padding: 0 1rem; }
+  .pedigree-title  { font-size: 1.6rem; }
+  .pedigree-controls { flex-direction: column; gap: .75rem; }
+}
+
 @media (max-width: 480px) {
-  .pdg-title {
-    font-size: 11px;
-  }
+  .pdg-name   { font-size: 10px; }
+  .pdg-titles { font-size: 8px;  }
 }

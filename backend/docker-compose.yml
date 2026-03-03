@@ -1,9 +1,14 @@
-version: '3.8'
+#version: '3.8'
+version: '3.9'
 
 services:
   web:
     build: .
-    command: gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3
+#    command: gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py migrate --database=dogs_db &&
+             gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
@@ -17,6 +22,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+#        postgres
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -34,6 +42,30 @@ services:
       - "27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# НОВЫЙ СЕРВИС: PostgreSQL для модуля собак
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DOGS_DB_NAME}
+      POSTGRES_USER: ${DOGS_DB_USER}
+      POSTGRES_PASSWORD: ${DOGS_DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DOGS_DB_USER} -d ${DOGS_DB_NAME}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -63,7 +95,8 @@ services:
 
   celery:
     build: .
-    command: celery -A nkp_project worker -l info
+#    command: celery -A nkp_project worker -l info
+    command: celery -A nkp_project worker -l info --pool=prefork --concurrency=4
     volumes:
       - .:/app
     env_file:
@@ -73,6 +106,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -92,6 +127,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  flower:
+    build: .
+    command: celery -A nkp_project flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - celery
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -121,3 +177,4 @@ volumes:
   mongo_data:
   static_volume:
   media_volume:
+  postgres_data:
