@@ -157,13 +157,15 @@ services:
 
   nginx:
     image: nginx:alpine
-    ports:
-      - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - static_volume:/static:ro
       - media_volume:/media:ro
       - ../frontend/dist:/usr/share/nginx/html:ro
+    environment:
+      - VIRTUAL_HOST=husky-nkp.ru
+      - LETSENCRYPT_HOST=husky-nkp.ru
+      - LETSENCRYPT_EMAIL=vlada.kugurakova@gmail.com
     depends_on:
       - web
     restart: unless-stopped
@@ -173,8 +175,40 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    labels:
+      - com.github.nginx-proxy.nginx
+    restart: unless-stopped
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+      - DEFAULT_EMAIL=vlada.kugurakova@gmail.com
+    depends_on:
+      - nginx-proxy
+    restart: unless-stopped
+
 volumes:
   mongo_data:
   static_volume:
   media_volume:
   postgres_data:
+  certs:
+  vhost:
+  html:
