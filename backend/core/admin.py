@@ -17,7 +17,9 @@ from .models import (
     Event, EventReport, Seminar,
     EventReportPhoto, EventReportVideo,
     BreedStandard, BreedArticle,
-    ClubDocument, BoardMember, MembershipPlan,
+    ClubDocument, ClubStats,
+    BoardMember, WorkingGroup,
+    MembershipPlan,
     Kennel, Dog, Litter,
     Application,
     Achievement, MembershipPayment,
@@ -376,16 +378,43 @@ class BreedArticleAdmin(MongoModelAdmin):
 
 
 class ClubDocumentAdmin(MongoModelAdmin):
-    list_display = ['title_key', 'document_type', 'uploaded_at']
+    list_display = ['title_key', 'document_type', "order", 'uploaded_at']
+    list_editable = ("order",)
     list_filter = ['document_type', 'uploaded_at']
     search_fields = ['title_key']
-    ordering = ['-uploaded_at']
+    ordering = ["order", '-uploaded_at']
+
+
+class ClubStatsAdmin(MongoModelAdmin):
+    list_display = (
+        "members_count",
+        "kennels_count",
+        "dogs_in_archive_count",
+        "regions_count",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        # запрещаем создавать больше одной записи
+        if dj_models.ClubStats.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        # обычно не даём удалять, чтобы статистика не исчезла
+        return False
 
 
 class BoardMemberAdmin(MongoModelAdmin):
     list_display = ['name', 'position', 'order', 'email']
     search_fields = ['name', 'position', 'email']
     ordering = ['order', 'name']
+
+
+class WorkingGroupAdmin(MongoModelAdmin):
+    list_display = ['name']
+    search_fields = ['name']
+    ordering = ['name']
 
 
 class MembershipPlanAdmin(MongoModelAdmin):
@@ -491,7 +520,9 @@ ADMIN_REGISTRY = {
     BreedStandard: BreedStandardAdmin,
     BreedArticle: BreedArticleAdmin,
     ClubDocument: ClubDocumentAdmin,
+    ClubStats: ClubStatsAdmin,
     BoardMember: BoardMemberAdmin,
+    WorkingGroup: WorkingGroupAdmin,
     MembershipPlan: MembershipPlanAdmin,
     Kennel: KennelAdmin,
     Dog: DogAdmin,
@@ -536,10 +567,12 @@ __all__ = [
     'EventAdmin',
     'DogAdmin',
     'KennelAdmin',
+    'ClubStats',
     'DogAdmin',
     'LitterAdmin',
     'ApplicationAdmin',
     'AchievementAdmin',
+    'WorkingGroupAdmin',
     'MembershipPaymentAdmin',
     'MemberBenefitAdmin',
     'ProtectedMaterialAdmin',
@@ -575,6 +608,8 @@ DJANGO_MODELS = [
     dj_models.BreedStandard,
     dj_models.BreedArticle,
     dj_models.ClubDocument,
+    dj_models.ClubStats,
+    dj_models.WorkingGroup,
     dj_models.BoardMember,
     dj_models.MembershipPlan,
     dj_models.Kennel,

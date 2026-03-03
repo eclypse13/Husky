@@ -62,10 +62,10 @@ BENEFIT_TYPES = [
 ]
 
 DOCUMENT_TYPES = [
-    ('charter', 'charter'),
-    ('regulation', 'regulation'),
-    ('standard', 'standard'),
-    ('form', 'form'),
+    ('charter', 'устав'),
+    ('regulation', 'регламент'),
+    ('standard', 'стандарт'),
+    ('form', 'форма'),
 ]
 
 INITIATIVE_STATES = [
@@ -342,11 +342,11 @@ class EventReportVideo(models.Model):
         verbose_name_plural = "Видео отчёта"
 
 
-
 class Seminar(models.Model):
     title_key = models.CharField(max_length=200)
     description_key = models.TextField(blank=True)
-    speaker = models.ForeignKey(Judge, on_delete=models.SET_NULL, null=True, blank=True, related_name='seminars', verbose_name='Спикер')
+    speaker = models.ForeignKey(Judge, on_delete=models.SET_NULL, null=True, blank=True, related_name='seminars',
+                                verbose_name='Спикер')
     date = models.DateTimeField(blank=True, null=True, verbose_name='Дата')
     materials = models.JSONField(default=list, blank=True, verbose_name="Материалы")
 
@@ -394,30 +394,77 @@ class BreedArticle(models.Model):
 
 
 class ClubDocument(models.Model):
-    title_key = models.CharField(max_length=200)
-    description_key = models.TextField(blank=True)
-    file = models.FileField(upload_to='documents/')
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    title_key = models.CharField(max_length=200, verbose_name="Заголовок")
+    description_key = models.TextField(blank=True, verbose_name="Описание")
+    file = models.FileField(upload_to='documents/', verbose_name="Файл")
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES, verbose_name="Тип документа")
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата")
+    order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        verbose_name="Порядок"
+    )
 
     class Meta:
-        ordering = ['-uploaded_at']
+        ordering = ["document_type", "order", "-uploaded_at"]
+        verbose_name = "Документ клуба"
+        verbose_name_plural = "Документы клуба"
 
     def __str__(self):
         return self.title_key
 
 
+class ClubStats(models.Model):
+    members_count = models.PositiveIntegerField(default=0, verbose_name="Владельцев сибирских хаски")
+    kennels_count = models.PositiveIntegerField(default=0, verbose_name="Питомников")
+    dogs_in_archive_count = models.PositiveIntegerField(default=0, verbose_name="Собак в архиве")
+    regions_count = models.PositiveIntegerField(default=0, verbose_name="Регионов")
+
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
+
+    class Meta:
+        verbose_name = "Статистика клуба"
+        verbose_name_plural = "Статистика клуба"
+
+    def clean(self):
+        # гарантируем, что в таблице будет максимум 1 объект
+        if ClubStats.objects.exclude(pk=self.pk).exists():
+            raise ValidationError("Статистика клуба уже создана. Можно редактировать только одну запись.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # запускает clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return "Статистика клуба"
+
+
+class WorkingGroup(models.Model):
+    name = models.CharField(max_length=200, verbose_name='Название')
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Рабочая группа'
+        verbose_name_plural = 'Рабочие группы'
+
+    def __str__(self):
+        return self.name
+
+
 class BoardMember(models.Model):
-    name = models.CharField(max_length=200)
-    position = models.CharField(max_length=200, blank=True)
-    bio_key = models.CharField(max_length=200, blank=True)
-    photo = models.ImageField(upload_to='board/', blank=True, null=True)
-    email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=50, blank=True)
-    order = models.IntegerField(default=0)
+    name = models.CharField(max_length=200, verbose_name='Имя')
+    position = models.CharField(max_length=200, blank=True, verbose_name='Должность')
+    bio_key = models.CharField(max_length=200, blank=True, verbose_name='Доп. информация')
+    photo = models.ImageField(upload_to='board/', blank=True, null=True, verbose_name='Фото')
+    email = models.EmailField(blank=True, verbose_name='Почта')
+    phone = models.CharField(max_length=50, blank=True, verbose_name='Номер телефона')
+    order = models.IntegerField(default=0, verbose_name='Порядок')
+    working_group = models.ForeignKey(WorkingGroup, on_delete=models.CASCADE, null=True, related_name='members', verbose_name="Рабочая группа")
 
     class Meta:
         ordering = ['order', 'name']
+        verbose_name = 'Член клуба'
+        verbose_name_plural = 'Члены клуба'
 
     def __str__(self):
         return f'{self.name} ({self.position})'

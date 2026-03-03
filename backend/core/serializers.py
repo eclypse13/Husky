@@ -1,3 +1,6 @@
+import mimetypes
+import os
+
 from rest_framework import serializers
 from . import models_django as models
 
@@ -95,16 +98,67 @@ class JudgeDetailsSerializer(serializers.ModelSerializer):
 
 
 class ClubDocumentSerializer(serializers.ModelSerializer):
+    file_size = serializers.SerializerMethodField()
+    file_ext = serializers.SerializerMethodField()
+    # можно ещё mime_type, если надо:
+    mime_type = serializers.SerializerMethodField()
+
     class Meta:
         model = models.ClubDocument
-        fields = '__all__'
+        fields = (
+            "id", "title_key", "description_key", "file", "document_type", "uploaded_at",
+            "file_size", "file_ext", "mime_type", "order",
+        )
+
+    def get_file_size(self, obj):
+        f = getattr(obj, "file", None)
+        if not f:
+            return None
+        try:
+            return f.size  # байты
+        except Exception:
+            return None
+
+    def get_file_ext(self, obj):
+        f = getattr(obj, "file", None)
+        if not f or not getattr(f, "name", None):
+            return None
+        ext = os.path.splitext(f.name)[1].lstrip(".").upper()
+        return ext or None
+
+    def get_mime_type(self, obj):
+        f = getattr(obj, "file", None)
+        if not f or not getattr(f, "name", None):
+            return None
+        mime, _ = mimetypes.guess_type(f.name)
+        return mime
+
+
+class ClubStatsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ClubStats
+        fields = (
+            "members_count",
+            "kennels_count",
+            "dogs_in_archive_count",
+            "regions_count",
+            "updated_at",
+        )
 
 
 class BoardMemberSerializer(serializers.ModelSerializer):
+    working_group_id = serializers.IntegerField(read_only=True)
     class Meta:
         model = models.BoardMember
         fields = '__all__'
 
+
+class WorkingGroupSerializer(serializers.ModelSerializer):
+    members = BoardMemberSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.WorkingGroup
+        fields = ("id", "name", "members")
 
 class BreedStandardSerializer(serializers.ModelSerializer):
     class Meta:
