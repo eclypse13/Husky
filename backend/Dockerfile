@@ -1,4 +1,6 @@
-FROM python:3.11-slim
+#FROM python:3.11-slim
+# Для разработки на МАК (чтобы быстро собрать сборку)
+FROM mcr.microsoft.com/playwright/python:v1.41.0-jammy
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
