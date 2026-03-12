@@ -227,10 +227,17 @@
     height: 72px;
     border-radius: 50%;
     background: var(--ice-blue);
-    color: var(--bright-blue);
-    display: grid;
-    place-items: center;
-    font-size: 1.6rem;
+    display: block;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.archive-dog-avatar img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
 }
 
 .archive-dog-name {
@@ -592,6 +599,11 @@
 
     .archive-dog-avatar {
         grid-area: avatar;
+        width: 56px;
+        height: 56px;
+    }
+
+    .archive-dog-avatar img {
         width: 56px;
         height: 56px;
     }
