@@ -1,116 +1,122 @@
-/* ── Страница ──────────────────────────────────────────────────────────────── */
-
 .pedigree-page {
   padding-bottom: 4rem;
+  background: var(--arctic-gray);
+  min-height: 100vh;
 }
 
-/* ── Шапка ─────────────────────────────────────────────────────────────────── */
-
-.pedigree-header {
+/* ── Controls bar ──────────────────────────────────────────────── */
+.pedigree-controls-bar {
   max-width: 1400px;
-  margin: 1.5rem auto 1.5rem;
-  padding: 0 2rem;
-  text-align: center;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
 }
 
-.pedigree-title {
-  font-size: clamp(1.8rem, 2.4vw, 2.4rem);
-  font-weight: 900;
-  margin: 0 0 .5rem;
+.pedigree-gen-tabs {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  background: var(--snow-white);
+  border: 1px solid var(--border-light);
+  border-radius: 50px;
+  padding: .2rem;
+  box-shadow: var(--shadow-soft);
 }
 
-.pedigree-title-accent {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.pedigree-sub {
+.pedigree-gen-label {
+  font-size: .78rem;
+  font-weight: 700;
   color: var(--text-light);
-  margin-bottom: 1.25rem;
-  font-size: .95rem;
+  letter-spacing: .04em;
+  padding: 0 .45rem 0 .5rem;
+  white-space: nowrap;
 }
 
-/* ── Управление ──────────────────────────────────────────────────────────────── */
-
-.pedigree-controls {
+.pedigree-gen-tab {
+  width: 34px;
+  height: 34px;
+  border-radius: 50px;
+  border: none;
+  background: transparent;
+  font-size: .82rem;
+  font-weight: 800;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background .18s, color .18s, transform .15s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.25rem;
-  flex-wrap: wrap;
 }
 
-.pedigree-select {
-  padding: .9rem 2.75rem .9rem 1.1rem;
-  border: 2px solid var(--border-light);
-  border-radius: 12px;
-  background:
-    var(--snow-white)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
-    no-repeat right 1rem center;
-  background-size: 12px;
-  appearance: none;
-  font-weight: 700;
-  font-size: .95rem;
-  cursor: pointer;
-  transition: border-color .2s, box-shadow .2s;
+.pedigree-gen-tab:hover {
+  background: var(--ice-blue);
+  color: var(--bright-blue);
 }
 
-.pedigree-select:hover,
-.pedigree-select:focus {
-  border-color: var(--bright-blue);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+.pedigree-gen-tab.is-active {
+  background: var(--gradient-primary);
+  color: var(--snow-white);
+  box-shadow: var(--shadow-glow);
+  transform: scale(1.05);
 }
 
 .pedigree-stats {
   display: flex;
   align-items: center;
-  gap: .5rem;
-  font-size: .82rem;
+  gap: .4rem;
+  flex-wrap: wrap;
 }
 
-.pedigree-stats-badge {
-  display: inline-block;
-  padding: .3rem .75rem;
+.pdg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .3rem .7rem;
   border-radius: 50px;
-  font-weight: 700;
   font-size: .75rem;
-  letter-spacing: .02em;
+  font-weight: 800;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  transition: transform .2s;
 }
 
-.pedigree-stats-badge--male {
-  background: rgba(59, 130, 246, .12);
+.pdg-badge:hover {
+  transform: scale(1.04);
+}
+
+.pdg-badge--male {
+  background: rgba(59, 130, 246, .1);
   color: var(--bright-blue);
-  border: 1px solid rgba(59, 130, 246, .25);
+  border: 1px solid rgba(59, 130, 246, .2);
 }
 
-.pedigree-stats-badge--female {
+.pdg-badge--female {
   background: rgba(192, 38, 211, .1);
   color: #c026d3;
   border: 1px solid rgba(192, 38, 211, .2);
 }
 
-.pedigree-stats-count {
+.pdg-badge--total {
+  background: var(--snow-white);
   color: var(--text-light);
-  font-weight: 600;
+  border: 1px solid var(--border-light);
 }
 
-/* ── Основной фрейм ──────────────────────────────────────────────────────────── */
-
+/* ── Tree frame ────────────────────────────────────────────────── */
 .pedigree-frame {
   max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem 1rem;
+  margin: 1rem auto 0;
+  padding: 1rem 1rem .75rem;
   background: var(--snow-white);
   border: 1px solid var(--border-light);
-  border-radius: 24px;
+  border-radius: 18px;
   box-shadow: var(--shadow-soft);
   overflow: hidden;
   transition: box-shadow .3s;
-  position: relative;
 }
 
 .pedigree-frame:hover {
@@ -122,25 +128,57 @@
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
 }
 
-.pedigree-scroll { width: 100%; }
+.pedigree-frame.is-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.pedigree-frame.is-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pedigree-frame.is-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+.pedigree-frame.is-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.pedigree-scroll {
+  width: 100%;
+}
 
 .pedigree-svg {
   display: block;
   width: 100%;
   height: auto;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* ── Легенда ─────────────────────────────────────────────────────────────────── */
+/* ── Node / link ───────────────────────────────────────────────── */
+.pdg-node {
+  cursor: pointer;
+}
 
+.pdg-link {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 1.2px;
+}
+
+/* ── Legend ────────────────────────────────────────────────────── */
 .pedigree-legend {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+  justify-content: flex-end;
   margin-top: .75rem;
-  padding-top: .75rem;
+  padding-top: .6rem;
   border-top: 1px solid var(--border-light);
 }
 
@@ -148,137 +186,174 @@
   display: flex;
   align-items: center;
   gap: .4rem;
-  font-size: .78rem;
+  font-size: .76rem;
   font-weight: 700;
   color: var(--text-light);
 }
 
-.pdg-legend-item--male::before {
-  content: '';
-  display: inline-block;
-  width: 12px; height: 12px;
-  background: linear-gradient(135deg, #1a3a7a, #0a1e4a);
-  border: 1.5px solid #4f86e8;
-  border-radius: 3px;
+.pdg-legend-swatch {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
 }
 
-.pdg-legend-item--female::before {
-  content: '';
-  display: inline-block;
-  width: 12px; height: 12px;
-  background: linear-gradient(135deg, #5c1144, #3a0828);
-  border: 1.5px solid #d46faf;
-  border-radius: 3px;
+.pdg-legend-swatch--male {
+  background: linear-gradient(90deg, #1e56a0, #3b82f6);
 }
 
-/* ── SVG элементы ────────────────────────────────────────────────────────────── */
-
-.pdg-link {
-  fill: none;
-  stroke: #cbd5e1;
-  stroke-width: 2px;
-  opacity: .9;
+.pdg-legend-swatch--female {
+  background: linear-gradient(90deg, #c026d3, #e879f9);
 }
 
-.pdg-fo {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 100%;
-  color: #fff;
-  overflow: hidden;
-}
-
-.pdg-titles {
-  font-size: 9px;
-  font-weight: 700;
-  color: rgba(255,255,255,.5);
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.2;
-  margin-bottom: 1px;
-}
-
-.pdg-name {
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #fff;
-}
-
-.pdg-meta {
-  display: flex;
+/* ── Scroll hint ───────────────────────────────────────────────── */
+.pedigree-scroll-hint {
+  max-width: 1400px;
+  margin: .5rem auto 0;
+  padding: 0 2rem;
+  display: none;
   align-items: center;
-  gap: 5px;
-  margin-top: 3px;
+  justify-content: center;
+  gap: .5rem;
+  font-size: .74rem;
+  color: var(--text-light);
+  font-weight: 600;
+  animation: pdg-hint-pulse 2s ease-in-out infinite;
 }
 
-.pdg-year {
-  font-size: 10px;
-  color: rgba(255,255,255,.45);
-  font-variant-numeric: tabular-nums;
+.pedigree-frame.is-scroll + .pedigree-scroll-hint {
+  display: flex;
 }
 
-.pdg-color-dot {
-  display: inline-block;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.25);
-  flex-shrink: 0;
+@keyframes pdg-hint-pulse {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
 }
 
-/* ── Состояния ───────────────────────────────────────────────────────────────── */
-
+/* ── States ────────────────────────────────────────────────────── */
 .pedigree-error {
   max-width: 1400px;
-  margin: 1.5rem auto;
+  margin: 1.25rem auto;
   padding: 1rem 1.5rem;
-  background: rgba(239,68,68,.06);
-  border: 1px solid rgba(239,68,68,.25);
-  border-radius: 16px;
+  background: rgba(239, 68, 68, .06);
+  border: 1px solid rgba(239, 68, 68, .25);
+  border-radius: 14px;
   color: #ef4444;
   text-align: center;
   font-weight: 700;
+  font-size: .9rem;
 }
 
 .pedigree-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 4rem;
+  gap: .75rem;
+  padding: 4rem 2rem;
   color: var(--text-light);
 }
 
 .pedigree-spinner {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border: 3px solid var(--border-light);
   border-top-color: var(--bright-blue);
   border-radius: 50%;
   animation: pdg-spin .8s linear infinite;
 }
 
-@keyframes pdg-spin { to { transform: rotate(360deg); } }
-
-/* ── Адаптив ──────────────────────────────────────────────────────────────────── */
-
-@media (max-width: 900px) {
-  .pedigree-frame { padding: .75rem; border-radius: 18px; }
+@keyframes pdg-spin {
+  to { transform: rotate(360deg); }
 }
 
-@media (max-width: 600px) {
-  .pedigree-header { padding: 0 1rem; }
-  .pedigree-title  { font-size: 1.6rem; }
-  .pedigree-controls { flex-direction: column; gap: .75rem; }
+.pedigree-loading-text {
+  font-size: .85rem;
+  font-weight: 600;
 }
 
+/* ── Responsive ────────────────────────────────────────────────── */
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .pedigree-controls-bar {
+    padding: 1.25rem 1.25rem 0;
+  }
+
+  .pedigree-frame {
+    margin: 1rem 1rem 0;
+    padding: 1rem 1rem .75rem;
+    border-radius: 16px;
+  }
+}
+
+/* Small tablets / large phones */
+@media (max-width: 768px) {
+  .pedigree-controls-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem 1rem 0;
+  }
+
+  .pedigree-frame {
+    margin: .75rem .75rem 0;
+    padding: .75rem .75rem .5rem;
+    border-radius: 14px;
+  }
+
+  .pedigree-legend {
+    gap: .75rem;
+  }
+}
+
+/* Phones */
 @media (max-width: 480px) {
-  .pdg-name   { font-size: 10px; }
-  .pdg-titles { font-size: 8px;  }
+  .pedigree-controls-bar {
+    padding: .75rem .75rem 0;
+    gap: .5rem;
+  }
+
+  .pedigree-gen-tabs {
+    padding: .15rem;
+  }
+
+  .pedigree-gen-tab {
+    width: 30px;
+    height: 30px;
+    font-size: .75rem;
+  }
+
+  .pedigree-gen-label {
+    font-size: .7rem;
+    padding: 0 .35rem 0 .4rem;
+  }
+
+  .pdg-badge {
+    padding: .25rem .55rem;
+    font-size: .68rem;
+  }
+
+  .pedigree-frame {
+    margin: .5rem .5rem 0;
+    padding: .5rem .5rem .4rem;
+    border-radius: 12px;
+  }
+
+  .pedigree-scroll-hint {
+    padding: 0 .75rem;
+    font-size: .68rem;
+  }
+
+  .pedigree-legend {
+    gap: .5rem;
+    margin-top: .5rem;
+    padding-top: .4rem;
+  }
+
+  .pdg-legend-item {
+    font-size: .68rem;
+  }
+
+  .pdg-legend-swatch {
+    width: 18px;
+    height: 3px;
+  }
 }

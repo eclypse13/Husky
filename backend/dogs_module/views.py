@@ -12,8 +12,7 @@ from celery.result import AsyncResult
 
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.openapi import OpenApiTypes
-import httpx
-from django.http import HttpResponse
+from rest_framework.permissions import AllowAny
 
 from .models import Dog, Breeder, Owner, Title, Litter, MedicalRecord
 from .serializers import (
@@ -185,7 +184,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             ).count()
         })
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], authentication_classes=[])
     def calculate_coi(self, request, pk=None):
         """
         Рассчитывает и сохраняет COI для одной собаки.

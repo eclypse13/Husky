@@ -9,6 +9,11 @@ import "./DogDetail.css";
 const SEX_LABEL: Record<number, string> = { 1: "♂ Кобель", 2: "♀ Сука" };
 const SEX_CLASS: Record<number, string> = { 1: "dd-sex--male", 2: "dd-sex--female" };
 
+const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
+const DEFAULT_DOG_IMG = "/no-image-dog.png";
+const dogPhoto = (url: string | null | undefined): string =>
+  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
+
 function formatDate(raw: string | null): string {
     if (!raw) return "—";
     const d = new Date(raw);
@@ -40,9 +45,10 @@ function ParentCard({ label, parent }: {
             {parent ? (
                 <Link to={`/archive/dog/${parent.id}`} className="dd-parent-link">
                     <div className="dd-parent-avatar">
-                        {parent.photo_url
-                            ? <img src={parent.photo_url} alt={parent.display_name} />
-                            : <span>{parent.sex === 2 ? "🕊️" : "🐕"}</span>}
+                        <img
+                            src={dogPhoto(parent.photo_url)}
+                            alt={parent.display_name}
+                        />
                     </div>
                     <div className="dd-parent-body">
                         <span className="dd-parent-name">{parent.display_name}</span>
@@ -102,21 +108,38 @@ export default function DogDetail() {
         setCoiError(null);
         setCoiResult(null);
         try {
+            // CSRF token from cookie (Django)
+            const csrfToken = document.cookie
+                .split("; ")
+                .find((r) => r.startsWith("csrftoken="))
+                ?.split("=")[1] ?? "";
+
             const res = await fetch(`/api/dogs/${dog.id}/calculate_coi/`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ generations: 5 }),
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+                },
+                body: JSON.stringify({ generations: 10 }),
             });
+
+            // Handle non-JSON responses (e.g. 403 HTML page)
+            const contentType = res.headers.get("content-type") ?? "";
+            if (!contentType.includes("application/json")) {
+                setCoiError(`Сервер вернул ${res.status} (${res.statusText})`);
+                return;
+            }
+
             const data = await res.json();
             if (!res.ok) {
-                setCoiError(data.error ?? "Ошибка расчёта COI");
+                setCoiError(data.error ?? data.detail ?? `Ошибка ${res.status}`);
             } else {
                 setCoiResult(data);
-                // обновляем coi в объекте собаки без перезагрузки страницы
                 setDog((prev) => prev ? { ...prev, coi: data.coi, coi_updated_on: data.coi_updated_on } : prev);
             }
-        } catch {
-            setCoiError("Сетевая ошибка");
+        } catch (e) {
+            setCoiError(e instanceof Error ? e.message : "Сетевая ошибка");
         } finally {
             setCoiLoading(false);
         }
@@ -126,6 +149,9 @@ export default function DogDetail() {
         if (!id) return;
         setLoading(true);
         setError(null);
+        setCoiResult(null);
+        setCoiError(null);
+        setCoiLoading(false);
         getDogDetail(Number(id))
             .then(setDog)
             .catch((e) => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
@@ -137,7 +163,7 @@ export default function DogDetail() {
     return (
         <div className="dd-page">
             <Breadcrumb
-                title={dog?.display_name ?? "Собака"}
+                // title={dog?.display_name ?? "Собака"}
                 items={[
                     { label: "Главная", to: "/" },
                     { label: "Архив", to: "/archive" },
@@ -163,9 +189,11 @@ export default function DogDetail() {
                             <div className="dd-header-bar" />
 
                             <div className="dd-photo-wrap">
-                                {dog.photo_url
-                                    ? <img src={dog.photo_url} alt={dog.display_name} className="dd-photo" />
-                                    : <div className="dd-photo-placeholder"><span>{dog.sex === 2 ? "🕊️" : "🐕"}</span></div>}
+                                <img
+                                    src={dogPhoto(dog.photo_url)}
+                                    alt={dog.display_name}
+                                    className="dd-photo"
+                                />
                                 <span className={`dd-sex-badge ${SEX_CLASS[dog.sex] ?? ""}`}>
                                     {SEX_LABEL[dog.sex] ?? "—"}
                                 </span>
@@ -213,56 +241,40 @@ export default function DogDetail() {
                                       label="Размер / Вес"
                                       value={dog.size && dog.weight ? `${dog.size} см / ${dog.weight} кг` : null}
                                     />
-                                    <Row label="COI" value={dog.coi} />
                                     {/* ── COI ── */}
-                                    {/*<div className="dd-row dd-row--block">*/}
-                                    {/*    <div className="dd-coi-header">*/}
-                                    {/*        <span className="dd-row-label">Коэффициент инбридинга (COI)</span>*/}
-                                    {/*        <button*/}
-                                    {/*            className={`dd-btn dd-btn--coi${coiLoading ? " dd-btn--loading" : ""}`}*/}
-                                    {/*            onClick={handleCalculateCoi}*/}
-                                    {/*            disabled={coiLoading}*/}
-                                    {/*            title="Рассчитать COI по 5 поколениям"*/}
-                                    {/*        >*/}
-                                    {/*            {coiLoading ? "⏳ Расчёт…" : "🧮 Рассчитать"}*/}
-                                    {/*        </button>*/}
-                                    {/*    </div>*/}
+                                    <div className="dd-row">
+                                        <span className="dd-row-label">COI</span>
+                                        <span className="dd-coi-inline">
+                                            {coiLoading ? (
+                                                <span className="dd-coi-spinner" />
+                                            ) : coiResult ? (
+                                                <span className="dd-row-value">{coiResult.coi.toFixed(2)} %</span>
+                                            ) : dog.coi != null ? (
+                                                <span className="dd-row-value">{dog.coi.toFixed(2)} %</span>
+                                            ) : (
+                                                <span className="dd-row-value dd-row-value--empty">—</span>
+                                            )}
+                                            <button
+                                                className="dd-coi-refresh"
+                                                onClick={handleCalculateCoi}
+                                                disabled={coiLoading}
+                                                title="Рассчитать / обновить COI"
+                                                aria-label="Обновить COI"
+                                            >
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="23 4 23 10 17 10" />
+                                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    </div>
+                                    {coiError && (
+                                        <div className="dd-row">
+                                            <span className="dd-row-label" />
+                                            <span className="dd-coi-error">{coiError}</span>
+                                        </div>
+                                    )}
 
-                                    {/*    /!* Текущее значение *!/*/}
-                                    {/*    {dog.coi != null && !coiResult && (*/}
-                                    {/*        <div className="dd-coi-value">*/}
-                                    {/*            <span className="dd-coi-number">{dog.coi.toFixed(4)}%</span>*/}
-                                    {/*            {dog.coi_updated_on && (*/}
-                                    {/*                <span className="dd-coi-date">*/}
-                                    {/*                    обновлено {formatDate(dog.coi_updated_on)}*/}
-                                    {/*                </span>*/}
-                                    {/*            )}*/}
-                                    {/*        </div>*/}
-                                    {/*    )}*/}
-
-                                    {/*    /!* Результат свежего расчёта *!/*/}
-                                    {/*    {coiResult && (*/}
-                                    {/*        <div className="dd-coi-result">*/}
-                                    {/*            <span className="dd-coi-number">{coiResult.coi.toFixed(4)}%</span>*/}
-                                    {/*            <div className="dd-coi-meta">*/}
-                                    {/*                <span>📊 {coiResult.generations} поколений</span>*/}
-                                    {/*                <span>👥 {coiResult.common_ancestors} общих предков</span>*/}
-                                    {/*                <span>🔵 отец: {coiResult.total_ancestors_sire} предков</span>*/}
-                                    {/*                <span>🔴 мать: {coiResult.total_ancestors_dam} предков</span>*/}
-                                    {/*            </div>*/}
-                                    {/*        </div>*/}
-                                    {/*    )}*/}
-
-                                    {/*    /!* Нет данных *!/*/}
-                                    {/*    {dog.coi == null && !coiResult && !coiLoading && (*/}
-                                    {/*        <span className="dd-row-value--empty">Не рассчитан</span>*/}
-                                    {/*    )}*/}
-
-                                    {/*    /!* Ошибка *!/*/}
-                                    {/*    {coiError && (*/}
-                                    {/*        <span className="dd-coi-error">⚠️ {coiError}</span>*/}
-                                    {/*    )}*/}
-                                    {/*</div>*/}
 
                                 </div>
                             </section>
@@ -358,3 +370,4 @@ export default function DogDetail() {
         </div>
     );
 }
+
