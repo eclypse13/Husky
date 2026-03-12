@@ -141,3 +141,4 @@ export interface CoiCalculationResult {
   total_ancestors_dam:    number;
   // {ancestor_id: вклад_в_%}
   ancestor_contributions: Record<string, number>;
+}
