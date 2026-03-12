@@ -10,6 +10,11 @@ import "./Archive.css";
 const sexLabel = (sex: number) => (sex === 1 ? "♂ Кобель" : sex === 2 ? "♀ Сука" : "—");
 const sexIcon = (sex: number) => (sex === 2 ? "🕊️" : "🐕");
 
+const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
+const DEFAULT_DOG_IMG = "/no-image-dog.png";
+const dogPhoto = (url: string | null | undefined): string =>
+  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
+
 const titleBadges = (dog: DogListItem) => {
   const badges: string[] = [];
   if (dog.prefix_titles) badges.push(...dog.prefix_titles.split(",").map((s) => s.trim()));
@@ -267,20 +272,12 @@ export default function Archive() {
                 {dogs.map((d) => (
                   <article key={d.id} className="archive-dog-card">
                     <div className="archive-dog-avatar">
-                      {d.photo_url ? (
-                        <img
-                          src={d.photo_url}
-                          alt={d.display_name}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            borderRadius: "50%",
-                          }}
-                        />
-                      ) : (
-                        sexIcon(d.sex)
-                      )}
+                      <img
+                        src={dogPhoto(d.photo_url)}
+                        alt={d.display_name}
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </div>
                     <div className="archive-dog-info">
                       <h4 className="archive-dog-name">{d.display_name}</h4>
