@@ -137,7 +137,7 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     if not uuid:
         raise ValueError("UUID обязателен")
 
-    reg_num = data.get('registration_number')
+    reg_num = data.get('registration_number') or data.get('registrationNumber')
     if reg_num:
         reg_num = re.sub(r'\s+', '', str(reg_num))
 
@@ -159,38 +159,37 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     dod = parse_date(data.get('date_of_death') or _assemble_date(data, 'death'))
 
     defaults = {
-        'registered_name':     data.get('registered_name'),
-        'call_name':           data.get('call_name'),
-        'link_name':           data.get('link_name'),
-        'sex':                 data.get('sex', 0),
-        'date_of_birth':       dob,
-        'date_of_death':       dod,
-        'year_of_birth':       _to_int(data.get('year_of_birth')),
-        'year_of_death':       _to_int(data.get('year_of_death')),
-        'color':               parse_color(data.get('color') or '') or None,
-        'color_marking':       data.get('color_marking') or None,
-        'variety':             data.get('variety') or None,
-        'land_of_birth':       data.get('land_of_birth') or None,
-        'land_of_birth_code':  data.get('land_of_birth_code') or None,
-        'land_of_standing':    data.get('land_of_standing') or None,
+        'registered_name': data.get('registered_name') or data.get('registeredName'),
+        'call_name': data.get('call_name') or data.get('callName'),
+        'link_name': data.get('link_name') or data.get('linkName'),
+        'sex': data.get('sex', 0),
+        'date_of_birth': dob,
+        'date_of_death': dod,
+        'year_of_birth': _to_int(data.get('year_of_birth') or data.get('yearOfBirth')),
+        'year_of_death': _to_int(data.get('year_of_death') or (data.get('yearOfDeath') or None)),
+        'color': parse_color(data.get('color') or '') or None,
+        'color_marking': data.get('color_marking') or data.get('colorMarking') or None,
+        'variety': data.get('variety') or None,
+        'land_of_birth': data.get('land_of_birth') or data.get('landOfBirth') or None,
+        'land_of_birth_code': data.get('land_of_birth_code') or data.get('landOfBirthCode') or None,
+        'land_of_standing': data.get('land_of_standing') or data.get('landOfStanding') or None,
         'registration_number': reg_num or None,
-        'registration_status': data.get('registration_status'),
-        'prefix_titles':       data.get('prefix_titles') or None,
-        'suffix_titles':       data.get('suffix_titles') or None,
-        'photo_url':           photo_url or None,
-        'coi':                 coi,
-        'neutered':            data.get('neutered', False),
-        'incomplete_pedigree': data.get('incomplete_pedigree', False),
-        'source':              'breedarchive.com',
-        'dam':                 dam,
-        'sire':                sire,
-        # Денормализованные uuid родителей (для обратной совместимости)
-        'dam_uuid':            data.get('dam_uuid') or (data.get('dam', {}) or {}).get('uuid') or None,
-        'sire_uuid':           data.get('sire_uuid') or (data.get('sire', {}) or {}).get('uuid') or None,
-        'health_info_general': data.get('health_info_general'),
-        'health_info_genetic': data.get('health_info_genetic'),
-        'has_conflicts':       data.get('has_conflicts', False),
-        'conflicts':           data.get('conflicts'),
+        'registration_status': data.get('registration_status') or data.get('registrationStatus'),
+        'prefix_titles': data.get('prefix_titles') or data.get('prefixTitles') or None,
+        'suffix_titles': data.get('suffix_titles') or data.get('suffixTitles') or None,
+        'photo_url': photo_url or None,
+        'coi': coi,
+        'neutered': data.get('neutered', False),
+        'incomplete_pedigree': data.get('incomplete_pedigree') or data.get('incompletePedigree', False),
+        'source': 'breedarchive.com',
+        'dam': dam,
+        'sire': sire,
+        'dam_uuid': data.get('dam_uuid') or (data.get('dam', {}) or {}).get('uuid') or None,
+        'sire_uuid': data.get('sire_uuid') or (data.get('sire', {}) or {}).get('uuid') or None,
+        'health_info_general': data.get('health_info_general') or data.get('healthInfoGeneral'),
+        'health_info_genetic': data.get('health_info_genetic') or data.get('healthInfoGenetic'),
+        'has_conflicts': data.get('has_conflicts', False),
+        'conflicts': data.get('conflicts'),
     }
     # Фильтруем None И пустые строки — не перезаписываем существующие данные пустотой
     defaults = {k: v for k, v in defaults.items() if v is not None and v != ''}
@@ -277,11 +276,11 @@ def _save_ba_relations(dog: Dog, data: Dict) -> None:
 
     # BA возвращает титулы как текстовые строки prefix_titles/suffix_titles,
     # а не массив titles. Парсим их через save_dog_titles из utils/titles.py.
-    _prefix = data.get('prefix_titles') or ''
-    _suffix = data.get('suffix_titles') or ''
+    _prefix = data.get('prefix_titles') or data.get('prefixTitles') or ''
+    _suffix = data.get('suffix_titles') or data.get('suffixTitles') or ''
     if _prefix or _suffix:
         try:
-            save_dog_titles(dog, _prefix or None, _suffix or None, 'breedarchive')
+            save_dog_titles(dog, _prefix or None, _suffix or None, 'breedarchive.com')
         except Exception as e:
             logger.error(f"  Титулы для {dog.registered_name} (uuid={data.get('uuid')}): {e}")
 
@@ -316,9 +315,9 @@ def _save_ba_relations(dog: Dog, data: Dict) -> None:
             sibling, _ = Dog.objects.using('dogs_db').get_or_create(
                 uuid=sib['uuid'],
                 defaults={
-                    'registered_name': sib.get('registered_name', ''),
-                    'sex':             sib.get('sex', 0),
-                    'source':          'breedarchive.com',
+                    'registered_name': sib.get('registered_name') or sib.get('registeredName') or '',
+                    'sex': sib.get('sex', 0),
+                    'source': 'breedarchive.com',
                 },
             )
             Dogsiblinglink.objects.using('dogs_db').get_or_create(dog=dog, sibling=sibling)
@@ -358,10 +357,16 @@ def _to_int(val) -> Optional[int]:
 
 
 def _assemble_date(data: Dict, kind: str) -> Optional[str]:
-    """Собирает строку даты из year/month/day полей для parse_date."""
-    y = _to_int(data.get(f'year_of_{kind}'))
-    m = _to_int(data.get(f'month_of_{kind}'))
-    d = _to_int(data.get(f'day_of_{kind}'))
+    # snake = f'year_of_{kind}'
+    # camel = f'year{"Of" + kind.capitalize()}'
+    if kind == 'birth':
+        y = _to_int(data.get('year_of_birth') or data.get('yearOfBirth'))
+        m = _to_int(data.get('month_of_birth') or data.get('monthOfBirth'))
+        d = _to_int(data.get('day_of_birth') or data.get('dayOfBirth'))
+    else:  # death
+        y = _to_int(data.get('year_of_death') or (data.get('yearOfDeath') or None))
+        m = _to_int(data.get('month_of_death') or data.get('monthOfDeath'))
+        d = _to_int(data.get('day_of_death') or data.get('dayOfDeath'))
     if y and m and d:
         return f"{y}-{m:02d}-{d:02d}"
     if y and m:
@@ -561,7 +566,7 @@ def save_dog_with_ancestors(parsed: Dict) -> Dog:
 
     return dog
 
-
+# zooportal
 def _save_dog(dog_data: Dict) -> Dog:
     """Создаёт или обновляет запись Dog из merged_data."""
     zooportal_id = dog_data.get('zooportal_id')
@@ -604,9 +609,27 @@ def _save_dog(dog_data: Dict) -> Dog:
     }
     update_fields = {k: v for k, v in fields.items() if v is not None}
 
-    dog, created = Dog.objects.using('dogs_db').update_or_create(
-        zooportal_id=zooportal_id, defaults=update_fields,
-    )
+    # dog, created = Dog.objects.using('dogs_db').update_or_create(
+    #     zooportal_id=zooportal_id, defaults=update_fields,
+    # )
+    # logger.info(f"  {'✅ Создана' if created else '🔄 Обновлена'}: {dog.registered_name}")
+    # return dog
+    try:
+        dog, created = Dog.objects.using('dogs_db').update_or_create(
+            zooportal_id=zooportal_id, defaults=update_fields,
+        )
+    except Dog.MultipleObjectsReturned:
+        logger.warning(f"  ⚠️ Дубли для zooportal_id={zooportal_id} — лечим")
+        qs = Dog.objects.using('dogs_db').filter(
+            zooportal_id=zooportal_id
+        ).order_by('id')
+        dog = qs.first()
+        for k, v in update_fields.items():
+            setattr(dog, k, v)
+        dog.save(using='dogs_db')
+        qs.exclude(pk=dog.pk).delete()
+        created = False
+
     logger.info(f"  {'✅ Создана' if created else '🔄 Обновлена'}: {dog.registered_name}")
     return dog
 
@@ -763,31 +786,41 @@ def _apply_relationships(
                 if dog_obj:
                     full_map[base_key] = dog_obj
 
-    dogs_by_id = {d.id: d for d in full_map.values() if d and d.id}
-    updated: Set[int] = set()
-
+    # dogs_by_id = {d.id: d for d in full_map.values() if d and d.id}
+    # updated: Set[int] = set()
+    # for rel in pedigree.get('relationships', []):
+    #     child  = full_map.get(rel.get('child_key'))
+    #     parent = full_map.get(rel.get('parent_key'))
+    #     if not child or not parent or not child.id or not parent.id:
+    #         continue
+    #     if rel['relation'] == 'sire' and child.sire_id != parent.id:
+    #         child.sire = parent
+    #         updated.add(child.id)
+    #     elif rel['relation'] == 'dam' and child.dam_id != parent.id:
+    #         child.dam = parent
+    #         updated.add(child.id)
+    #
+    # for dog_id in updated:
+    #     dog_obj = dogs_by_id.get(dog_id)
+    #     if dog_obj:
+    #         try:
+    #             dog_obj.save(using='dogs_db', update_fields=['sire', 'dam'])
+    #         except Exception as e:
+    #             logger.error(f"  Связи для id={dog_id}: {e}")
+    #
+    # if updated:
+    #     logger.info(f"  Связи установлены: {len(updated)} собак")
     for rel in pedigree.get('relationships', []):
-        child  = full_map.get(rel.get('child_key'))
+        child = full_map.get(rel.get('child_key'))
         parent = full_map.get(rel.get('parent_key'))
         if not child or not parent or not child.id or not parent.id:
             continue
         if rel['relation'] == 'sire' and child.sire_id != parent.id:
-            child.sire = parent
-            updated.add(child.id)
+            Dog.objects.using('dogs_db').filter(pk=child.id).update(sire_id=parent.id)
+            child.sire_id = parent.id
         elif rel['relation'] == 'dam' and child.dam_id != parent.id:
-            child.dam = parent
-            updated.add(child.id)
-
-    for dog_id in updated:
-        dog_obj = dogs_by_id.get(dog_id)
-        if dog_obj:
-            try:
-                dog_obj.save(using='dogs_db', update_fields=['sire', 'dam'])
-            except Exception as e:
-                logger.error(f"  Связи для id={dog_id}: {e}")
-
-    if updated:
-        logger.info(f"  Связи установлены: {len(updated)} собак")
+            Dog.objects.using('dogs_db').filter(pk=child.id).update(dam_id=parent.id)
+            child.dam_id = parent.id
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -840,59 +873,6 @@ def process_dog_from_zooportal(
 # ГИБРИДНЫЙ ИМПОРТ: Zoo список → BA полное дерево предков
 # ══════════════════════════════════════════════════════════════════════════════
 
-def collect_hybrid_page_data(
-    browser: BrowserManager,
-    page_num: int,
-    max_dogs: int = 10,
-    generations: int = 3,
-    delay: float = 2.0,
-    deadline: Optional[float] = None,
-) -> List[Dict]:
-    """
-    Фаза 1 гибридного импорта: Zoo список + Zoo страница + BA поиск по имени.
-    Возвращает список {zooportal_id, zoo_raw, ba_uuid} без записи в БД.
-    """
-    dogs_list = zooportal_parser.parse_search_page_with_browser(browser, page_num)
-    if not dogs_list:
-        return []
-
-    results = []
-    dogs_list = dogs_list[:max_dogs]
-
-    for idx, dog_info in enumerate(dogs_list, 1):
-        zoo_id = dog_info.get('zooportal_id')
-        if not zoo_id or is_recursively_done(zoo_id, generations):
-            continue
-        if deadline and time.time() > deadline:
-            logger.warning(f"  ⏱️ Дедлайн истёк на [{idx}] {zoo_id}")
-            break
-
-        zoo_raw = dog_info
-        try:
-            zoo_page = zooportal_parser.parse_dog_page_with_browser(browser, zoo_id, generations)
-            if zoo_page:
-                zoo_raw = zoo_page
-        except Exception as e:
-            logger.warning(f"  [{idx}] Zoo страница {zoo_id}: {e}")
-
-        ba_uuid = None
-        zoo_name = zoo_raw.get('registered_name') or zoo_raw.get('name') or ''
-        if zoo_name:
-            try:
-                ba_uuid = search_breedarchive_by_name(zoo_name)
-                status = f"✓ BA: {ba_uuid}" if ba_uuid else "— BA не найден"
-                logger.info(f"  [{idx}/{len(dogs_list)}] {status} для '{zoo_name}'")
-            except Exception as e:
-                logger.warning(f"  [{idx}] BA поиск '{zoo_name}': {e}")
-
-        results.append({'zooportal_id': zoo_id, 'zoo_raw': zoo_raw, 'ba_uuid': ba_uuid})
-
-        if idx < len(dogs_list):
-            time.sleep(delay)
-
-    return results
-
-
 def save_hybrid_dog(
     zoo_id: str,
     zoo_raw: Dict,
@@ -932,7 +912,7 @@ def _patch_zoo_onto_ba_dog(dog: Dog, zoo_raw: Dict, zoo_id: str) -> None:
     update: Dict = {'zooportal_id': str(zoo_id)}
 
     # ── Имя — всегда из Zoo в UPPERCASE ───────────────────────────────────────
-    zoo_name = zoo_raw.get('registered_name') or zoo_raw.get('name') or ''
+    zoo_name = zoo_raw.get('registered_name') or zoo_raw.get('name') or zoo_raw.get('registeredName') or ''
     if zoo_name:
         update['registered_name'] = normalize_dog_name(zoo_name)
 

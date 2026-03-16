@@ -164,6 +164,7 @@ export default function DogDetail() {
         <div className="dd-page">
             <Breadcrumb
                 // title={dog?.display_name ?? "Собака"}
+                title="Карточка собаки"
                 items={[
                     { label: "Главная", to: "/" },
                     { label: "Архив", to: "/archive" },

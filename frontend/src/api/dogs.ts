@@ -56,6 +56,7 @@ function mapDRFResponse<T>(
       total_pages: Math.ceil(drf.count / perPage),
       page,
       per_page: perPage,
+      has_more: drf.next !== null,
     },
   };
 }

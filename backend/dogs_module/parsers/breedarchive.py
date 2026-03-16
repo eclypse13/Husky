@@ -287,7 +287,8 @@ def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
             logger.error(f"❌ BA: пустой/некорректный ответ для uuid={uuid}")
             return None
 
-        logger.info(f"✅ BA: получены данные '{data.get('registered_name', '?')}'")
+        # logger.info(f"✅ BA: получены данные '{data}'")
+        logger.info(f"✅ BA: получены данные Имя'{data.get('registeredName') or data.get('registered_name', '?')}'")
         c.set(key, data, timeout=_TTL_DOG_DATA)
         return data
 
