@@ -49,7 +49,7 @@ class Dog(models.Model):
 
     # --- Идентификаторы ---
     uuid = models.CharField(max_length=255, blank=True, null=True, db_index=True)
-    zooportal_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    zooportal_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
     zoo_hash = models.CharField(max_length=64, blank=True, null=True, db_index=True)
 
     # --- Имена ---

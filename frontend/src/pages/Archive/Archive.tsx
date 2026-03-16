@@ -8,7 +8,6 @@ import "./Archive.css";
 
 // Хелперы
 const sexLabel = (sex: number) => (sex === 1 ? "♂ Кобель" : sex === 2 ? "♀ Сука" : "—");
-const sexIcon = (sex: number) => (sex === 2 ? "🕊️" : "🐕");
 
 const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
 const DEFAULT_DOG_IMG = "/no-image-dog.png";
