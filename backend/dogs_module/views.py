@@ -52,7 +52,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet для собак
     """
-    queryset = Dog.objects.using('dogs_db').all()
+    queryset = Dog.objects.using('dogs_db').all().order_by('-id')
 
     def get_serializer_class(self):
         if self.action == 'list':

@@ -398,7 +398,11 @@ class ZooportalParser:
         return None
 
     def _extract_year(self, soup) -> Optional[int]:
-        # Zooportal не всегда выделяет год отдельно — берём из date_of_birth
+        dob = self._extract_date_of_birth(soup)
+        if dob:
+            m = re.search(r'\d{4}', dob)
+            if m:
+                return int(m.group(0))
         return None
 
     def _extract_date_of_birth(self, soup) -> Optional[str]:

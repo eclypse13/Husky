@@ -115,8 +115,13 @@ export interface PedigreeNode {
   call_name: string | null;
   sex: number;
   year_of_birth: number | null;
+  date_of_birth: string | null;
   photo_url: string | null;
   color: string | null;
+  land_of_birth: string | null;
+  prefix_titles: string | null;
+  suffix_titles: string | null;
+  coi: number | null;
   dam: PedigreeNode | null;
   sire: PedigreeNode | null;
 }

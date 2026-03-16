@@ -165,10 +165,9 @@ class PedigreeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dog
         fields = [
-            'id', 'uuid', 'zoo_hash', 'display_name',
-            'registered_name', 'call_name',
-            'sex', 'year_of_birth', 'photo_url',
-            'color', 'land_of_birth',
+            'id', 'uuid', 'display_name', 'registered_name', 'call_name',
+            'sex', 'year_of_birth', 'date_of_birth', 'photo_url', 'color',
+            'land_of_birth', 'prefix_titles', 'suffix_titles', 'coi',
             'dam', 'sire',
         ]
 
