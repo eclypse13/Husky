@@ -1,0 +1,2588 @@
+openapi: 3.0.3
+info:
+  title: НКП Сибирский Хаски API
+  version: 1.0.0
+  description: API для Национального клуба породы Сибирский хаски
+paths:
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Вход в систему
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Login successful
+          description: ''
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Выход из системы
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/breed/articles/:
+    get:
+      operationId: breed_articles_list
+      description: API статей о породе
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+        description: Категория статьи
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - breed
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBreedArticleList'
+          description: ''
+  /api/breed/articles/{id}/:
+    get:
+      operationId: breed_articles_retrieve
+      description: API статей о породе
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this breed article.
+        required: true
+      tags:
+      - breed
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BreedArticle'
+          description: ''
+  /api/breed/standards/:
+    get:
+      operationId: breed_standards_list
+      description: API стандартов породы
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - breed
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBreedStandardList'
+          description: ''
+  /api/breed/standards/{id}/:
+    get:
+      operationId: breed_standards_retrieve
+      description: API стандартов породы
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this breed standard.
+        required: true
+      tags:
+      - breed
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BreedStandard'
+          description: ''
+  /api/club/board/:
+    get:
+      operationId: club_board_list
+      description: API членов Президиума
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - club
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBoardMemberList'
+          description: ''
+  /api/club/board/{id}/:
+    get:
+      operationId: club_board_retrieve
+      description: API членов Президиума
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this board member.
+        required: true
+      tags:
+      - club
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardMember'
+          description: ''
+  /api/club/documents/:
+    get:
+      operationId: club_documents_list
+      description: API документов клуба
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - club
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClubDocumentList'
+          description: ''
+
+  /api/dict/:
+    get:
+      operationId: dict_list
+      description: API для контент-справочника
+      parameters:
+      - in: query
+        name: key
+        schema:
+          type: string
+        description: Поиск по ключу
+      - in: query
+        name: page
+        schema:
+          type: string
+        description: Фильтр по странице
+      tags:
+      - dict
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedContentDictionaryList'
+          description: ''
+  /api/dict/{id}/:
+    get:
+      operationId: dict_retrieve
+      description: API для контент-справочника
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this content dictionary.
+        required: true
+      tags:
+      - dict
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentDictionary'
+          description: ''
+  /api/dict/by_key/:
+    get:
+      operationId: dict_by_key_retrieve
+      description: Получить значение по ключу
+      tags:
+      - dict
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentDictionary'
+          description: ''
+  /api/event-reports/:
+    get:
+      operationId: event_reports_list
+      description: API отчетов о мероприятиях
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - event-reports
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventReportList'
+          description: ''
+  /api/event-reports/{id}/:
+    get:
+      operationId: event_reports_retrieve
+      description: API отчетов о мероприятиях
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Отчёт о мероприятии.
+        required: true
+      tags:
+      - event-reports
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventReport'
+          description: ''
+  /api/events/:
+    get:
+      operationId: events_list
+      description: API мероприятий
+      parameters:
+      - in: query
+        name: from_date
+        schema:
+          type: string
+        description: От даты (YYYY-MM-DD)
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: to_date
+        schema:
+          type: string
+        description: До даты (YYYY-MM-DD)
+      - in: query
+        name: type
+        schema:
+          type: string
+        description: Тип мероприятия
+      tags:
+      - events
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventList'
+          description: ''
+  /api/events/{id}/:
+    get:
+      operationId: events_retrieve
+      description: API мероприятий
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Мероприятие.
+        required: true
+      tags:
+      - events
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/galleries/:
+    get:
+      operationId: galleries_list
+      description: API галерей
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - galleries
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGalleryList'
+          description: ''
+  /api/galleries/{id}/:
+    get:
+      operationId: galleries_retrieve
+      description: API галерей
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gallery.
+        required: true
+      tags:
+      - galleries
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gallery'
+          description: ''
+  /api/galleries/highlights/:
+    get:
+      operationId: galleries_highlights_retrieve
+      description: Избранные галереи для главной
+      tags:
+      - galleries
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gallery'
+          description: ''
+  /api/home/:
+    get:
+      operationId: home_retrieve
+      description: API главной страницы
+      tags:
+      - home
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeResponse'
+          description: ''
+  /api/judge-details/:
+    get:
+      operationId: judge_details_list
+      description: API ??????? ?????
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - judge-details
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJudgeDetailsList'
+          description: ''
+  /api/judge-details/{id}/:
+    get:
+      operationId: judge_details_retrieve
+      description: API ??????? ?????
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Породный эксперт (подробно).
+        required: true
+      tags:
+      - judge-details
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeDetails'
+          description: ''
+  /api/judges/:
+    get:
+      operationId: judges_list
+      description: API судей
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - judges
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJudgeList'
+          description: ''
+  /api/judges/{id}/:
+    get:
+      operationId: judges_retrieve
+      description: API судей
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Породный эксперт.
+        required: true
+      tags:
+      - judges
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Judge'
+          description: ''
+  /api/me/:
+    get:
+      operationId: me_retrieve
+      description: Получить информацию о себе
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/me/achievements/:
+    get:
+      operationId: me_achievements_list
+      description: API достижений пользователя
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAchievementList'
+          description: ''
+  /api/me/achievements/{id}/:
+    get:
+      operationId: me_achievements_retrieve
+      description: API достижений пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Achievement'
+          description: ''
+  /api/me/applications/:
+    get:
+      operationId: me_applications_list
+      description: API заявлений пользователя
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApplicationList'
+          description: ''
+    post:
+      operationId: me_applications_create
+      description: API заявлений пользователя
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+  /api/me/applications/{id}/:
+    get:
+      operationId: me_applications_retrieve
+      description: API заявлений пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+    put:
+      operationId: me_applications_update
+      description: API заявлений пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+    patch:
+      operationId: me_applications_partial_update
+      description: API заявлений пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+    delete:
+      operationId: me_applications_destroy
+      description: API заявлений пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/me/dogs/:
+    get:
+      operationId: me_dogs_list
+      description: API собак пользователя
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogList'
+          description: ''
+    post:
+      operationId: me_dogs_create
+      description: API собак пользователя
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+  /api/me/dogs/{id}/:
+    get:
+      operationId: me_dogs_retrieve
+      description: API собак пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+    put:
+      operationId: me_dogs_update
+      description: API собак пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+    patch:
+      operationId: me_dogs_partial_update
+      description: API собак пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDogRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+    delete:
+      operationId: me_dogs_destroy
+      description: API собак пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/me/dogs/champions/:
+    get:
+      operationId: me_dogs_champions_retrieve
+      description: Только чемпионы
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+  /api/me/kennels/:
+    get:
+      operationId: me_kennels_list
+      description: API питомника пользователя
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedKennelList'
+          description: ''
+    post:
+      operationId: me_kennels_create
+      description: API питомника пользователя
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+  /api/me/kennels/{id}/:
+    get:
+      operationId: me_kennels_retrieve
+      description: API питомника пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+    put:
+      operationId: me_kennels_update
+      description: API питомника пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+    patch:
+      operationId: me_kennels_partial_update
+      description: API питомника пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedKennelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedKennelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedKennelRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+    delete:
+      operationId: me_kennels_destroy
+      description: API питомника пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/me/litters/:
+    get:
+      operationId: me_litters_list
+      description: API пометов пользователя
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLitterList'
+          description: ''
+    post:
+      operationId: me_litters_create
+      description: API пометов пользователя
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LitterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LitterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LitterRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Litter'
+          description: ''
+  /api/me/litters/{id}/:
+    get:
+      operationId: me_litters_retrieve
+      description: API пометов пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Litter'
+          description: ''
+    put:
+      operationId: me_litters_update
+      description: API пометов пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LitterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LitterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LitterRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Litter'
+          description: ''
+    patch:
+      operationId: me_litters_partial_update
+      description: API пометов пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLitterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLitterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLitterRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Litter'
+          description: ''
+    delete:
+      operationId: me_litters_destroy
+      description: API пометов пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/me/profile/:
+    put:
+      operationId: me_profile_update
+      description: Обновить профиль
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/news/:
+    get:
+      operationId: news_list
+      description: API новостей
+      parameters:
+      - in: query
+        name: featured
+        schema:
+          type: boolean
+        description: Только избранные
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: tag
+        schema:
+          type: string
+        description: Фильтр по тегу
+      tags:
+      - news
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNewsList'
+          description: ''
+  /api/news/{id}/:
+    get:
+      operationId: news_retrieve
+      description: API новостей
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this news.
+        required: true
+      tags:
+      - news
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/News'
+          description: ''
+  /api/pages/:
+    get:
+      operationId: pages_list
+      description: API CMS страниц
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - pages
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPageList'
+          description: ''
+  /api/pages/{slug}/:
+    get:
+      operationId: pages_retrieve
+      description: API CMS страниц
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - pages
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+          description: ''
+components:
+  schemas:
+    Achievement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        place:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        certificate:
+          type: string
+          format: uri
+          nullable: true
+        achieved_at:
+          type: string
+          format: date-time
+          nullable: true
+        user:
+          type: integer
+        dog:
+          type: integer
+          nullable: true
+        event:
+          type: integer
+          nullable: true
+      required:
+      - id
+      - user
+    Application:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        application_type:
+          $ref: '#/components/schemas/ApplicationTypeEnum'
+        payload: {}
+        status:
+          $ref: '#/components/schemas/ApplicationStatusEnum'
+        history: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        user:
+          type: integer
+      required:
+      - application_type
+      - created_at
+      - id
+      - updated_at
+      - user
+    ApplicationRequest:
+      type: object
+      properties:
+        application_type:
+          $ref: '#/components/schemas/ApplicationTypeEnum'
+        payload: {}
+        status:
+          $ref: '#/components/schemas/ApplicationStatusEnum'
+        history: {}
+        user:
+          type: integer
+      required:
+      - application_type
+      - user
+    ApplicationStatusEnum:
+      enum:
+      - new
+      - in_progress
+      - done
+      - rejected
+      type: string
+      description: |-
+        * `new` - Новая
+        * `in_progress` - В процессе
+        * `done` - Рассмотрена
+        * `rejected` - Отклонена
+    ApplicationTypeEnum:
+      enum:
+      - membership
+      - litter_registration
+      - kennel_registration
+      - document_request
+      - complaint
+      - other
+      type: string
+      description: |-
+        * `membership` - Членство
+        * `litter_registration` - Регистрация помёта
+        * `kennel_registration` - Регистрация питомника
+        * `document_request` - Запрос документов
+        * `complaint` - Жалоба
+        * `other` - Другое
+    BlankEnum:
+      enum:
+      - ''
+    BoardMember:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        position:
+          type: string
+          maxLength: 200
+        bio_key:
+          type: string
+          maxLength: 200
+        photo:
+          type: string
+          format: uri
+          nullable: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - id
+      - name
+    BreedArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title_key:
+          type: string
+          maxLength: 200
+        content_key:
+          type: string
+          maxLength: 200
+        category:
+          oneOf:
+          - $ref: '#/components/schemas/CategoryEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        videos: {}
+      required:
+      - id
+      - title_key
+    BreedStandard:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title_key:
+          type: string
+          maxLength: 200
+        content_key:
+          type: string
+          maxLength: 200
+        fci_number:
+          type: string
+          maxLength: 50
+        illustrations: {}
+        version:
+          type: string
+          maxLength: 50
+        approved_date:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - title_key
+    CategoryEnum:
+      enum:
+      - history
+      - character
+      - care
+      - grooming
+      - feeding
+      type: string
+      description: |-
+        * `history` - history
+        * `character` - character
+        * `care` - care
+        * `grooming` - grooming
+        * `feeding` - feeding
+    ClubDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title_key:
+          type: string
+          maxLength: 200
+        description_key:
+          type: string
+        file:
+          type: string
+          format: uri
+        document_type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - document_type
+      - file
+      - id
+      - title_key
+      - uploaded_at
+    ContentDictionary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        key:
+          type: string
+          maxLength: 200
+        value:
+          type: string
+        page:
+          type: string
+          maxLength: 100
+        locale:
+          type: string
+          maxLength: 10
+        updated_by:
+          type: string
+          maxLength: 200
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - key
+      - updated_at
+      - value
+    DocumentTypeEnum:
+      enum:
+      - charter
+      - regulation
+      - standard
+      - form
+      type: string
+      description: |-
+        * `charter` - charter
+        * `regulation` - regulation
+        * `standard` - standard
+        * `form` - form
+    Dog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        registered_name:
+          type: string
+          maxLength: 200
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date-time
+          nullable: true
+        pedigree_number:
+          type: string
+          maxLength: 200
+        microchip:
+          type: string
+          maxLength: 200
+        titles: {}
+        is_champion:
+          type: boolean
+        photos: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        owner:
+          type: integer
+        kennel:
+          type: integer
+          nullable: true
+        sire:
+          type: integer
+          nullable: true
+        dam:
+          type: integer
+          nullable: true
+      required:
+      - created_at
+      - id
+      - name
+      - owner
+    DogRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        registered_name:
+          type: string
+          maxLength: 200
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date-time
+          nullable: true
+        pedigree_number:
+          type: string
+          maxLength: 200
+        microchip:
+          type: string
+          maxLength: 200
+        titles: {}
+        is_champion:
+          type: boolean
+        photos: {}
+        owner:
+          type: integer
+        kennel:
+          type: integer
+          nullable: true
+        sire:
+          type: integer
+          nullable: true
+        dam:
+          type: integer
+          nullable: true
+      required:
+      - name
+      - owner
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title_key:
+          type: string
+          title: Название
+          maxLength: 200
+        description_key:
+          type: string
+          title: Описание
+        event_type:
+          title: Тип мероприятия
+          oneOf:
+          - $ref: '#/components/schemas/EventTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        location:
+          type: string
+          title: Локация
+          maxLength: 255
+        starts_at:
+          type: string
+          format: date-time
+          title: Начало
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+          title: Завершение
+        registration_link:
+          type: string
+          format: uri
+          title: Ссылка на регистрацию
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+        judges:
+          type: array
+          items:
+            type: integer
+            title: Породные эксперты
+          title: Породные эксперты
+      required:
+      - created_at
+      - id
+      - starts_at
+      - title_key
+    EventReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event:
+          type: integer
+          title: Мероприятие
+        event_title_key:
+          type: string
+          readOnly: true
+        event_description_key:
+          type: string
+          readOnly: true
+        event_starts_at:
+          type: string
+          format: date-time
+          readOnly: true
+        event_location:
+          type: string
+          readOnly: true
+        photos:
+          type: string
+          readOnly: true
+        videos:
+          type: string
+          readOnly: true
+        results:
+          type: string
+          format: uri
+          nullable: true
+          title: Файл с результатами
+          pattern: (?:pdf|docx|doc|rtf|xlsx|xls|ppt|pptx|txt)$
+        result_description:
+          title: Содержание
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+      required:
+      - created_at
+      - event
+      - event_description_key
+      - event_location
+      - event_starts_at
+      - event_title_key
+      - id
+      - photos
+      - videos
+    EventTypeEnum:
+      enum:
+      - exhibition
+      - seminar
+      - meeting
+      - other
+      type: string
+      description: |-
+        * `exhibition` - Выставка
+        * `seminar` - Семинар
+        * `meeting` - Встреча
+        * `other` - Другое
+    Gallery:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title_key:
+          type: string
+          maxLength: 200
+        description_key:
+          type: string
+          maxLength: 255
+        images: {}
+        is_highlight:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - title_key
+    HomeResponse:
+      type: object
+      properties:
+        featured_news:
+          type: array
+          items:
+            $ref: '#/components/schemas/News'
+        upcoming_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        highlight_galleries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gallery'
+      required:
+      - featured_news
+      - highlight_galleries
+      - upcoming_events
+    Judge:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Имя
+          maxLength: 200
+        rank:
+          type: string
+          title: Должность
+          maxLength: 200
+        email:
+          type: string
+          format: email
+          title: Эл. почта
+          maxLength: 200
+        photo:
+          type: string
+          format: uri
+          nullable: true
+          title: Фотография
+        materials:
+          type: string
+          title: Доп. информация
+          maxLength: 1000
+        judge_id:
+          type: integer
+          nullable: true
+          title: Детальная информация
+      required:
+      - id
+      - name
+    JudgeDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: Заголовок
+          maxLength: 200
+        info:
+          title: Информация
+        additional_info_title:
+          title: Доп. информация заголовок
+        additional_info_text:
+          title: Доп. информация текст
+        work_directions:
+          title: Направления работы
+        initiatives:
+          title: Инициативы и проекты
+        sidebar_text:
+          type: string
+          title: Текст
+          maxLength: 200
+        sidebar_achievements:
+          title: Достижения
+        kennel_url:
+          type: string
+          format: uri
+          title: Ссылка на питомник
+          maxLength: 200
+        kennel:
+          type: integer
+          nullable: true
+          title: Питомник
+      required:
+      - id
+      - sidebar_text
+      - title
+    Kennel:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        prefix:
+          type: string
+          maxLength: 200
+        site_url:
+          type: string
+          format: uri
+          maxLength: 200
+        socials: {}
+        monitor_enabled:
+          type: boolean
+        last_check_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_screenshot:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        owner:
+          type: integer
+      required:
+      - created_at
+      - id
+      - name
+      - owner
+    KennelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        prefix:
+          type: string
+          maxLength: 200
+        site_url:
+          type: string
+          format: uri
+          maxLength: 200
+        socials: {}
+        monitor_enabled:
+          type: boolean
+        last_check_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_screenshot:
+          type: string
+          format: binary
+          nullable: true
+        owner:
+          type: integer
+      required:
+      - name
+      - owner
+    Litter:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        whelped_at:
+          type: string
+          format: date-time
+          nullable: true
+        puppies_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        notes_key:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/LitterStatusEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        kennel:
+          type: integer
+        sire:
+          type: integer
+        dam:
+          type: integer
+      required:
+      - created_at
+      - dam
+      - id
+      - kennel
+      - sire
+    LitterRequest:
+      type: object
+      properties:
+        whelped_at:
+          type: string
+          format: date-time
+          nullable: true
+        puppies_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        notes_key:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/LitterStatusEnum'
+        kennel:
+          type: integer
+        sire:
+          type: integer
+        dam:
+          type: integer
+      required:
+      - dam
+      - kennel
+      - sire
+    LitterStatusEnum:
+      enum:
+      - announced
+      - born
+      - sold
+      type: string
+      description: |-
+        * `announced` - announced
+        * `born` - born
+        * `sold` - sold
+    News:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title_key:
+          type: string
+          maxLength: 200
+        lead_key:
+          type: string
+          maxLength: 255
+        body_key:
+          type: string
+        slug:
+          type: string
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        tags: {}
+        is_featured:
+          type: boolean
+        cover_image:
+          type: string
+          format: uri
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        author:
+          type: integer
+          nullable: true
+      required:
+      - id
+      - published_at
+      - slug
+      - title_key
+      - updated_at
+    Page:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        slug:
+          type: string
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        title_key:
+          type: string
+          maxLength: 200
+        sections: {}
+        is_published:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - slug
+      - title_key
+      - updated_at
+    PaginatedAchievementList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Achievement'
+    PaginatedApplicationList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Application'
+    PaginatedBoardMemberList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardMember'
+    PaginatedBreedArticleList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BreedArticle'
+    PaginatedBreedStandardList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BreedStandard'
+    PaginatedClubDocumentList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClubDocument'
+    PaginatedContentDictionaryList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentDictionary'
+    PaginatedDogList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dog'
+    PaginatedEventList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+    PaginatedEventReportList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventReport'
+    PaginatedGalleryList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gallery'
+    PaginatedJudgeDetailsList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/JudgeDetails'
+    PaginatedJudgeList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Judge'
+    PaginatedKennelList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kennel'
+    PaginatedLitterList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Litter'
+    PaginatedNewsList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/News'
+    PaginatedPageList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Page'
+    PatchedApplicationRequest:
+      type: object
+      properties:
+        application_type:
+          $ref: '#/components/schemas/ApplicationTypeEnum'
+        payload: {}
+        status:
+          $ref: '#/components/schemas/ApplicationStatusEnum'
+        history: {}
+        user:
+          type: integer
+    PatchedDogRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        registered_name:
+          type: string
+          maxLength: 200
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date-time
+          nullable: true
+        pedigree_number:
+          type: string
+          maxLength: 200
+        microchip:
+          type: string
+          maxLength: 200
+        titles: {}
+        is_champion:
+          type: boolean
+        photos: {}
+        owner:
+          type: integer
+        kennel:
+          type: integer
+          nullable: true
+        sire:
+          type: integer
+          nullable: true
+        dam:
+          type: integer
+          nullable: true
+    PatchedKennelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        prefix:
+          type: string
+          maxLength: 200
+        site_url:
+          type: string
+          format: uri
+          maxLength: 200
+        socials: {}
+        monitor_enabled:
+          type: boolean
+        last_check_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_screenshot:
+          type: string
+          format: binary
+          nullable: true
+        owner:
+          type: integer
+    PatchedLitterRequest:
+      type: object
+      properties:
+        whelped_at:
+          type: string
+          format: date-time
+          nullable: true
+        puppies_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        notes_key:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/LitterStatusEnum'
+        kennel:
+          type: integer
+        sire:
+          type: integer
+        dam:
+          type: integer
+    SexEnum:
+      enum:
+      - male
+      - female
+      type: string
+      description: |-
+        * `male` - male
+        * `female` - female
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
