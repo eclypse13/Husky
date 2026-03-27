@@ -1,24 +1,13 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import { useParams} from "react-router-dom";
 import {getDict, pickValue} from "@lib/dict";
+import { useEventReportsRetrieve } from "@/generated";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./EventReport.css";
 
 
 
 type MediaItem = string | { url: string; title?: string };
-
-type EventReport = {
-  id: number | string;
-  event: number | string;
-  event_title_key?: string | null;
-  event_starts_at?: string | null;
-  photos?: MediaItem[];
-  videos?: MediaItem[];
-  results?: string | null; // URL на docx/pdf/...
-  result_description?: string[];
-  created_at?: string;
-};
 
 function asList<T>(value: any): T[] {
   if (Array.isArray(value)) return value;
@@ -35,7 +24,6 @@ function isYoutube(url: string) {
 }
 
 function youtubeEmbed(url: string) {
-  // простая обработка: берём v= или последний сегмент youtu.be
   try {
     const u = new URL(url);
     const v = u.searchParams.get("v");
@@ -72,35 +60,16 @@ function getFileIcon(url: string | null): string {
 export default function EventReportPage() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const { id } = useParams();
-  const [report, setReport] = useState<EventReport | null>(null);
+  const numId = Number(id);
+
+  const { data: reportData, isLoading: loading, error: fetchError } = useEventReportsRetrieve(numId, {
+    query: { enabled: !!id && !isNaN(numId) },
+  });
+
+  const report = reportData?.data ?? null;
+  const err = fetchError ? String(fetchError) : null;
+
   const [dict, setDict] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function load() {
-      setLoading(true);
-      setErr(null);
-      try {
-
-        const res = await fetch(`/api/event-reports/${id}/`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!ignore) setReport(data);
-      } catch (e: any) {
-        if (!ignore) setErr(e?.message || "Ошибка загрузки");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-
-    if (id) load();
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
 
   useEffect(() => {
     let ignore = false;
@@ -121,7 +90,6 @@ export default function EventReportPage() {
     const root = pageRef.current;
     if (!root) return;
 
-    // запускаем только когда данные уже есть
     if (loading) return;
 
     const targets = root.querySelectorAll<HTMLElement>(".events-section");
@@ -145,14 +113,13 @@ export default function EventReportPage() {
 
 
 
-  const photos = useMemo(() => asList<MediaItem>(report?.photos), [report]);
-  const videos = useMemo(() => asList<MediaItem>(report?.videos), [report]);
+  const photos = useMemo(() => asList<MediaItem>((report as any)?.photos), [report]);
+  const videos = useMemo(() => asList<MediaItem>((report as any)?.videos), [report]);
   const resultsFileUrl = useMemo(() => {
     return typeof report?.results === "string" && report.results ? report.results : null;
   }, [report]);
 
   const paragraphs = useMemo(() => {
-    // поддержим оба названия, если вдруг на бэке по-разному
     const raw = (report as any)?.result_description ?? (report as any)?.result_paragraphs;
     return asList<string>(raw);
   }, [report]);
@@ -164,7 +131,6 @@ export default function EventReportPage() {
 
     const fromDict = dict ? pickValue(dict, key, "ru") : null;
 
-    // если ключ уже “человеческий текст”, как в примере "Test Event"
     return fromDict || key;
   }, [report?.event_title_key, dict]);
 
@@ -177,7 +143,6 @@ export default function EventReportPage() {
 
   return (
     <div className="event-report-page" ref={pageRef}>
-      {/* Breadcrumb шире (1400), контент ниже уже (1100) */}
       <div className="event-report-breadcrumb-wrap">
         <Breadcrumb
           title={title ?? `Отчёт #${id}`}
@@ -192,7 +157,6 @@ export default function EventReportPage() {
       <main className="events-main">
         <div className="events-container">
           <div className="event-report-content">
-            {/* Документ отчёта */}
             {resultsFileUrl && (
               <section className="events-section events-section--card">
                 <h2 className="event-report-section-title">📄 Документ отчёта</h2>
@@ -212,7 +176,6 @@ export default function EventReportPage() {
               </section>
             )}
 
-            {/* Фото */}
             {photos.length > 0 && (
               <section className="events-section events-section--card">
                 <h2 className="event-report-section-title">Фото</h2>
@@ -231,7 +194,6 @@ export default function EventReportPage() {
               </section>
             )}
 
-            {/* Видео */}
             {videos.length > 0 && (
               <section className="events-section events-section--card">
                 <h2 className="event-report-section-title">Видео</h2>
@@ -265,7 +227,6 @@ export default function EventReportPage() {
               </section>
             )}
 
-            {/* Содержание (абзацы) */}
             {paragraphs.length > 0 && (
               <section className="events-section events-section--card">
                 <h2 className="event-report-section-title">🧾 Содержание</h2>

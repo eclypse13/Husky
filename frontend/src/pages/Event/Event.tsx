@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDict, pickValue } from "@/lib/dict";
+import { useEventsRetrieve, useJudgesList } from "@/generated";
 import "../Events/Events.css";
 
 type JudgeItem = {
@@ -10,18 +11,6 @@ type JudgeItem = {
   rank?: string | null;
   email?: string | null;
   photo?: string | null;
-};
-
-type EventPayload = {
-  id: number | string;
-  title_key?: string | null;
-  description_key?: string | null;
-  event_type?: string | null;
-  location?: string | null;
-  starts_at?: string | null;
-  ends_at?: string | null;
-  registration_link?: string | null;
-  judges?: any[];
 };
 
 const dateTime = new Intl.DateTimeFormat("ru-RU", {
@@ -42,107 +31,55 @@ function eventTypeLabel(t?: string | null) {
 
 export default function EventPage() {
   const { id } = useParams();
+  const numId = Number(id);
 
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const { data: eventData, isLoading: eventLoading, error: eventError } = useEventsRetrieve(numId, {
+    query: { enabled: !!id && !isNaN(numId) },
+  });
+  const { data: judgesData } = useJudgesList();
 
-  const [event, setEvent] = useState<EventPayload | null>(null);
-  const [judgesIndex, setJudgesIndex] = useState<Map<string, JudgeItem>>(new Map());
+  const event = eventData?.data ?? null;
+  const loading = eventLoading;
+  const notFound = !eventLoading && !event;
+  const err = eventError ? String(eventError) : null;
 
-  useEffect(() => {
-    let ignore = false;
-
-    const load = async () => {
-      if (!id) return;
-
-      setLoading(true);
-      setErr(null);
-      setNotFound(false);
-      setEvent(null);
-
-      try {
-        // 1) грузим событие
-        const res = await fetch(`/api/events/${id}/`);
-        if (!res.ok) {
-          setNotFound(true);
-          return;
-        }
-        const data: EventPayload = await res.json();
-        if (ignore) return;
-        setEvent(data);
-
-        // 2) грузим справочник судей (на случай если в event.judges прилетают только id)
-        const jRes = await fetch("/api/judges/");
-        if (jRes.ok) {
-          const payload = await jRes.json();
-          const list = Array.isArray(payload?.results) ? payload.results : Array.isArray(payload) ? payload : [];
-          const m = new Map<string, JudgeItem>();
-          list.forEach((j: any, idx: number) => {
-            if (!j) return;
-            const name = typeof j.name === "string" ? j.name : null;
-            if (!name) return;
-            const jid = String(j.id ?? idx);
-            m.set(jid, {
-              id: jid,
-              name,
-              rank: typeof j.rank === "string" ? j.rank : null,
-              email: typeof j.email === "string" ? j.email : null,
-              photo: typeof j.photo === "string" ? j.photo : null,
-            });
-          });
-          if (!ignore) setJudgesIndex(m);
-        }
-      } catch (e: any) {
-        if (!ignore) setErr(e?.message || "Ошибка загрузки");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
-
-  const view = useMemo(() => {
-    if (!event) return null;
-
-    // переводим title/desc через dict
-    // (как в Events.tsx при нормализации списка) :contentReference[oaicite:1]{index=1}
-    return (async () => {
-      const dict = await getDict();
-
-      const titleKey = event.title_key || "";
-      const descKey = event.description_key || "";
-
-      const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-      const title = titleFromDict || titleKey || `Мероприятие #${event.id}`;
-
-      const descFromDict = descKey ? pickValue(dict, descKey, "ru") : null;
-      const desc = descFromDict || descKey || null;
-
-      return { title, desc };
-    })();
-  }, [event]);
+  const judgesIndex = useMemo(() => {
+    const m = new Map<string, JudgeItem>();
+    const list = judgesData?.data?.results ?? [];
+    list.forEach((j, idx) => {
+      if (!j) return;
+      const name = typeof j.name === "string" ? j.name : null;
+      if (!name) return;
+      const jid = String(j.id ?? idx);
+      m.set(jid, {
+        id: jid,
+        name,
+        rank: typeof j.rank === "string" ? j.rank : null,
+        email: typeof j.email === "string" ? j.email : null,
+        photo: typeof j.photo === "string" ? j.photo : null,
+      });
+    });
+    return m;
+  }, [judgesData]);
 
   const [title, setTitle] = useState<string>("");
   const [desc, setDesc] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!event) return;
     let ignore = false;
     (async () => {
-      if (!view) return;
-      const v = await view;
+      const dict = await getDict();
       if (ignore) return;
-      setTitle(v.title);
-      setDesc(v.desc);
+      const titleKey = event.title_key || "";
+      const descKey = (event as any).description_key || "";
+      const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+      setTitle(titleFromDict || titleKey || `Мероприятие #${event.id}`);
+      const descFromDict = descKey ? pickValue(dict, descKey, "ru") : null;
+      setDesc(descFromDict || descKey || null);
     })();
-    return () => {
-      ignore = true;
-    };
-  }, [view]);
+    return () => { ignore = true; };
+  }, [event]);
 
   if (loading) return <div style={{ padding: 24 }}>Загрузка…</div>;
   if (err) return <div style={{ padding: 24 }}>Ошибка: {err}</div>;
@@ -151,12 +88,9 @@ export default function EventPage() {
   const starts = event.starts_at ? new Date(event.starts_at) : null;
   const ends = event.ends_at ? new Date(event.ends_at) : null;
 
-  // нормализуем judges: либо объекты, либо id
   const judges = (event.judges || [])
   .map((j: any) => {
     if (!j) return null;
-
-    // если API уже вернул объект судьи
     if (typeof j === "object" && j.id != null && typeof j.name === "string") {
       return {
         id: String(j.id),
@@ -166,11 +100,8 @@ export default function EventPage() {
         photo: j.photo ?? null,
       };
     }
-
-    // если пришёл только id
     const jid = String(j);
     const fromIndex = judgesIndex.get(jid);
-
     return fromIndex
       ? {
           id: fromIndex.id,
@@ -186,7 +117,6 @@ export default function EventPage() {
 
   return (
   <div className="events-page">
-    {/* Breadcrumb можно оставить как есть, но обернём красиво */}
     <div >
       <div>
         <Breadcrumb
@@ -202,7 +132,6 @@ export default function EventPage() {
 
     <main className="events-main">
       <div className="events-container">
-        {/* Блок с инфой о мероприятии */}
         <section className="events-section events-section--card" data-visible="1">
 
           <h1 className="events-section-title mt-0">Информация о мероприятии</h1>
@@ -211,7 +140,7 @@ export default function EventPage() {
 
           <div className="event-meta">
             <div className="event-meta-item">
-              <strong>Тип:</strong> {eventTypeLabel(event.event_type)}
+              <strong>Тип:</strong> {eventTypeLabel(event.event_type as string)}
             </div>
 
             <div className="event-meta-item">
@@ -230,7 +159,6 @@ export default function EventPage() {
           </div>
         </section>
 
-        {/* Судьи карточками */}
         <section className="events-section events-section--panel" data-visible="1">
           <h2 className="events-section-title mt-0">Судьи</h2>
 
@@ -260,12 +188,11 @@ export default function EventPage() {
           )}
         </section>
 
-        {/* Регистрация отдельным нижним блоком */}
-        {event.registration_link && event.registration_link.trim() !== "" && (
+        {event.registration_link && (event.registration_link as string).trim() !== "" && (
           <div className="event-register">
             <a
               className="events-pill events-pill--primary"
-              href={event.registration_link}
+              href={event.registration_link as string}
               target="_blank"
               rel="noreferrer"
             >

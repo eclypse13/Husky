@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDict, pickValue } from "@/lib/dict";
+import { useEventReportsList } from "@/generated";
 
 type ReportItem = {
   id: string;
@@ -24,69 +25,37 @@ function safeTime(s?: string | null): number {
 }
 
 export default function EventReports() {
-  const [reports, setReports] = useState<ReportItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [dict, setDict] = useState<any>(null);
+
+  const { data: reportsData, isLoading: loading, error: fetchError } = useEventReportsList();
+  const err = fetchError ? String(fetchError) : null;
 
   useEffect(() => {
     let ignore = false;
-
-    const load = async () => {
-      setLoading(true);
-      setErr(null);
-
-      try {
-        const dict = await getDict();
-        if (ignore) return;
-
-        const res = await fetch("/api/event-reports/");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const payload = await res.json();
-        if (ignore) return;
-
-        const fromApi = Array.isArray((payload as any)?.results)
-          ? (payload as any).results
-          : Array.isArray(payload)
-          ? payload
-          : [];
-
-        const normalized: ReportItem[] = fromApi
-          .map((r: any, idx: number): ReportItem | null => {
-            const id = String(r?.id ?? idx);
-
-            const titleKey =
-              typeof r?.event_title_key === "string" ? r.event_title_key : "";
-
-            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-
-            // если titleKey уже “человеческий текст” (например "Test Event"), оставляем его
-            const title = (titleFromDict || titleKey || `Отчёт #${id}`).toString();
-
-            return {
-              id,
-              title,
-              created_at: typeof r?.created_at === "string" ? r.created_at : null,
-            };
-          })
-          .filter((x: ReportItem | null): x is ReportItem => Boolean(x));
-
-        // сортировка: новые → старые
-        normalized.sort((a, b) => safeTime(b.created_at) - safeTime(a.created_at));
-
-        setReports(normalized);
-      } catch (e: any) {
-        setErr(e?.message || "Ошибка загрузки");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      ignore = true;
-    };
+    getDict().then((d) => { if (!ignore) setDict(d); }).catch(() => {});
+    return () => { ignore = true; };
   }, []);
+
+  const reports = useMemo((): ReportItem[] => {
+    const fromApi = reportsData?.data?.results ?? [];
+    const normalized: ReportItem[] = fromApi
+      .map((r, idx): ReportItem | null => {
+        const id = String(r?.id ?? idx);
+        const titleKey = typeof r?.event_title_key === "string" ? r.event_title_key : "";
+        const titleFromDict = titleKey && dict ? pickValue(dict, titleKey, "ru") : null;
+        const title = (titleFromDict || titleKey || `Отчёт #${id}`).toString();
+        return {
+          id,
+          title,
+          created_at: typeof r?.created_at === "string" ? r.created_at : null,
+        };
+      })
+      .filter((x): x is ReportItem => Boolean(x));
+
+    normalized.sort((a, b) => safeTime(b.created_at) - safeTime(a.created_at));
+    return normalized;
+  }, [reportsData, dict]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
