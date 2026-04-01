@@ -50,6 +50,9 @@ urlpatterns = [
     # Админка для MongoEngine моделей
     path('nkp-admin/', include(admin_views.get_admin_urls())),
 
+    # сообщения из тг-группы
+    path("activity-feed/", activity_feed, name="activity-feed"),
+
 ]
 
 if settings.DEBUG:

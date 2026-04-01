@@ -621,39 +621,39 @@ export default function About() {
 
 
 
-                <div className="about-membership-terms">
+                {/*<div className="about-membership-terms">*/}
 
-                  <h4 className="about-highlight-title">💰 Условия членства</h4>
+                {/*  <h4 className="about-highlight-title">💰 Условия членства</h4>*/}
 
-                  <div className="about-terms-grid">
+                {/*  <div className="about-terms-grid">*/}
 
-                    <div>
+                {/*    <div>*/}
 
-                      <strong className="about-terms-accent">Вступительный взнос:</strong>
+                {/*      <strong className="about-terms-accent">Вступительный взнос:</strong>*/}
 
-                      <p className="about-terms-note">5 000 ₽ (разовый)</p>
+                {/*      <p className="about-terms-note">5 000 ₽ (разовый)</p>*/}
 
-                    </div>
+                {/*    </div>*/}
 
-                    <div>
+                {/*    <div>*/}
 
-                      <strong className="about-terms-accent">Годовой взнос:</strong>
+                {/*      <strong className="about-terms-accent">Годовой взнос:</strong>*/}
 
-                      <p className="about-terms-note">3 000 ₽</p>
+                {/*      <p className="about-terms-note">3 000 ₽</p>*/}
 
-                    </div>
+                {/*    </div>*/}
 
-                    <div>
+                {/*    <div>*/}
 
-                      <strong className="about-terms-accent">Для юрлиц:</strong>
+                {/*      <strong className="about-terms-accent">Для юрлиц:</strong>*/}
 
-                      <p className="about-terms-note">15 000 ₽ / год</p>
+                {/*      <p className="about-terms-note">15 000 ₽ / год</p>*/}
 
-                    </div>
+                {/*    </div>*/}
 
-                  </div>
+                {/*  </div>*/}
 
-                </div>
+                {/*</div>*/}
 
               </section>
 
