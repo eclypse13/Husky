@@ -15,7 +15,7 @@ const dogPhoto = (url: string | null | undefined): string =>
   url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
 function formatDate(raw: string | null): string {
-    if (!raw) return "—";
+    if (!raw) return null;
     const d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
     return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
@@ -26,7 +26,7 @@ function Row({ label, value }: { label: string; value?: string | number | null }
         <div className="dd-row">
             <span className="dd-row-label">{label}</span>
             <span className={`dd-row-value${!value && value !== 0 ? " dd-row-value--empty" : ""}`}>
-                {value ?? "—"}
+                {value ?? "Не указано"}
             </span>
         </div>
     );
@@ -56,7 +56,7 @@ function ParentCard({ label, parent }: {
                     <span className="dd-parent-arrow">→</span>
                 </Link>
             ) : (
-                <span className="dd-parent-empty">Не указан</span>
+                <span className="dd-parent-empty">Не указано</span>
             )}
         </div>
     );
@@ -163,8 +163,6 @@ export default function DogDetail() {
     return (
         <div className="dd-page">
             <Breadcrumb
-                // title={dog?.display_name ?? "Собака"}
-                title="Карточка собаки"
                 items={[
                     { label: "Главная", to: "/" },
                     { label: "Архив", to: "/archive" },
@@ -195,13 +193,10 @@ export default function DogDetail() {
                                     alt={dog.display_name}
                                     className="dd-photo"
                                 />
-                                <span className={`dd-sex-badge ${SEX_CLASS[dog.sex] ?? ""}`}>
-                                    {SEX_LABEL[dog.sex] ?? "—"}
-                                </span>
                             </div>
 
                             <div className="dd-header-info">
-                                {dog.titles.length > 0 && <TitleBadges titles={dog.titles} />}
+                                {/*{dog.titles.length > 0 && <TitleBadges titles={dog.titles} />}*/}
                                 <h1 className="dd-name">{dog.display_name}</h1>
                                 {dog.call_name && dog.call_name !== dog.display_name && (
                                     <p className="dd-callname">«{dog.call_name}»</p>
@@ -209,9 +204,6 @@ export default function DogDetail() {
                                 {dog.kennel && <p className="dd-kennel">🏠 {dog.kennel}</p>}
 
                                 <div className="dd-actions">
-                                    {/*<Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">*/}
-                                    {/*    🌳 Родословная*/}
-                                    {/*</Link>*/}
                                     {dog.zooportal_id && (
                                         <a href={`https://zooportal.pro/pedigree/view/${dog.zooportal_id}/`}
                                             target="_blank" rel="noopener noreferrer" className="dd-btn">
@@ -233,7 +225,7 @@ export default function DogDetail() {
                             <section className="dd-card">
                                 <h2 className="dd-card-title"><span className="dd-card-icon">📄</span>Основные данные</h2>
                                 <div className="dd-rows">
-                                    <Row label="Кличка" value={dog.call_name} />
+                                    <Row label="Кличка" value={dog.call_name || dog.display_name} />
                                     <Row label="Пол" value={SEX_LABEL[dog.sex]} />
                                     <Row label="Дата рождения" value={formatDate(dog.date_of_birth)} />
                                     <Row label="Страна рождения" value={dog.land_of_birth} />
@@ -242,18 +234,11 @@ export default function DogDetail() {
                                       label="Размер / Вес"
                                       value={dog.size && dog.weight ? `${dog.size} см / ${dog.weight} кг` : null}
                                     />
-                                    {/* ── COI ── */}
                                     <div className="dd-row">
                                         <span className="dd-row-label">COI</span>
                                         <span className="dd-coi-inline">
-                                            {coiLoading ? (
-                                                <span className="dd-coi-spinner" />
-                                            ) : coiResult ? (
-                                                <span className="dd-row-value">{coiResult.coi.toFixed(2)} %</span>
-                                            ) : dog.coi != null ? (
-                                                <span className="dd-row-value">{dog.coi.toFixed(2)} %</span>
-                                            ) : (
-                                                <span className="dd-row-value dd-row-value--empty">—</span>
+                                            {coiError && (
+                                                <span className="dd-coi-error dd-coi-error--float">{coiError}</span>
                                             )}
                                             <button
                                                 className="dd-coi-refresh"
@@ -267,14 +252,17 @@ export default function DogDetail() {
                                                     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                                                 </svg>
                                             </button>
+                                            {coiLoading ? (
+                                                <span className="dd-coi-spinner" />
+                                            ) : coiResult ? (
+                                                <span className="dd-row-value">{coiResult.coi.toFixed(2)} %</span>
+                                            ) : dog.coi != null ? (
+                                                <span className="dd-row-value">{dog.coi.toFixed(2)} %</span>
+                                            ) : (
+                                                <span className="dd-row-value dd-row-value--empty">Не указано</span>
+                                            )}
                                         </span>
                                     </div>
-                                    {coiError && (
-                                        <div className="dd-row">
-                                            <span className="dd-row-label" />
-                                            <span className="dd-coi-error">{coiError}</span>
-                                        </div>
-                                    )}
 
 
                                 </div>
@@ -309,7 +297,7 @@ export default function DogDetail() {
                                                         {b.name}{b.kennel && <span className="dd-person-kennel"> · {b.kennel}</span>}
                                                     </span>
                                                 ))
-                                                : <span className="dd-row-value--empty">—</span>}
+                                                : <span className="dd-row-value--empty">Не указано</span>}
                                         </div>
                                     </div>
                                     <div className="dd-row dd-row--block">
@@ -321,7 +309,7 @@ export default function DogDetail() {
                                                         {o.name}{o.kennel && <span className="dd-person-kennel"> · {o.kennel}</span>}
                                                     </span>
                                                 ))
-                                                : <span className="dd-row-value--empty">—</span>}
+                                                : <span className="dd-row-value--empty">Не указано</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -362,7 +350,7 @@ export default function DogDetail() {
                         <div className="dd-nav">
                             <Link to="/archive" className="dd-btn">← Назад в архив</Link>
                             <Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">
-                                🌳 Смотреть родословную
+                                Родословная
                             </Link>
                         </div>
                     </>

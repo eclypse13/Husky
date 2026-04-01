@@ -161,8 +161,11 @@
     gap: .1rem;
     padding: .25rem .65rem;
     border-radius: 8px;
-    background: var(--gradient-secondary);
-    color: var(--snow-white);
+    /*background: var(--gradient-secondary);*/
+    /*color: var(--snow-white);*/
+    background: var(--title-bg-color);
+    color: var(--title-color);
+    border: 1px solid var(--title-border-color);
     font-size: .75rem;
     font-weight: 800;
     letter-spacing: .02em;
@@ -241,7 +244,7 @@
 }
 
 .dd-btn--primary {
-    background: var(--gradient-primary);
+    background: var(--bright-blue);
     color: var(--snow-white);
     border-color: transparent;
 }
@@ -301,14 +304,17 @@
     padding: .6rem 0;
     border-bottom: 1px solid var(--border-light);
     font-size: .95rem;
+    min-height: 2.5rem
 }
 
-.dd-row:last-child { border-bottom: none; }
+/*.dd-row:last-child { border-bottom: none; }*/
+.dd-rows > .dd-row:last-child { border-bottom: none; }
 
 .dd-row--block {
     flex-direction: column;
     align-items: flex-start;
     gap: .4rem;
+    padding: .75rem 0;
 }
 
 .dd-row-label {
@@ -319,7 +325,11 @@
 }
 
 .dd-row-value { font-weight: 600; color: var(--text-dark); text-align: right; }
-.dd-row-value--empty { color: var(--border-light); font-weight: 400; }
+.dd-row-value--empty {
+    color: var(--text-light);
+    font-weight: 400;
+    font-size: .9rem;
+}
 
 /* ── Люди ────────────────────────────────────────────────── */
 
@@ -429,8 +439,11 @@
 }
 
 .dd-title-card--prefix {
-    background: var(--gradient-secondary);
-    color: var(--snow-white);
+    /*background: var(--gradient-secondary);*/
+    /*color: var(--snow-white);*/
+    background: var(--title-bg-color);
+    color: var(--title-color);
+    border: 1px solid var(--title-border-color);
 }
 
 .dd-title-card--suffix {
@@ -466,6 +479,9 @@
     padding-top: .75rem;
     border-top: 1px solid var(--border-light);
 }
+.capitalize-text {
+  text-transform: capitalize;
+}
 
 /* ══ НАВИГАЦИЯ ═════════════════════════════════════════════ */
 
@@ -476,6 +492,10 @@
     gap: 1rem;
     margin-top: 2rem;
     flex-wrap: wrap;
+}
+.dd-nav .dd-btn {
+    min-width: 160px;
+    justify-content: center;
 }
 
 /* ══ АДАПТИВ ═══════════════════════════════════════════════ */
@@ -504,8 +524,16 @@
     display: flex;
     align-items: center;
     gap: .5rem;
+    position: relative;
 }
-
+.dd-coi-error--float {
+    position: absolute;
+    right: calc(100% + .5rem);
+    white-space: nowrap;
+    font-size: .78rem;
+    color: #dc2626;
+    font-weight: 500;
+}
 .dd-coi-refresh {
     display: inline-flex;
     align-items: center;

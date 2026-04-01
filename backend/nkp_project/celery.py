@@ -65,20 +65,20 @@ app.conf.beat_schedule = {
     },
 
     # Ежедневная синхронизация Zooportal, страницы 1-10, каждый день в 4:00
-    'daily-zooportal-sync': {
-        'task': 'dogs_module.daily_zooportal_sync',
-        'schedule': crontab(hour=2, minute=0),
-        'kwargs': {
-            'start_page': 1,
-            'end_page': 5,
-            'max_dogs_per_page': 11,
-            'generations': 3,
-            'countdown_between_pages': 60,
-        },
-        'options': {
-            'expires': 3600,  # пропустить если beat опоздал > 1ч
-        },
-    },
+    # 'daily-zooportal-sync': {
+    #     'task': 'dogs_module.daily_zooportal_sync',
+    #     'schedule': crontab(hour=2, minute=0),
+    #     'kwargs': {
+    #         'start_page': 1,
+    #         'end_page': 5,
+    #         'max_dogs_per_page': 11,
+    #         'generations': 3,
+    #         'countdown_between_pages': 60,
+    #     },
+    #     'options': {
+    #         'expires': 3600,  # пропустить если beat опоздал > 1ч
+    #     },
+    # },
 
     'refresh-cookies': {
         'task': 'dogs_module.refresh_cookies',

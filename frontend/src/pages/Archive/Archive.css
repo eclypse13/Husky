@@ -260,7 +260,9 @@
 .archive-dog-meta-item {
     white-space: nowrap;
 }
-
+.capitalize-text {
+  text-transform: capitalize;
+}
 .archive-dog-badges {
     display: flex;
     flex-wrap: wrap;
@@ -275,8 +277,11 @@
 }
 
 .archive-badge--champ {
-    background: var(--gradient-secondary);
-    color: var(--snow-white);
+    /*background: var(--gradient-secondary);*/
+    /*color: var(--snow-white);*/
+    background: var(--title-bg-color);
+    color: var(--title-color);
+    border: 1px solid var(--title-border-color);
 }
 
 .archive-badge--health {
