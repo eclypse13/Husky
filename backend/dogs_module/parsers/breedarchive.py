@@ -8,7 +8,7 @@ import time
 import logging
 import requests
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Set
 
 from django.core.cache import caches
 from playwright.sync_api import sync_playwright
@@ -21,7 +21,10 @@ from ..config import (
     BREEDARCHIVE_HEADERS,
     BREEDARCHIVE_BASE_URL,
     BREEDARCHIVE_SEARCH_RECENT_DOGS,
+    BREEDARCHIVE_SEARCH_BROWSE,
     BREEDARCHIVE_SEARCH_BY_NAME_URL,
+    BREEDARCHIVE_SEARCH_DOG_GET_ANCESTORS,
+    BREEDARCHIVE_SEARCH_DOG_BASE_NO_ANCESTORS,
 )
 from ..utils.text import (
     normalize_name_title_case,
@@ -38,9 +41,9 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════════════
 
 _NOT_FOUND       = "__NOT_FOUND__"  # маркер «спрашивали — не нашли»
-_TTL_NAME_SEARCH = 24 * 3600       # 24ч  — UUID по имени
+_TTL_NAME_SEARCH = 2 * 24 * 3600       # 24ч  — UUID по имени
 _TTL_DOG_DATA    = 7 * 24 * 3600   # 7д   — полные данные собаки
-_TTL_BASIC_DATA  = 24 * 3600       # 24ч  — базовые данные
+_TTL_BASIC_DATA  = 2 * 24 * 3600    # 24ч  — базовые данные
 
 
 def _cache():
@@ -276,7 +279,8 @@ def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
 
     try:
         response = session.get(
-            f"{BREEDARCHIVE_BASE_URL}/animal/get_ancestors/{uuid}",
+            # f"{BREEDARCHIVE_BASE_URL}/animal/get_ancestors/{uuid}",
+            f"{BREEDARCHIVE_SEARCH_DOG_GET_ANCESTORS}/{uuid}",
             params={'generations': generations},
             timeout=30,
         )
@@ -308,6 +312,37 @@ def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
         return None
 
 
+def _collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
+    """
+    Рекурсивно обходит дерево предков и собирает UUID «граничных» узлов.
+
+    «Граничный» узел — тот, у которого:
+      - есть uuid (значит можем запросить его предков отдельно)
+      - sire и/или dam = None, но sireId / damId > 0
+        (родитель существует в BA, просто не вошёл в текущий ответ из-за лимита 5 поколений)
+
+    Именно для таких узлов нужно делать дополнительный запрос get_ancestors/{uuid}.
+    """
+    if not isinstance(node, dict):
+        return
+
+    uuid = node.get('uuid')
+    sire_cut = node.get('sire') is None and (node.get('sireId') or 0) > 0
+    dam_cut = node.get('dam') is None and (node.get('damId') or 0) > 0
+
+    if uuid and (sire_cut or dam_cut):
+        # Этот узел — граница: его родители известны BA, но не пришли в ответе.
+        # Добавляем uuid узла в очередь на отдельный запрос.
+        leaves.add(uuid)
+        # Не идём глубже — сам узел будет запрошен отдельно.
+        return
+
+    # Если родители пришли — рекурсивно проверяем их тоже.
+    if node.get('sire'):
+        _collect_leaf_uuids(node['sire'], leaves)
+    if node.get('dam'):
+        _collect_leaf_uuids(node['dam'], leaves)
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ПОЛУЧЕНИЕ БАЗОВЫХ ДАННЫХ ПО UUID (без предков — быстро)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -332,7 +367,8 @@ def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
 
     try:
         response = session.get(
-            f"{BREEDARCHIVE_BASE_URL}/animal/get_animal/{uuid}",
+            # f"{BREEDARCHIVE_BASE_URL}/animal/get_animal/{uuid}",
+            f"{BREEDARCHIVE_SEARCH_DOG_BASE_NO_ANCESTORS}/{uuid}",
             params={'include_ancestors': False, 'generations': 1},
             timeout=30,
         )
@@ -475,9 +511,6 @@ def fetch_recent_dogs(
 # ПАРСИНГ BROWSE-СТРАНИЦЫ ЧЕРЕЗ PLAYWRIGHT
 # ══════════════════════════════════════════════════════════════════════════════
 
-_BROWSE_URL = "https://siberianhusky.breedarchive.com/animal/browse"
-
-
 def parse_browse_page(recent_days: int = 1) -> Dict[str, Any]:
     """
     Парсит страницу /animal/browse через синхронный Playwright.
@@ -520,15 +553,43 @@ def parse_browse_page(recent_days: int = 1) -> Dict[str, Any]:
                     'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Safari/605.1.15'
                 ),
             )
+            from ..utils.cookie_refresher import get_ba_cookies
+            ba_cookies = get_ba_cookies()
+            if ba_cookies:
+                context.add_cookies([
+                    {
+                        'name': name, 'value': value,
+                        'domain': 'siberianhusky.breedarchive.com',
+                        'path': '/',
+                    }
+                    for name, value in ba_cookies.items() if value
+                ])
             page = context.new_page()
 
             try:
-                logger.info(f"  Переход: {_BROWSE_URL}")
-                page.goto(_BROWSE_URL, wait_until='networkidle', timeout=60000)
-                page.wait_for_selector(
-                    '[data-bind="foreach: animals, visible: animals().length > 0"]',
-                    timeout=15000,
-                )
+                logger.info(f"  Переход: {BREEDARCHIVE_SEARCH_BROWSE}")
+                page.goto(BREEDARCHIVE_SEARCH_BROWSE, wait_until='networkidle', timeout=60000)
+
+                try:
+                    page.wait_for_function(
+                        """() => {
+                            const el = document.querySelector('[data-bind]');
+                            return el !== null && document.querySelector('.itemBox') !== null;
+                        }""",
+                        timeout=30000,
+                    )
+                except Exception:
+                    # Если не дождались — логируем data-bind для диагностики
+                    import re
+                    html = page.content()
+                    data_binds = re.findall(r'data-bind="[^"]{0,100}"', html)
+                    logger.warning(f"  KO не инициализировался. data-bind: {data_binds[:10]}")
+
+                page.wait_for_timeout(2000)
+                elements = page.query_selector_all('.itemBox')
+                if not elements:
+                    # Пробуем другой селектор
+                    elements = page.query_selector_all('[class*="itemBox"]')
 
                 has_more_pages = True
 
@@ -751,10 +812,13 @@ def invalidate_name_cache(dog_name: str) -> None:
 
 
 def invalidate_dog_cache(uuid: str) -> None:
-    """Сбрасывает кеш полных данных собаки."""
+    """Сбрасывает кеш полных данных собаки + флаг fully_parsed."""
+    c = _cache()
     key = _key_dog(uuid)
-    _cache().delete(key)
-    logger.info(f"🗑️ Кеш удалён: {key}")
+    c.delete(key)
+    # Сбрасываем Redis-флаг чтобы при следующем прогоне собака обновилась
+    c.delete(f"ba:fully_parsed:{uuid}")
+    logger.info(f"🗑️ Кеш удалён: {key} + fully_parsed флаг")
 
 
 def invalidate_basic_cache(uuid: str) -> None:

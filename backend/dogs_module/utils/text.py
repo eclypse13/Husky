@@ -23,15 +23,14 @@ from typing import List
 
 def normalize_dog_name(name: str) -> str:
     """
-    Нормализует имя собаки в UPPERCASE.
+    Нормализует имя собаки в title.
 
-    ПРИМЕРЫ:
-    - "  all about orinoco  " → "ALL ABOUT ORINOCO"
-    - "All About Orinoco"     → "ALL ABOUT ORINOCO"
+    ПРИМЕР:
+    "  all about orinoco  " → "All About Orinoco"
     """
     if not name:
         return ""
-    return " ".join(name.split()).upper()
+    return " ".join(name.split()).title()
 
 
 def normalize_name_title_case(name: str) -> str:

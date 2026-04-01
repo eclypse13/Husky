@@ -282,17 +282,11 @@ export default function Archive() {
                       <h4 className="archive-dog-name">{d.display_name}</h4>
                       <div className="archive-dog-meta">
                         <span className="archive-dog-meta-item">{sexLabel(d.sex)}</span>
-                        {d.color && <span className="archive-dog-meta-item">{d.color}</span>}
-                        {d.year_of_birth && (
-                          <span className="archive-dog-meta-item">{d.year_of_birth} г.р.</span>
-                        )}
+                        {d.color && <span className="archive-dog-meta-item capitalize-text">{d.color}</span>}
                         {d.breeder_names.length > 0 && (
                           <span className="archive-dog-meta-item">
                             🏠 {d.breeder_names.join(", ")}
                           </span>
-                        )}
-                        {d.land_of_birth && (
-                          <span className="archive-dog-meta-item">🌍 {d.land_of_birth}</span>
                         )}
                       </div>
                       <div className="archive-dog-badges">
