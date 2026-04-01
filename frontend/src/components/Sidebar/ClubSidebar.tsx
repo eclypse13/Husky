@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState, MouseEvent} from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { getDict, pickValue } from "@/lib/dict";
 import "./ClubSidebar.css";
 
@@ -32,14 +32,14 @@ const formatFileSize = (bytes?: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
 };
 
-const formatStatValue = (value: number | null | undefined) => {
-  if (value == null) return "0+";
-
-  // форматируем с пробелами: 15000 → 15 000
-  const formatted = value.toLocaleString("ru-RU");
-
-  return `${formatted}+`;
-};
+// const formatStatValue = (value: number | null | undefined) => {
+//   if (value == null) return "0+";
+//
+//   // форматируем с пробелами: 15000 → 15 000
+//   const formatted = value.toLocaleString("ru-RU");
+//
+//   return `${formatted}+`;
+// };
 
 const defaultStats: Stat[] = [
   { id: "s1", value: "1,250+", label: "Членов" },
@@ -278,7 +278,7 @@ export default function ClubSidebar({
             : "Без названия",
           sub: getFileMeta(entry.file, entry.file_size, entry.description_key),
           to: entry.file ?? "#",
-          documentType: entry.document_type ?? 'regular',
+          documentType: entry.document_type ?? 'regulation',
 
           // 👇 поле порядка (поддерживаем несколько вариантов с бэка)
           order:
@@ -362,8 +362,8 @@ export default function ClubSidebar({
 
   const sortedDocs = [...docsState].sort((a, b) => {
     // 1. по типу документа
-    const typeA = DOCUMENT_TYPE_ORDER.indexOf(a.documentType ?? 'regular');
-    const typeB = DOCUMENT_TYPE_ORDER.indexOf(b.documentType ?? 'regular');
+    const typeA = DOCUMENT_TYPE_ORDER.indexOf(a.documentType ?? 'regulation');
+    const typeB = DOCUMENT_TYPE_ORDER.indexOf(b.documentType ?? 'regulation');
 
     if (typeA !== typeB) {
       return typeA - typeB;
@@ -394,7 +394,7 @@ export default function ClubSidebar({
         >
           <div className="club-sidebar__card sidebar-card">
             <h3 className="club-sidebar__title">📄 Документы клуба</h3>
-            <div className="club-sidebar__documents">
+            <div className="club-sidQebar__documents">
               {loading ? (
                 <div className="club-sidebar__document-placeholder">Загрузка…</div>
               ) : error ? (
