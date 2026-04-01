@@ -2,6 +2,7 @@
 Кастомная реализация админки для MongoEngine моделей
 """
 
+from collections import OrderedDict
 from django.contrib import admin
 from django import forms
 from django.utils.html import format_html
@@ -225,6 +226,12 @@ class MongoModelAdmin:
     readonly_fields = []
     fieldsets = None
     ordering = None
+
+    # новые поля для меню
+    menu_group = 'other'
+    menu_group_title = 'Прочее'
+    menu_order = 100
+    show_in_menu = True
 
     def __init__(self, model, admin_site):
         self.model = model
@@ -580,6 +587,135 @@ __all__ = [
     'AuditLogAdmin',
 ]
 
+
+# группировка моделей по блокам
+
+ADMIN_GROUPS = OrderedDict([
+    ('content', {
+        'title': 'Контент сайта',
+        'models': [
+            'ContentDictionary',
+            'News',
+            'Page',
+            'Gallery',
+            'FastLink',
+            'BreedStandard',
+            'BreedArticle',
+            'ClubDocument',
+            'ProtectedMaterial',
+            'ClubStats',
+        ]
+    }),
+    ('people', {
+        'title': 'Люди и структура',
+        'models': [
+            'User',
+            'Judge',
+            'JudgeDetails',
+            'BoardMember',
+            'WorkingGroup',
+        ]
+    }),
+    ('membership', {
+        'title': 'Членство и заявки',
+        'models': [
+            'MembershipPlan',
+            'Application',
+            'MembershipPayment',
+            'MemberBenefit',
+        ]
+    }),
+    ('breeding', {
+        'title': 'Питомники и собаки',
+        'models': [
+            'Kennel',
+            'Dog',
+            'Litter',
+            'Achievement',
+        ]
+    }),
+    ('events', {
+        'title': 'Мероприятия',
+        'models': [
+            'Event',
+            'EventReport',
+            'Seminar',
+        ]
+    }),
+    ('system', {
+        'title': 'Система',
+        'models': [
+            'ContentRevision',
+            'SiteMonitor',
+            'AuditLog',
+        ]
+    }),
+])
+
+HIDDEN_MODELS = {
+    'EventReportPhoto',
+    'EventReportVideo',
+}
+
+def build_grouped_app_list(app_list):
+    """
+    Получает стандартный app_list от Django admin
+    и возвращает новый список блоков по ADMIN_GROUPS.
+    """
+    model_map = {}
+
+    # Собираем все модели из стандартного app_list
+    for app in app_list:
+        for model_dict in app.get('models', []):
+            object_name = model_dict.get('object_name')
+            if object_name:
+                model_map[object_name] = model_dict
+
+    grouped_app_list = []
+
+    # Формируем блоки по нашему словарю
+    for group_key, group_data in ADMIN_GROUPS.items():
+        grouped_models = []
+
+        for model_name in group_data['models']:
+            if model_name in HIDDEN_MODELS:
+                continue
+            if model_name in model_map:
+                grouped_models.append(model_map[model_name])
+
+        if grouped_models:
+            grouped_app_list.append({
+                'name': group_data['title'],
+                'app_label': group_key,
+                'app_url': '',
+                'has_module_perms': True,
+                'models': grouped_models,
+            })
+
+    # Добавляем все модели, которые не вошли в группы
+    grouped_names = {
+        model_name
+        for group_data in ADMIN_GROUPS.values()
+        for model_name in group_data['models']
+    } | HIDDEN_MODELS
+
+    other_models = [
+        model_dict
+        for object_name, model_dict in model_map.items()
+        if object_name not in grouped_names
+    ]
+
+    if other_models:
+        grouped_app_list.append({
+            'name': 'Прочее',
+            'app_label': 'other',
+            'app_url': '',
+            'has_module_perms': True,
+            'models': other_models,
+        })
+
+    return grouped_app_list
+
 # ============================================
 # Django ORM admin (new)
 # ============================================
@@ -629,3 +765,18 @@ for model in DJANGO_MODELS:
         admin.site.register(model, DefaultModelAdmin)
     except admin.sites.AlreadyRegistered:
         pass
+
+
+_original_get_app_list = admin.site.get_app_list
+
+def custom_get_app_list(request, app_label=None):
+    app_list = _original_get_app_list(request, app_label)
+
+    # Группируем только на главной странице.
+    # Если открыт конкретный app_label, можно вернуть как есть.
+    if app_label:
+        return app_list
+
+    return build_grouped_app_list(app_list)
+
+admin.site.get_app_list = custom_get_app_list
