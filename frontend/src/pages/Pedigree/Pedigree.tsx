@@ -1,6 +1,6 @@
 // src/pages/Pedigree/Pedigree.tsx
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as d3 from "d3";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
@@ -330,7 +330,7 @@ function drawCard(g: G, defs: Defs, n: TreeNode, depth: number, uid: string) {
 // ═══════════════════════════════════════════════════════════════
 
 const MIN_GEN = 3, MAX_GEN = 6;
-const H_GAP = 12;
+// const H_GAP = 12;
 const V_GAP = 46;
 const PAD = { top: 12, bottom: 12, left: 8, right: 12 };
 

@@ -25,18 +25,6 @@ const puppies = [
   { id: "p3", icon: "🐾", name: "Blue Snowflake", sex: "♀", dob: "18.06.2025", sire: "Polar ♂", dam: "Elsa ♀" },
 ];
 
-// type Activity = { icon: string; text: string; time: string };
-// const initialActivity: Activity[] = [
-//   { icon: "🏆", text: "Arctic Storm's Thunder King получил статус Гранд Чемпион", time: "2 минуты назад" },
-//   { icon: "🐕", text: "Новый помёт в питомнике «Snowflake» — 6 щенков", time: "15 минут назад" },
-//   { icon: "🧬", text: "Добавлен результат ДНК-теста для Ice Walker", time: "1 час назад" },
-//   { icon: "📊", text: "Новая родословная в архиве — 4 поколения", time: "2 часа назад" },
-// ];
-// const randomActivityPool: Activity[] = [
-//   { icon: "🎯", text: "Планирование вязки: найдена идеальная пара", time: "минут назад" },
-//   { icon: "📈", text: "Статистика здоровья породы обновлена", time: "часа назад" },
-//   { icon: "🌟", text: "Новый член клуба: питомник «Aurora Borealis»", time: "часов назад" },
-// ];
 
 type HomeNewsItem = {
   id: string;
@@ -172,7 +160,7 @@ function ActivityFeed() {
                   : "",
             };
           })
-          .filter((item): item is Activity => Boolean(item));
+          .filter((item: Activity | null): item is Activity => Boolean(item));
 
         if (!ignore && mapped.length) {
           setItems(mapped.slice(0, 10));
@@ -254,6 +242,8 @@ type CityStats = Record<
     kennels: KennelItem[];
   }
 >;
+
+type CityEntry = [string, CityStats[string]];
 
 const cityCoordinates: Record<string, [number, number]> = {
   "Алтайский край": [83.769948, 52.693224],
@@ -456,15 +446,6 @@ function KennelsMap() {
     visible: false,
   });
   const [mapError, setMapError] = useState("");
-
-  const summaryStats = useMemo(() => {
-    const entries = Object.entries(cityStats);
-    return {
-      totalCities: entries.length,
-      totalKennels: entries.reduce((sum, [, item]) => sum + item.count, 0),
-      totalMembers: entries.reduce((sum, [, item]) => sum + item.members, 0),
-    };
-  }, [cityStats]);
 
   useEffect(() => {
     let cancelled = false;
@@ -688,7 +669,7 @@ function KennelsMap() {
         });
 
         const drawCityLabel = (
-          selection: d3.Selection<SVGGElement, [string, CityStats[string]], SVGGElement, unknown>
+          selection: d3.Selection<SVGGElement, CityEntry, SVGGElement, unknown>
         ) => {
           selection.selectAll("text").remove();
 
@@ -709,31 +690,35 @@ function KennelsMap() {
             .text((d) => d[0]);
         };
 
-        const entries = Object.entries(nextCityStats);
+        const entries = Object.entries(nextCityStats) as CityEntry[];
 
-        gCities.selectAll("g.city-kennel-pin")
+        gCities
+          .selectAll<SVGGElement, CityEntry>("g.city-kennel-pin")
           .data(
-            entries.filter(([city]) => !["Москва", "Санкт-Петербург", "Казань"].includes(city)) as any,
-            (d: any) => d[0]
+            entries.filter(([city]) => !["Москва", "Санкт-Петербург", "Казань"].includes(city)),
+            (d) => d[0]
           )
           .join("g")
           .attr("class", "city-kennel-pin")
-          .attr("transform", ([city, statsItem]: [string, CityStats[string]]) => {
-            let [lon, lat] = applyCityOffset(city, statsItem.coords[0], statsItem.coords[1]);
+          .attr("transform", (d) => {
+            const [city, statsItem] = d;
+            const [lon, lat] = applyCityOffset(city, statsItem.coords[0], statsItem.coords[1]);
             const p = projection([lon, lat]);
             return p ? `translate(${p[0]},${p[1]})` : null;
           })
           .call(drawCityLabel);
 
-        gTop.selectAll("g.city-kennel-pin")
+        gTop
+          .selectAll<SVGGElement, CityEntry>("g.city-kennel-pin")
           .data(
-            entries.filter(([city]) => ["Москва", "Санкт-Петербург", "Казань"].includes(city)) as any,
-            (d: any) => d[0]
+            entries.filter(([city]) => ["Москва", "Санкт-Петербург", "Казань"].includes(city)),
+            (d) => d[0]
           )
           .join("g")
           .attr("class", "city-kennel-pin home-priority-city")
-          .attr("transform", ([city, statsItem]: [string, CityStats[string]]) => {
-            let [lon, lat] = applyCityOffset(city, statsItem.coords[0], statsItem.coords[1]);
+          .attr("transform", (d) => {
+            const [city, statsItem] = d;
+            const [lon, lat] = applyCityOffset(city, statsItem.coords[0], statsItem.coords[1]);
             const p = projection([lon, lat]);
             return p ? `translate(${p[0]},${p[1]})` : null;
           })
