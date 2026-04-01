@@ -211,10 +211,13 @@
 }
 
 .home-russia-map {
-    position: relative;
-    width: 100%;
-    height: 300px;
-    margin-bottom: 2rem;
+  position: relative;
+  min-height: 640px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #18243a 0%, #0d1730 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
 }
 
 .home-map-svg {
@@ -748,4 +751,325 @@
     .home-stat-number {
         font-size: 2rem;
     }
+}
+
+.home-map-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.home-map-container.sidebar-open {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+
+.home-map-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.home-map-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.home-map-stats-wrapper {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 1rem;
+}
+
+.home-region-stat {
+  background: #071631;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+}
+
+.home-region-stat:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-4px);
+}
+
+.home-stat-icon {
+  font-size: 1.5rem;
+}
+
+.home-region-stat .home-stat-number {
+  color: #2563eb;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.home-region-stat .home-stat-label {
+  color: rgba(255,255,255,0.65);
+  margin-top: 0.35rem;
+}
+
+.home-map-sidebar {
+  display: none;
+  width: 100%;
+  max-height: 640px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #1d2a40 0%, #162235 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 1rem;
+  color: #fff;
+}
+
+.home-map-sidebar.visible {
+  display: block;
+}
+
+.home-map-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.home-map-sidebar-header button,
+.home-map-zoom-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  background: #f3f4f6;
+  color: #1b4872;
+}
+
+.home-map-city-stats {
+  display: grid;
+  gap: 0.35rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.home-map-kennel-list {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.home-map-kennel-item {
+  padding: 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+}
+
+.home-map-kennel-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.home-map-kennel-name {
+  font-weight: 700;
+  color: #fff;
+}
+
+.home-map-member-badge {
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: #f5a623;
+}
+
+.home-map-kennel-fci,
+.home-map-contact-line {
+  margin-top: 0.4rem;
+  color: rgba(255,255,255,0.72);
+  font-size: 0.95rem;
+}
+
+.home-map-contact-line a {
+  color: rgba(255,255,255,0.72);
+}
+
+.home-map-contact-line a:hover {
+  text-decoration: underline;
+}
+
+.home-map-tooltip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  transform: translate(12px, 12px);
+  background: rgba(3, 10, 25, 0.96);
+  color: #fff;
+  border-radius: 14px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.15s ease;
+}
+
+.home-map-zoom-controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: grid;
+  gap: 0.5rem;
+  z-index: 3;
+}
+
+.home-map-error {
+  display: grid;
+  place-items: center;
+  min-height: 640px;
+  color: #b42318;
+  font-weight: 600;
+  text-align: center;
+  padding: 2rem;
+}
+
+.home-map-graticule {
+  fill: none;
+  stroke: rgba(255,255,255,0.06);
+  stroke-width: 1;
+}
+
+.home-map-legend {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  background: rgba(3, 10, 25, 0.9);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.86);
+  font-size: 0.95rem;
+}
+
+.home-map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.home-map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.home-map-legend-region {
+  background: rgba(255,255,255,0.1);
+}
+
+.home-map-legend-kennel {
+  background: #2f80ed;
+}
+
+.home-map-legend-member {
+  background: #f5a623;
+}
+
+.home-region {
+  fill: rgba(255,255,255,0.06);
+  stroke: rgba(91, 144, 214, 0.35);
+  stroke-width: 1.1;
+  transition: fill 0.18s ease;
+  cursor: pointer;
+}
+
+.home-region:hover,
+.home-region--active {
+  fill: rgba(255,255,255,0.1);
+}
+
+.home-kennel-marker {
+  cursor: pointer;
+}
+
+.home-kennel-marker circle {
+  transition: transform 0.18s ease, filter 0.18s ease;
+  filter: drop-shadow(0 3px 10px rgba(0,0,0,0.3));
+}
+
+.home-kennel-marker:hover circle {
+  transform: scale(1.06);
+}
+
+.home-kennel-count {
+  text-anchor: middle;
+}
+
+.city-kennel-pin text {
+  user-select: none;
+  fill: rgba(0,0,0,0.82) !important;
+  text-shadow:
+    0 0 4px rgba(0,0,0,0.9),
+    0 0 8px rgba(0,0,0,0.9),
+    0 0 14px rgba(255,255,255,0.22);
+}
+
+@media (max-width: 1200px) {
+  .home-map-container {
+    grid-template-columns: 1fr;
+  }
+
+  .home-map-sidebar {
+    position: static;
+    width: 100%;
+    max-height: none;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    display: none;
+    margin-top: 1rem;
+  }
+
+  .home-map-sidebar.visible {
+    display: block;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-russia-map {
+    min-height: 420px;
+  }
+
+  .home-map-error {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home-map-container,
+  .home-map-container.sidebar-open {
+    grid-template-columns: 1fr;
+  }
+
+  .home-map-sidebar {
+    max-height: none;
+  }
+
+  .home-map-stats {
+    grid-template-columns: 1fr;
+  }
 }

@@ -48,15 +48,16 @@ export default function About() {
     role: "Президент НКП Сибирский Хаски",
     mail: "president@nkp-husky.ru",
     phone: "+7 (495) 123-45-67",
+    working_group_id: null,
   };
   const fallbackLeaders: LeaderCard[] = [
-    { id: "board-comm", icon: "📰", name: "Татьяна Солдатова", role: "СМИ и информационные материалы", extra: "Совместно с Анной Фалуниной", mail: "media@nkp-husky.ru" },
-    { id: "board-it", icon: "💻", name: "Влада Кугуракова", role: "Информационные системы", mail: "it@nkp-husky.ru" },
-    { id: "board-int", icon: "🌐", name: "Марина Акопова", role: "Международное сотрудничество", mail: "international@nkp-husky.ru" },
-    { id: "board-events", icon: "🏆", name: "Татьяна Евграфова", role: "Выставочные мероприятия", extra: "В составе: Алла Проферансова, Татьяна Солдатова", mail: "events@nkp-husky.ru" },
-    { id: "board-standard", icon: "📐", name: "Татьяна Евграфова", role: "Стандарт породы", extra: "В составе: А.А. Фалунина, Т.А. Солдатова, Е.М. Шепелёва, М.С. Акопова, И.Л. Швец", mail: "standard@nkp-husky.ru" },
-    { id: "board-sport", icon: "🏃‍♀️", name: "Елена Шепелёва", role: "Ездовой спорт", mail: "sport@nkp-husky.ru" },
-    { id: "board-rating", icon: "📊", name: "Анна Фалунина", role: "Породный рейтинг", mail: "rating@nkp-husky.ru" },
+    { id: "board-comm", icon: "📰", name: "Татьяна Солдатова", role: "СМИ и информационные материалы", extra: "Совместно с Анной Фалуниной", mail: "media@nkp-husky.ru", working_group_id: null},
+    { id: "board-it", icon: "💻", name: "Влада Кугуракова", role: "Информационные системы", mail: "it@nkp-husky.ru", working_group_id: null },
+    { id: "board-int", icon: "🌐", name: "Марина Акопова", role: "Международное сотрудничество", mail: "international@nkp-husky.ru", working_group_id: null },
+    { id: "board-events", icon: "🏆", name: "Татьяна Евграфова", role: "Выставочные мероприятия", extra: "В составе: Алла Проферансова, Татьяна Солдатова", mail: "events@nkp-husky.ru", working_group_id: null },
+    { id: "board-standard", icon: "📐", name: "Татьяна Евграфова", role: "Стандарт породы", extra: "В составе: А.А. Фалунина, Т.А. Солдатова, Е.М. Шепелёва, М.С. Акопова, И.Л. Швец", mail: "standard@nkp-husky.ru", working_group_id: null },
+    { id: "board-sport", icon: "🏃‍♀️", name: "Елена Шепелёва", role: "Ездовой спорт", mail: "sport@nkp-husky.ru", working_group_id: null },
+    { id: "board-rating", icon: "📊", name: "Анна Фалунина", role: "Породный рейтинг", mail: "rating@nkp-husky.ru", working_group_id: null },
   ];
   const [highlightLeader, setHighlightLeader] = useState<LeaderCard>(fallbackHighlight);
   const [boardLeaders, setBoardLeaders] = useState<LeaderCard[]>(fallbackLeaders);
@@ -238,7 +239,7 @@ export default function About() {
 
           phone: member?.phone ?? undefined,
 
-          working_group_id: member?.working_group_id ?? undefined,
+          working_group_id: member?.working_group_id ?? null,
 
         });
 
@@ -621,39 +622,39 @@ export default function About() {
 
 
 
-                <div className="about-membership-terms">
+                {/*<div className="about-membership-terms">*/}
 
-                  <h4 className="about-highlight-title">💰 Условия членства</h4>
+                {/*  <h4 className="about-highlight-title">💰 Условия членства</h4>*/}
 
-                  <div className="about-terms-grid">
+                {/*  <div className="about-terms-grid">*/}
 
-                    <div>
+                {/*    <div>*/}
 
-                      <strong className="about-terms-accent">Вступительный взнос:</strong>
+                {/*      <strong className="about-terms-accent">Вступительный взнос:</strong>*/}
 
-                      <p className="about-terms-note">5 000 ₽ (разовый)</p>
+                {/*      <p className="about-terms-note">5 000 ₽ (разовый)</p>*/}
 
-                    </div>
+                {/*    </div>*/}
 
-                    <div>
+                {/*    <div>*/}
 
-                      <strong className="about-terms-accent">Годовой взнос:</strong>
+                {/*      <strong className="about-terms-accent">Годовой взнос:</strong>*/}
 
-                      <p className="about-terms-note">3 000 ₽</p>
+                {/*      <p className="about-terms-note">3 000 ₽</p>*/}
 
-                    </div>
+                {/*    </div>*/}
 
-                    <div>
+                {/*    <div>*/}
 
-                      <strong className="about-terms-accent">Для юрлиц:</strong>
+                {/*      <strong className="about-terms-accent">Для юрлиц:</strong>*/}
 
-                      <p className="about-terms-note">15 000 ₽ / год</p>
+                {/*      <p className="about-terms-note">15 000 ₽ / год</p>*/}
 
-                    </div>
+                {/*    </div>*/}
 
-                  </div>
+                {/*  </div>*/}
 
-                </div>
+                {/*</div>*/}
 
               </section>
 

@@ -413,3 +413,23 @@ def home_api(request):
         'upcoming_events': EventSerializer(upcoming_events, many=True).data,
         'highlight_galleries': GallerySerializer(highlight_galleries, many=True).data,
     })
+
+
+import json
+from pathlib import Path
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@cache_page(60 * 1)
+def activity_feed(request):
+    path = Path("/shared/latest_messages.json")
+
+    if not path.exists():
+        return Response({"results": []})
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return Response({"results": []})
+
+    return Response({"results": data})
