@@ -1,6 +1,6 @@
 # dogs_module/services/integration.py
 """Сервис интеграции: парсинг + слияние Zoo/BA данных + сохранение в БД."""
-
+import hashlib
 import logging
 import re
 import time
@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from django.core.cache import caches
 from django.utils import timezone
+from django.db import transaction
 
 from ..models import (
     Dog, Breeder, Owner, Title, Litter,
@@ -17,7 +18,7 @@ from ..models import (
 from ..parsers.zooportal import BrowserManager, zooportal_parser
 from ..parsers.breedarchive import (
     search_breedarchive_by_name,
-    fetch_breedarchive_dog,
+    fetch_breedarchive_dog, _collect_leaf_uuids, invalidate_dog_cache,
 )
 from ..utils.text import parse_sex, normalize_dog_name
 from ..utils.parser_utils import parse_date, parse_color
@@ -31,9 +32,11 @@ logger = logging.getLogger(__name__)
 # КЕШ
 # ══════════════════════════════════════════════════════════════════════════════
 
-_TTL_PARSE_RESULT   = 18 * 3600
-_TTL_RECURSIVE_DONE = 18 * 24 * 3600
+_TTL_PARSE_RESULT   = 1 * 24 * 3600 * 3600 # 24 часа — результат парсинга Zoo страницы
+_TTL_RECURSIVE_DONE = 2 * 24 * 3600 # 2 дня  — Zoo собака уже обработана рекурсивно
 
+_TTL_BA_FULLY_PARSED = 3 * 24 * 3600  # 3 дня - собака обработана полностью
+_KEY_BA_FULLY_PARSED = "ba:fully_parsed:{uuid}"
 
 def _cache():
     return caches['parsers']
@@ -65,6 +68,44 @@ def invalidate_parse_cache(zooportal_id: str, generations: int = 3) -> None:
     c.delete(_key_recursive_done(zooportal_id, generations))
     logger.info(f"🗑️ Кеш сброшен для {zooportal_id}")
 
+
+def _is_ba_fully_parsed(uuid: str) -> bool:
+    try:
+        return bool(_cache().get(_KEY_BA_FULLY_PARSED.format(uuid=uuid)))
+    except Exception:
+        return False
+
+
+def _mark_ba_fully_parsed(uuid: str) -> None:
+    try:
+        _cache().set(
+            _KEY_BA_FULLY_PARSED.format(uuid=uuid),
+            1,
+            timeout=_TTL_BA_FULLY_PARSED,
+        )
+    except Exception:
+        pass
+
+
+def _invalidate_ba_fully_parsed(uuid: str) -> None:
+    try:
+        _cache().delete(_KEY_BA_FULLY_PARSED.format(uuid=uuid))
+    except Exception:
+        pass
+
+
+def _compute_zoo_hash(name: str, sex: int) -> Optional[str]:
+    """
+    Вычисляет zoo_hash по имени и полу — ключ для слияния Zoo и BA записей.
+    Логика идентична Dog.generate_zoo_hash() в models.py.
+    """
+    if not name or not sex:
+        return None
+    normalized = name.strip().lower()
+    sex_str = 'male' if sex == 1 else 'female' if sex == 2 else None
+    if not sex_str:
+        return None
+    return hashlib.sha256(f"{normalized}|{sex_str}".encode()).hexdigest()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # СОХРАНЕНИЕ BA-ДЕРЕВА ПРЕДКОВ
@@ -131,8 +172,329 @@ def process_ba_dog_tree(
         return existing
 
 
+def process_ba_full_pedigree(
+    uuid: str,
+    api_dispatched: Optional[Set[str]] = None,
+    depth: int = 0,
+    max_depth: int = 30,
+) -> Optional["Dog"]:
+    """
+    Рекурсивно загружает и сохраняет ПОЛНОЕ дерево предков собаки из BA.
+    """
+    if api_dispatched is None:
+        api_dispatched = set()
+
+    # ── Уровень 1: уже запустили в этом прогоне ──────────────────────────────
+    if uuid in api_dispatched:
+        return Dog.objects.using('dogs_db').filter(uuid=uuid).first()
+
+    # ── Уровень 2: Redis — только для предков (depth > 0) ────────────────────
+    # Корневую собаку (depth == 0) всегда обновляем.
+    if depth > 0 and _is_ba_fully_parsed(uuid):
+        existing = Dog.objects.using('dogs_db').filter(uuid=uuid).first()
+        if existing:
+            api_dispatched.add(uuid)
+            logger.debug(
+                f"{'  ' * depth}⚡ Redis HIT: {existing.registered_name} (uuid={uuid})"
+            )
+            return existing
+        # В Redis есть но в БД нет — сбрасываем флаг, обрабатываем заново
+        _invalidate_ba_fully_parsed(uuid)
+
+    # ── Защита от слишком глубокой рекурсии ──────────────────────────────────
+    if depth > max_depth:
+        logger.warning(f"{'  ' * depth}⚠️ max_depth={max_depth} uuid={uuid}")
+        return Dog.objects.using('dogs_db').filter(uuid=uuid).first()
+
+    api_dispatched.add(uuid)
+    indent = "  " * depth
+    logger.info(f"{indent}🔍 BA full pedigree [depth={depth}]: uuid={uuid}")
+
+    # ── Шаг 1: загрузка 5 поколений из API ───────────────────────────────────
+    data = fetch_breedarchive_dog(uuid)
+    if not data:
+        logger.error(f"{indent}❌ Нет данных для uuid={uuid}")
+        return None
+
+    # ── Шаг 2: сохраняем дерево в БД ─────────────────────────────────────────
+    try:
+        dog = process_ba_dog_tree(data, visited=None, saved=None)
+    except Exception as e:
+        logger.error(f"{indent}❌ process_ba_dog_tree: {e}", exc_info=True)
+        return None
+
+    if not dog:
+        logger.error(f"{indent}❌ process_ba_dog_tree вернул None uuid={uuid}")
+        return None
+
+    # ── Шаг 3: ищем граничные листья ─────────────────────────────────────────
+    # Граничный лист: sire/dam = null, но sireId/damId > 0
+    leaves: Set[str] = set()
+    _collect_leaf_uuids(data, leaves)
+
+    # Фильтруем только по api_dispatched и Redis.
+    # db_saved НЕ используем — листья там как стабы без предков.
+    new_leaves = {
+        leaf for leaf in leaves
+        if leaf not in api_dispatched
+        and not _is_ba_fully_parsed(leaf)
+    }
+
+    logger.info(
+        f"{indent}  Граничных: {len(leaves)}, новых: {len(new_leaves)}, "
+        f"api_dispatched: {len(api_dispatched)}"
+    )
+
+    # ── Шаг 4: рекурсия по граничным листьям ─────────────────────────────────
+    for leaf_uuid in new_leaves:
+        time.sleep(0.3)
+        process_ba_full_pedigree(
+            uuid=leaf_uuid,
+            api_dispatched=api_dispatched,
+            depth=depth + 1,
+            max_depth=max_depth,
+        )
+
+    # ── Помечаем как полностью обработанного ─────────────────────────────────
+    # Ставим ПОСЛЕ рекурсии — значит все предки уже загружены.
+    if depth > 0:
+        _mark_ba_fully_parsed(uuid)
+
+    logger.info(f"{indent}✅ BA full pedigree [depth={depth}]: завершено uuid={uuid}")
+    return dog
+
+
+def _dispatch_ancestor_enrichment(zoo_raw: Dict, root_zoo_id: str, enrich_ancestors: bool = False) -> None:
+    """
+    Диспатчит import_hybrid_full_dog_task для каждого Zoo-предка
+    у которого есть zooportal_id.
+    """
+    from ..tasks.tasks_breedarchive import import_hybrid_full_dog_task
+
+    ancestors = zoo_raw.get('pedigree', {}).get('ancestors', {})
+    if not ancestors:
+        return
+
+    dispatched = 0
+    seen_zoo_ids: Set[str] = set()
+
+    for ancestor in ancestors.values():
+        zoo_id = ancestor.get('zooportal_id')
+        if not zoo_id or zoo_id == root_zoo_id:
+            continue
+        if zoo_id in seen_zoo_ids:
+            continue
+        seen_zoo_ids.add(zoo_id)
+
+        import_hybrid_full_dog_task.apply_async(
+            kwargs={
+                'zooportal_id': zoo_id,
+                'generations': 3,  # для предков достаточно
+                'force_update': False,
+                '_enrich_ancestors': enrich_ancestors,  # предки предков не диспатчим
+            },
+            countdown=30 * (dispatched + 1),  # 30с, 60с, 90с...
+        )
+        dispatched += 1
+
+    if dispatched:
+        logger.info(
+            f"  📬 Диспатч Zoo-патча для {dispatched} предков "
+            f"(root zoo_id={root_zoo_id})"
+        )
+
+
+def process_hybrid_full_pedigree(
+        zooportal_id: str,
+        generations: int = 5,
+        force_update: bool = False,
+        _enrich_ancestors: bool = True,
+) -> Optional[Dog]:
+    """
+    Гибридный импорт одной собаки: Zoo данные + BA полное дерево предков.
+
+    ПАРАМЕТРЫ:
+      zooportal_id      — ID собаки на zooportal.pro
+      generations       — глубина Zoo pedigree (для fallback)
+      force_update      — сбросить BA-кеш и загрузить заново
+      _enrich_ancestors — диспатчить задачи для Zoo-предков
+    """
+    logger.info(f"🔀 Hybrid full pedigree: zooportal_id={zooportal_id}")
+
+    # ── Фаза 1: Zoo парсинг — только в браузере ───────────────────────────────
+    zoo_raw: Dict = {}
+    with BrowserManager() as browser:
+        zoo_raw = zooportal_parser.parse_dog_page_with_browser(
+            browser, zooportal_id, generations
+        ) or {}
+
+        if not zoo_raw.get('registered_name'):
+            # Признак истёкшей сессии — обновляем куки и пробуем снова
+            from ..utils.cookie_refresher import on_zoo_session_expired
+            on_zoo_session_expired()
+            browser._recreate_context()
+            zoo_raw = zooportal_parser.parse_dog_page_with_browser(
+                browser, zooportal_id, generations
+            ) or {}
+    # Браузер закрыт — теперь можно делать DB операции
+
+    # ── Фаза 2: BA + DB — вне браузера ───────────────────────────────────────
+    if not zoo_raw:
+        logger.warning(f"  Zoo не вернул данные для {zooportal_id}")
+        return Dog.objects.using('dogs_db').filter(zooportal_id=zooportal_id).first()
+
+    zoo_name = (zoo_raw.get('registered_name') or '').strip()
+    logger.info(f"  Zoo: '{zoo_name}' (zoo_id={zooportal_id})")
+
+    ba_uuid: Optional[str] = None
+    if zoo_name:
+        try:
+            ba_uuid = search_breedarchive_by_name(zoo_name)
+            if ba_uuid:
+                logger.info(f"  BA найден: uuid={ba_uuid}")
+            else:
+                logger.info(f"  ⚠️ BA не найден для '{zoo_name}'")
+        except Exception as e:
+            logger.error(f"  BA поиск '{zoo_name}': {e}")
+
+    dog: Optional[Dog] = None
+
+    if ba_uuid:
+        if force_update:
+            invalidate_dog_cache(ba_uuid)
+        try:
+            dog = process_ba_full_pedigree(uuid=ba_uuid)
+            if dog:
+                _patch_zoo_onto_ba_dog(dog, zoo_raw, zooportal_id)
+                logger.info(
+                    f"  ✅ Hybrid full: {dog.registered_name} "
+                    f"(zoo_id={zooportal_id}, ba_uuid={ba_uuid})"
+                )
+        except Exception as e:
+            logger.error(f"  BA full pedigree ({ba_uuid}): {e}", exc_info=True)
+            dog = None
+
+    if not dog:
+        logger.info(f"  🦴 Zoo fallback для {zooportal_id}")
+        dog = _save_zoo_fallback(zooportal_id, zoo_raw)
+
+    # ── Фаза 3: диспатч Zoo-патча для предков ────────────────────────────────
+    if _enrich_ancestors and dog:
+        _dispatch_ancestor_enrichment(zoo_raw, zooportal_id)
+
+    return dog
+
+
+def process_hybrid_full_pedigree_page(
+        page_num: Optional[int] = None,
+        max_dogs: int = 11,
+        generations: int = 5,
+        delay: float = 2.0,
+        deadline: Optional[float] = None,
+        zooportal_ids: Optional[List[str]] = None,
+) -> Dict:
+    """
+    Гибридный импорт страницы: Zoo страница + BA полное дерево для каждой собаки.
+    """
+    start_time = time.time()
+    imported, failed, dog_ids = 0, 0, []
+
+    # ── Фаза 1: Zoo парсинг всех собак страницы — один браузер ───────────────
+    collected: List[Dict] = []
+    with BrowserManager() as browser:
+        if zooportal_ids:
+            ids_to_process = zooportal_ids[:max_dogs]
+        else:
+            dogs_list = zooportal_parser.parse_search_page_with_browser(browser, page_num)
+            ids_to_process = [
+                                 d['zooportal_id'] for d in (dogs_list or []) if d.get('zooportal_id')
+                             ][:max_dogs]
+
+        if not ids_to_process:
+            logger.warning(f"⚠️ Страница {page_num}: собак не найдено")
+            return {'imported': 0, 'failed': 0, 'dog_ids': []}
+
+        logger.info(f"📄 Hybrid full page {page_num}: {len(ids_to_process)} собак")
+
+        for idx, zoo_id in enumerate(ids_to_process, 1):
+            if deadline and time.time() > deadline:
+                logger.warning(f"  ⏱️ Дедлайн на [{idx}] {zoo_id}")
+                break
+            try:
+                zoo_raw = zooportal_parser.parse_dog_page_with_browser(
+                    browser, zoo_id, generations
+                ) or {}
+
+                if not zoo_raw.get('registered_name'):
+                    from ..utils.cookie_refresher import on_zoo_session_expired
+                    on_zoo_session_expired()
+                    browser._recreate_context()
+                    zoo_raw = zooportal_parser.parse_dog_page_with_browser(
+                        browser, zoo_id, generations
+                    ) or {}
+
+                collected.append({'zoo_id': zoo_id, 'zoo_raw': zoo_raw})
+            except Exception as e:
+                failed += 1
+                logger.error(f"  [{idx}] Zoo парсинг {zoo_id}: {e}")
+
+            if idx < len(ids_to_process):
+                time.sleep(delay)
+    # Браузер закрыт — теперь DB операции
+
+    # ── Фаза 2: BA + DB для каждой собаки — вне браузера ─────────────────────
+    for item in collected:
+        zoo_id = item['zoo_id']
+        zoo_raw = item['zoo_raw']
+
+        if deadline and time.time() > deadline:
+            break
+
+        try:
+            zoo_name = (zoo_raw.get('registered_name') or '').strip()
+            ba_uuid = search_breedarchive_by_name(zoo_name) if zoo_name else None
+
+            dog: Optional[Dog] = None
+
+            if ba_uuid:
+                dog = process_ba_full_pedigree(uuid=ba_uuid)
+                if dog:
+                    _patch_zoo_onto_ba_dog(dog, zoo_raw, zoo_id)
+                    # Диспатчим обогащение Zoo-предков
+                    _dispatch_ancestor_enrichment(zoo_raw, zoo_id)
+                    imported += 1
+                    dog_ids.append(dog.id)
+                    continue
+
+            dog = _save_zoo_fallback(zoo_id, zoo_raw)
+            if dog:
+                imported += 1
+                dog_ids.append(dog.id)
+                _dispatch_ancestor_enrichment(zoo_raw, zoo_id)
+            else:
+                failed += 1
+
+        except Exception as e:
+            failed += 1
+            logger.error(f"  {zoo_id}: {e}", exc_info=True)
+
+    processing_time = time.time() - start_time
+    logger.info(
+        f"✅ Hybrid full page {page_num}: "
+        f"{imported} импортировано, {failed} ошибок, {processing_time:.1f}с"
+    )
+    return {
+        'imported': imported,
+        'failed': failed,
+        'dog_ids': dog_ids,
+        'processing_time': processing_time,
+    }
+
+
 def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
-    """Создаёт или обновляет Dog из BA-данных с готовыми ссылками на родителей."""
+    """
+    Создаёт или обновляет Dog из BA-данных с готовыми ссылками на родителей.
+    """
     uuid = data.get('uuid')
     if not uuid:
         raise ValueError("UUID обязателен")
@@ -141,7 +503,6 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     if reg_num:
         reg_num = re.sub(r'\s+', '', str(reg_num))
 
-    # Строим photo_url с правильным путём /resource/
     photo_url = data.get('photo_url')
     if not photo_url or not str(photo_url).startswith('http'):
         path = data.get('primary_photo_path') or data.get('primaryPhotoPath')
@@ -166,7 +527,7 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
         'date_of_birth': dob,
         'date_of_death': dod,
         'year_of_birth': _to_int(data.get('year_of_birth') or data.get('yearOfBirth')),
-        'year_of_death': _to_int(data.get('year_of_death') or (data.get('yearOfDeath') or None)),
+        'year_of_death': _to_int(data.get('yearOfDeath') or data.get('year_of_death')) or None,
         'color': parse_color(data.get('color') or '') or None,
         'color_marking': data.get('color_marking') or data.get('colorMarking') or None,
         'variety': data.get('variety') or None,
@@ -186,26 +547,80 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
         'sire': sire,
         'dam_uuid': data.get('dam_uuid') or (data.get('dam', {}) or {}).get('uuid') or None,
         'sire_uuid': data.get('sire_uuid') or (data.get('sire', {}) or {}).get('uuid') or None,
+        'dam_name': (data.get('dam') or {}).get('registeredName') or None,
+        'dam_link_name': (data.get('dam') or {}).get('linkName') or None,
+        'sire_name': (data.get('sire') or {}).get('registeredName') or None,
+        'sire_link_name': (data.get('sire') or {}).get('linkName') or None,
         'health_info_general': data.get('health_info_general') or data.get('healthInfoGeneral'),
         'health_info_genetic': data.get('health_info_genetic') or data.get('healthInfoGenetic'),
         'has_conflicts': data.get('has_conflicts', False),
         'conflicts': data.get('conflicts'),
+        'notes': data.get('private_note') or data.get('privateNote') or None,
     }
-    # Фильтруем None И пустые строки — не перезаписываем существующие данные пустотой
     defaults = {k: v for k, v in defaults.items() if v is not None and v != ''}
 
+    # ── Поиск 1: по uuid ──────────────────────────────────────────────────────
     try:
-        dog, created = Dog.objects.using('dogs_db').update_or_create(uuid=uuid, defaults=defaults)
+        dog, created = Dog.objects.using('dogs_db').update_or_create(
+            uuid=uuid, defaults=defaults
+        )
     except Dog.MultipleObjectsReturned:
-        # uuid не уникален — берём первую запись, обновляем её
         dog = Dog.objects.using('dogs_db').filter(uuid=uuid).order_by('id').first()
         for k, v in defaults.items():
             setattr(dog, k, v)
         dog.save(using='dogs_db')
         created = False
 
-    # Явно применяем dam_id/sire_id через queryset.update() — самый надёжный способ.
-    # update_or_create иногда не сохраняет FK корректно при обновлении через Django ORM.
+    # ── Поиск 2: слияние с Zoo-записью по zoo_hash ────────────────────────────
+    if created:
+        name = defaults.get('registered_name', '')
+        sex = defaults.get('sex', 0)
+        zoo_hash = _compute_zoo_hash(name, sex)
+
+        if zoo_hash:
+            try:
+                with transaction.atomic(using='dogs_db'):
+                    zoo_twin = (
+                        Dog.objects
+                        .using('dogs_db')
+                        .select_for_update(nowait=False)
+                        .filter(zoo_hash=zoo_hash, uuid__isnull=True)
+                        .exclude(pk=dog.pk)
+                        .first()
+                    )
+
+                    if zoo_twin:
+                        logger.info(
+                            f"  🔗 Слияние Zoo→BA: '{name}' "
+                            f"(zoo pk={zoo_twin.pk} → ba pk={dog.pk})"
+                        )
+                        merge_update: Dict = {}
+                        if zoo_twin.zooportal_id and not dog.zooportal_id:
+                            merge_update['zooportal_id'] = zoo_twin.zooportal_id
+                        if zoo_twin.zoo_hash and not dog.zoo_hash:
+                            merge_update['zoo_hash'] = zoo_twin.zoo_hash
+
+                        for field in ('brand_chip', 'kennel', 'eyes_color', 'club',
+                                      'size', 'weight', 'sports', 'locked', 'removed',
+                                      'frozen_semen', 'approved_for_breeding'):
+                            zoo_val = getattr(zoo_twin, field, None)
+                            ba_val = getattr(dog, field, None)
+                            if zoo_val is not None and ba_val is None:
+                                merge_update[field] = zoo_val
+
+                        if merge_update:
+                            Dog.objects.using('dogs_db').filter(pk=dog.pk).update(**merge_update)
+                            for k, v in merge_update.items():
+                                setattr(dog, k, v)
+
+                        Dog.objects.using('dogs_db').filter(dam_id=zoo_twin.pk).update(dam_id=dog.pk)
+                        Dog.objects.using('dogs_db').filter(sire_id=zoo_twin.pk).update(sire_id=dog.pk)
+                        zoo_twin.delete(using='dogs_db')
+
+            except Exception as e:
+                logger.warning(f"  ⚠️ Слияние Zoo→BA пропущено: {e}")
+
+    # ── FK dam/sire ───────────────────────────────────────────────────────────
     fk_update: Dict = {}
     if dam is not None and dam.pk:
         fk_update['dam_id'] = dam.pk
@@ -213,12 +628,13 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
         fk_update['sire_id'] = sire.pk
     if fk_update:
         Dog.objects.using('dogs_db').filter(pk=dog.pk).update(**fk_update)
-        # Синхронизируем атрибуты в памяти
         for k, v in fk_update.items():
             setattr(dog, k, v)
-        logger.debug(f"  FK set for {dog.registered_name} (uuid={uuid}): {fk_update}")
 
-    logger.info(f"  {'✅ Создана' if created else '🔄 Обновлена'}: {dog.registered_name} (uuid={uuid})")
+    logger.info(
+        f"  {'✅ Создана' if created else '🔄 Обновлена'}: "
+        f"{dog.registered_name} (uuid={uuid})"
+    )
     return dog
 
 
@@ -239,23 +655,25 @@ def _save_ba_relations(dog: Dog, data: Dict) -> None:
             b_uuid = (b.get('uuid') or '').strip() or None
             b_kennel = (b.get('kennel') or b.get('name') or '').strip() or None
             if b_uuid:
-                breeder, _ = Breeder.objects.using('dogs_db').get_or_create(
-                    uuid=b_uuid,
-                    defaults={
-                        'name':       b['name'],
-                        'kennel':     b_kennel,
-                        'is_breeder': b.get('is_breeder', True),
-                    },
-                )
+                try:
+                    breeder, _ = Breeder.objects.using('dogs_db').get_or_create(
+                        uuid=b_uuid,
+                        defaults={'name': b['name'], 'kennel': b_kennel, 'is_breeder': b.get('is_breeder', True)},
+                    )
+                except Exception:
+                    breeder = Breeder.objects.using('dogs_db').filter(uuid=b_uuid).first()
+                    if not breeder:
+                        continue
             else:
-                breeder, _ = Breeder.objects.using('dogs_db').get_or_create(
-                    name=b['name'],
-                    defaults={
-                        'kennel':     b_kennel,
-                        'is_breeder': b.get('is_breeder', True),
-                    },
-                )
-            # Обновляем kennel если раньше не был заполнен
+                try:
+                    breeder, _ = Breeder.objects.using('dogs_db').get_or_create(
+                        name=b['name'],
+                        defaults={'kennel': b_kennel, 'is_breeder': b.get('is_breeder', True)},
+                    )
+                except Exception:
+                    breeder = Breeder.objects.using('dogs_db').filter(name=b['name']).first()
+                    if not breeder:
+                        continue
             if not breeder.kennel and b_kennel:
                 Breeder.objects.using('dogs_db').filter(pk=breeder.pk).update(kennel=b_kennel)
             Dogbreederlink.objects.using('dogs_db').get_or_create(dog=dog, breeder=breeder)
@@ -266,10 +684,15 @@ def _save_ba_relations(dog: Dog, data: Dict) -> None:
         if not isinstance(o, dict) or not o.get('name'):
             continue
         try:
-            owner, _ = Owner.objects.using('dogs_db').get_or_create(
-                name=o['name'],
-                defaults={'is_main_owner': o.get('is_main_owner', False), 'uuid': o.get('uuid', '')},
-            )
+            try:
+                owner, _ = Owner.objects.using('dogs_db').get_or_create(
+                    name=o['name'],
+                    defaults={'is_main_owner': o.get('is_main_owner', False), 'uuid': o.get('uuid', '')},
+                )
+            except Exception:
+                owner = Owner.objects.using('dogs_db').filter(name=o['name']).first()
+                if not owner:
+                    continue
             Dogownerlink.objects.using('dogs_db').get_or_create(dog=dog, owner=owner)
         except Exception as e:
             logger.error(f"  Владелец '{o.get('name')}': {e}")
@@ -568,7 +991,9 @@ def save_dog_with_ancestors(parsed: Dict) -> Dog:
 
 # zooportal
 def _save_dog(dog_data: Dict) -> Dog:
-    """Создаёт или обновляет запись Dog из merged_data."""
+    """
+    Создаёт или обновляет запись Dog из Zoo merged_data.
+    """
     zooportal_id = dog_data.get('zooportal_id')
     if not zooportal_id:
         raise ValueError("zooportal_id обязателен")
@@ -609,46 +1034,104 @@ def _save_dog(dog_data: Dict) -> Dog:
     }
     update_fields = {k: v for k, v in fields.items() if v is not None}
 
-    # dog, created = Dog.objects.using('dogs_db').update_or_create(
-    #     zooportal_id=zooportal_id, defaults=update_fields,
-    # )
-    # logger.info(f"  {'✅ Создана' if created else '🔄 Обновлена'}: {dog.registered_name}")
-    # return dog
+    # ── Поиск 1: по zooportal_id ──────────────────────────────────────────────
     try:
-        dog, created = Dog.objects.using('dogs_db').update_or_create(
-            zooportal_id=zooportal_id, defaults=update_fields,
-        )
-    except Dog.MultipleObjectsReturned:
-        logger.warning(f"  ⚠️ Дубли для zooportal_id={zooportal_id} — лечим")
-        qs = Dog.objects.using('dogs_db').filter(
+        existing = Dog.objects.using('dogs_db').filter(
             zooportal_id=zooportal_id
-        ).order_by('id')
-        dog = qs.first()
+        ).order_by('id').first()
+    except Exception:
+        existing = None
+
+    if existing:
+        # Уже есть — обновляем поля не перезаписывая BA-данные
         for k, v in update_fields.items():
-            setattr(dog, k, v)
-        dog.save(using='dogs_db')
-        qs.exclude(pk=dog.pk).delete()
-        created = False
+            if k in ('uuid', 'source') and getattr(existing, k, None):
+                continue  # не затираем BA uuid и source
+            setattr(existing, k, v)
+        existing.save(using='dogs_db')
+        logger.info(f"  🔄 Обновлена: {existing.registered_name}")
+        return existing
 
-    logger.info(f"  {'✅ Создана' if created else '🔄 Обновлена'}: {dog.registered_name}")
-    return dog
+    # ── Поиск 2: по zoo_hash — ДО создания ───────────────────────────────────
+    # Ищем любую запись с тем же именем и полом — BA или Zoo с другим zoo_id
+    name     = update_fields.get('registered_name', '')
+    sex      = update_fields.get('sex', 0)
+    zoo_hash = _compute_zoo_hash(name, sex)
 
+    if zoo_hash:
+        try:
+            with transaction.atomic(using='dogs_db'):
+                hash_match = (
+                    Dog.objects
+                    .using('dogs_db')
+                    .select_for_update(nowait=False)
+                    .filter(zoo_hash=zoo_hash)
+                    .first()
+                )
+
+                if hash_match:
+                    logger.info(
+                        f"  🔗 Zoo hash match: '{name}' → pk={hash_match.pk} "
+                        f"(старый zooportal_id={hash_match.zooportal_id})"
+                    )
+                    merge: Dict = {'zooportal_id': zooportal_id}
+                    for k, v in update_fields.items():
+                        # Не перезаписываем BA-поля если они уже заполнены
+                        if k in ('uuid', 'source') and getattr(hash_match, k, None):
+                            continue
+                        # Не перезаписываем уже заполненные поля из BA
+                        current = getattr(hash_match, k, None)
+                        if current is not None and k not in (
+                            'zooportal_id', 'zoo_hash', 'modified_at',
+                            'brand_chip', 'kennel', 'photo_url',
+                            'registration_number', 'land_of_birth',
+                        ):
+                            continue
+                        merge[k] = v
+
+                    Dog.objects.using('dogs_db').filter(pk=hash_match.pk).update(**merge)
+                    for k, v in merge.items():
+                        setattr(hash_match, k, v)
+                    logger.info(f"  🔄 Обновлена через zoo_hash: {hash_match.registered_name}")
+                    return hash_match
+
+        except Exception as e:
+            logger.warning(f"  ⚠️ Zoo hash поиск пропущен: {e}")
+
+    # ── Поиск 3: создаём новую запись ────────────────────────────────────────
+    try:
+        dog = Dog.objects.using('dogs_db').create(**update_fields)
+        logger.info(f"  ✅ Создана: {dog.registered_name}")
+        return dog
+    except Exception as e:
+        # Последний шанс — гонка данных, кто-то создал пока мы проверяли
+        logger.warning(f"  ⚠️ create упал ({e}), пробуем get")
+        dog = Dog.objects.using('dogs_db').filter(
+            zooportal_id=zooportal_id
+        ).first()
+        if dog:
+            return dog
+        raise
 
 def _save_breeder_zooportal(dog: Dog, dog_data: Dict) -> None:
-    """Сохраняет заводчика из Zoo-данных."""
     name = dog_data.get('breeder_name')
     if not name:
         return
     try:
-        breeder, _ = Breeder.objects.using('dogs_db').get_or_create(
-            name=name,
-            defaults={
-                'is_breeder':  True,
-                'kennel':      dog_data.get('breeder_kennel'),
-                'breeder_url': dog_data.get('breeder_url'),
-                'kennel_url':  dog_data.get('breeder_kennel_url'),
-            },
-        )
+        try:
+            breeder, _ = Breeder.objects.using('dogs_db').get_or_create(
+                name=name,
+                defaults={
+                    'is_breeder':  True,
+                    'kennel':      dog_data.get('breeder_kennel'),
+                    'breeder_url': dog_data.get('breeder_url'),
+                    'kennel_url':  dog_data.get('breeder_kennel_url'),
+                },
+            )
+        except Exception:
+            breeder = Breeder.objects.using('dogs_db').filter(name=name).first()
+            if not breeder:
+                return
         Dogbreederlink.objects.using('dogs_db').get_or_create(dog=dog, breeder=breeder)
     except Exception as e:
         logger.error(f"  Заводчик Zoo '{name}': {e}")
@@ -739,9 +1222,10 @@ def _save_titles_for_dog(dog: Dog, dog_data: Dict) -> None:
         source,
     )
 
-
 def _save_ancestors(pedigree: Dict) -> Dict[str, Dog]:
-    """Сохраняет предков из pedigree как заглушки (get_or_create — не затираем полные данные)."""
+    """
+    Сохраняет предков из Zoo pedigree.
+    """
     dog_map: Dict[str, Dog] = {}
     processed: Set[str] = set()
 
@@ -749,28 +1233,70 @@ def _save_ancestors(pedigree: Dict) -> Dict[str, Dog]:
         if node_key in processed:
             continue
         processed.add(node_key)
+
         name = ancestor.get('name')
+        sex = ancestor.get('sex', 0)
+        zoo_id = ancestor.get('zooportal_id')
+
         if not name:
             continue
-        zoo_id = ancestor.get('zooportal_id')
+
+        dog: Optional[Dog] = None
+
         try:
+            # ── 1. Ищем по zooportal_id ───────────────────────────────────
+            if zoo_id:
+                dog = Dog.objects.using('dogs_db').filter(
+                    zooportal_id=zoo_id
+                ).first()
+                if dog:
+                    dog_map[node_key] = dog
+                    continue
+
+            # ── 2. Ищем по zoo_hash ───────────────────────────────────────
+            zoo_hash = _compute_zoo_hash(name, sex)
+            if zoo_hash:
+                dog = Dog.objects.using('dogs_db').filter(
+                    zoo_hash=zoo_hash
+                ).first()
+                if dog:
+                    # Нашли по хешу — прописываем zooportal_id если его нет
+                    if zoo_id and not dog.zooportal_id:
+                        Dog.objects.using('dogs_db').filter(pk=dog.pk).update(
+                            zooportal_id=zoo_id
+                        )
+                        dog.zooportal_id = zoo_id
+                    dog_map[node_key] = dog
+                    continue
+
+            # ── 3. Создаём стаб ───────────────────────────────────────────
             if zoo_id:
                 dog, created = Dog.objects.using('dogs_db').get_or_create(
                     zooportal_id=zoo_id,
-                    defaults={'registered_name': name, 'sex': ancestor.get('sex', 0)},
+                    defaults={
+                        'registered_name': name,
+                        'sex': sex,
+                        'zoo_hash': _compute_zoo_hash(name, sex),
+                    },
                 )
             else:
+                # Без zooportal_id и без совпадения по хешу — создаём по имени
+                # Используем get_or_create чтобы не плодить дубли по имени
                 dog, created = Dog.objects.using('dogs_db').get_or_create(
                     registered_name=name,
-                    defaults={'sex': ancestor.get('sex', 0)},
+                    sex=sex,
+                    defaults={
+                        'zoo_hash': _compute_zoo_hash(name, sex),
+                    },
                 )
+
             dog_map[node_key] = dog
+
         except Exception as e:
-            logger.error(f"  Предок '{name}': {e}")
+            logger.error(f"  Предок '{name}' (zoo_id={zoo_id}): {e}")
 
     logger.info(f"  Предков: {len(dog_map)}")
     return dog_map
-
 
 def _apply_relationships(
     pedigree: Dict, dog_map: Dict[str, Dog], root_zooportal_id: str, root_dog: Dog,
@@ -786,30 +1312,7 @@ def _apply_relationships(
                 if dog_obj:
                     full_map[base_key] = dog_obj
 
-    # dogs_by_id = {d.id: d for d in full_map.values() if d and d.id}
-    # updated: Set[int] = set()
-    # for rel in pedigree.get('relationships', []):
-    #     child  = full_map.get(rel.get('child_key'))
-    #     parent = full_map.get(rel.get('parent_key'))
-    #     if not child or not parent or not child.id or not parent.id:
-    #         continue
-    #     if rel['relation'] == 'sire' and child.sire_id != parent.id:
-    #         child.sire = parent
-    #         updated.add(child.id)
-    #     elif rel['relation'] == 'dam' and child.dam_id != parent.id:
-    #         child.dam = parent
-    #         updated.add(child.id)
-    #
-    # for dog_id in updated:
-    #     dog_obj = dogs_by_id.get(dog_id)
-    #     if dog_obj:
-    #         try:
-    #             dog_obj.save(using='dogs_db', update_fields=['sire', 'dam'])
-    #         except Exception as e:
-    #             logger.error(f"  Связи для id={dog_id}: {e}")
-    #
-    # if updated:
-    #     logger.info(f"  Связи установлены: {len(updated)} собак")
+
     for rel in pedigree.get('relationships', []):
         child = full_map.get(rel.get('child_key'))
         parent = full_map.get(rel.get('parent_key'))
@@ -870,7 +1373,7 @@ def process_dog_from_zooportal(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ГИБРИДНЫЙ ИМПОРТ: Zoo список → BA полное дерево предков
+# ГИБРИДНЫЙ ИМПОРТ: Zoo список → BA дерево предков (до 5 поколения)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def save_hybrid_dog(
@@ -1055,7 +1558,7 @@ def _save_zoo_fallback(zoo_id: str, zoo_raw: Dict) -> Optional[Dog]:
     dog, _ = Dog.objects.using('dogs_db').update_or_create(
         zooportal_id=zoo_id,
         defaults={
-            'registered_name': name.strip().upper() if name else None,
+            'registered_name': normalize_dog_name(name) if name else None,
             'sex':             zoo_raw.get('sex', 0),
             'color':           parse_color(zoo_raw.get('color') or ''),
             'photo_url':       zoo_raw.get('photo_url'),

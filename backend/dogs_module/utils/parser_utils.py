@@ -7,52 +7,62 @@ from datetime import datetime, date
 from typing import Optional, Union
 import logging
 
+from django.utils.timezone import is_aware, make_aware
+
 logger = logging.getLogger(__name__)
 
 
-def parse_date(date_str: Union[str, date, datetime, None]) -> Optional[date]:
+def parse_date(date_str: Union[str, date, datetime, None]) -> Optional[datetime]:
     """
     Парсит дату из разных форматов.
+    Всегда возвращает timezone-aware datetime (или None) —
+    это требование Django DateTimeField при USE_TZ=True.
 
     ПРИМЕРЫ:
-    - "08.02.2025" → date(2025, 2, 8)
-    - "2025-02-08" → date(2025, 2, 8)
-    - "08/02/2025" → date(2025, 2, 8)
-    - "2025"       → date(2025, 1, 1)
+    - "08.02.2025" → datetime(2025, 2, 8, 0, 0, tzinfo=UTC)
+    - "2025-02-08" → datetime(2025, 2, 8, 0, 0, tzinfo=UTC)
+    - "2025"       → datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
+    - aware dt     → возвращается как есть
+    - naive dt     → делается aware через make_aware()
     """
     if not date_str:
         return None
 
-    if isinstance(date_str, date):
-        return date_str
+    # Уже aware datetime — возвращаем как есть
     if isinstance(date_str, datetime):
-        return date_str.date()
+        return date_str if is_aware(date_str) else make_aware(date_str)
+
+    # date объект — конвертируем в aware datetime
+    if isinstance(date_str, date):
+        return make_aware(datetime(date_str.year, date_str.month, date_str.day))
+
     if not isinstance(date_str, str):
         return None
 
     date_str = date_str.strip()
 
     formats = [
-        '%d.%m.%Y',   # 08.02.2025
-        '%Y-%m-%d',   # 2025-02-08
-        '%d/%m/%Y',   # 08/02/2025
-        '%Y/%m/%d',   # 2025/02/08
-        '%d-%m-%Y',   # 08-02-2025
-        '%Y.%m.%d',   # 2025.02.08
-        '%d %B %Y',   # 08 February 2025
+        '%d.%m.%Y',  # 08.02.2025
+        '%Y-%m-%d',  # 2025-02-08
+        '%d/%m/%Y',  # 08/02/2025
+        '%Y/%m/%d',  # 2025/02/08
+        '%d-%m-%Y',  # 08-02-2025
+        '%Y.%m.%d',  # 2025.02.08
+        '%d %B %Y',  # 08 February 2025
         '%B %d, %Y',  # February 08, 2025
     ]
 
     for fmt in formats:
         try:
-            return datetime.strptime(date_str, fmt).date()
+            naive = datetime.strptime(date_str, fmt)
+            return make_aware(naive)
         except ValueError:
             continue
 
     # Только год ("2025")
     if date_str.isdigit() and len(date_str) == 4:
         try:
-            return date(int(date_str), 1, 1)
+            return make_aware(datetime(int(date_str), 1, 1))
         except ValueError:
             pass
 

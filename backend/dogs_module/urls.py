@@ -34,7 +34,6 @@ from .views import (
     LitterViewSet,
     MedicalRecordViewSet,
 
-    # Новые Views для импорта
     ImportZooportalDogView,
     ImportZooportalPageView,
     ImportZooportalRangeView,
@@ -44,6 +43,11 @@ from .views import (
     ImportBreedarchiveRecentView,
     ImportBreedarchiveBrowseView, ImportHybridDogView, ImportHybridPageView, ImportHybridRangeView,
     RecalculateAllCoiView,
+    ImportBreedarchiveFullPedigreeView,
+
+    ImportHybridFullDogView,
+    ImportHybridFullPageView,
+    ImportHybridFullRangeView,
 )
 
 
@@ -60,7 +64,7 @@ urlpatterns = [
     # Существующие маршруты (ViewSets)
     path('', include(router.urls)),
 
-    # ZOOPORTAL (full zooportal parse + some breedarchive info)
+    # ZOOPORTAL
     path(
         'dogs/import/zooportal/dog/',
         ImportZooportalDogView.as_view(),
@@ -81,7 +85,7 @@ urlpatterns = [
         ImportTaskStatusView.as_view(),
         name='import-task-status'
     ),
-    # BREEDARCHIVE (full breedarchive parse)
+    # BREEDARCHIVE
     path(
         'dogs/import/breedarchive/dog/',
         ImportBreedarchiveDogView.as_view(),
@@ -97,7 +101,12 @@ urlpatterns = [
         ImportBreedarchiveBrowseView.as_view(),
         name='import-breedarchive-browse'
     ),
-    # full breedarchive parse + some zooportal info
+    path(
+        'dogs/import/breedarchive/dog/full-pedigree/',
+        ImportBreedarchiveFullPedigreeView.as_view(),
+        name='import-breedarchive-full-pedigree',
+    ),
+    # breedarchive parse + some zooportal info
     path(
         'dogs/import/hybrid/dog/',
         ImportHybridDogView.as_view(),
@@ -112,6 +121,21 @@ urlpatterns = [
         'dogs/import/hybrid/range/',
         ImportHybridRangeView.as_view(),
         name='import-hybrid-range',
+    ),
+    path(
+        'dogs/import/hybrid/full/dog/',
+        ImportHybridFullDogView.as_view(),
+        name='import-hybrid-full-dog',
+    ),
+    path(
+        'dogs/import/hybrid/full/page/',
+        ImportHybridFullPageView.as_view(),
+        name='import-hybrid-full-page',
+    ),
+    path(
+        'dogs/import/hybrid/full/range/',
+        ImportHybridFullRangeView.as_view(),
+        name='import-hybrid-full-range',
     ),
 
     # COI
