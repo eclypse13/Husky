@@ -3,18 +3,18 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDogDetail } from "@/api/dogs";
-import type {CoiCalculationResult, DogDetail, DogTitle} from "@/types/dog";
+import type {CoiCalculationResult, DogDetail} from "@/types/dog";
 import "./DogDetail.css";
 
 const SEX_LABEL: Record<number, string> = { 1: "♂ Кобель", 2: "♀ Сука" };
-const SEX_CLASS: Record<number, string> = { 1: "dd-sex--male", 2: "dd-sex--female" };
+// const SEX_CLASS: Record<number, string> = { 1: "dd-sex--male", 2: "dd-sex--female" };
 
 const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
 const DEFAULT_DOG_IMG = "/no-image-dog.png";
 const dogPhoto = (url: string | null | undefined): string =>
   url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
-function formatDate(raw: string | null): string {
+function formatDate(raw: string | null): string | null {
     if (!raw) return null;
     const d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
@@ -62,21 +62,21 @@ function ParentCard({ label, parent }: {
     );
 }
 
-function TitleBadges({ titles }: { titles: DogTitle[] }) {
-    const prefix = titles.filter((t) => t.is_prefix);
-    if (!prefix.length) return null;
-    return (
-        <div className="dd-title-badges">
-            {prefix.map((t) => (
-                <span key={t.id} className="dd-title-badge" title={t.long_name ?? undefined}>
-                    {t.short_name.toUpperCase()}
-                    {t.country ? <em>.{t.country.toUpperCase()}</em> : null}
-                    {t.winner_year ? <em className="dd-title-year"> '{String(t.winner_year).slice(-2)}</em> : null}
-                </span>
-            ))}
-        </div>
-    );
-}
+// function TitleBadges({ titles }: { titles: DogTitle[] }) {
+//     const prefix = titles.filter((t) => t.is_prefix);
+//     if (!prefix.length) return null;
+//     return (
+//         <div className="dd-title-badges">
+//             {prefix.map((t) => (
+//                 <span key={t.id} className="dd-title-badge" title={t.long_name ?? undefined}>
+//                     {t.short_name.toUpperCase()}
+//                     {t.country ? <em>.{t.country.toUpperCase()}</em> : null}
+//                     {t.winner_year ? <em className="dd-title-year"> '{String(t.winner_year).slice(-2)}</em> : null}
+//                 </span>
+//             ))}
+//         </div>
+//     );
+// }
 
 function Skeleton() {
     return (
@@ -163,6 +163,7 @@ export default function DogDetail() {
     return (
         <div className="dd-page">
             <Breadcrumb
+                title="Карточка собаки"
                 items={[
                     { label: "Главная", to: "/" },
                     { label: "Архив", to: "/archive" },
