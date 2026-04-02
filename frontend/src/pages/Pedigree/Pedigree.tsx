@@ -99,7 +99,7 @@ function truncate(s: string, max: number): string {
 
 /** How many characters fit in `pxWidth` at `fontSize` */
 function mc(pxWidth: number, fontSize: number): number {
-  return Math.floor(pxWidth / (fontSize * 0.52));
+  return Math.floor(pxWidth / (fontSize * 0.6));
 }
 
 function locationStr(n: TreeNode): string {
