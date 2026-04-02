@@ -13,6 +13,7 @@ services:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - shared_volume:/shared
     ports:
       - "8000:8000"
     env_file:
@@ -204,6 +205,26 @@ services:
       - nginx-proxy
     restart: unless-stopped
 
+  telegram_bot:
+    build: .
+    command: python bot/bot.py
+    volumes:
+      - .:/app
+      - shared_volume:/shared
+    env_file:
+      - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   mongo_data:
   static_volume:
@@ -212,3 +233,4 @@ volumes:
   certs:
   vhost:
   html:
+  shared_volume:
