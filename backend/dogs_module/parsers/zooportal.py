@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # КЕШ-КОНСТАНТЫ И УТИЛИТЫ
 # ══════════════════════════════════════════════════════════════════════════════
 
-_TTL_SEARCH = 30 * 60   # 30 минут — страницы поиска обновляются часто
-_TTL_DOG    = 6 * 3600  # 6 часов  — данные конкретной собаки меняются редко
+_TTL_SEARCH = 1 * 24 * 3600   # 24 часа — страницы поиска обновляются часто
+_TTL_DOG    = 1 * 24 * 3600  # 24 часа  — данные конкретной собаки меняются редко
 
 
 def _cache():
@@ -236,7 +236,7 @@ class ZooportalParser:
             f"&F%5BRAION%5D=0&F%5BCITY%5D=0&F%5BPUNKT%5D=0"
             f"&PAGEN_1={page_num}"
         )
-        html = browser.fetch_page(url)
+        html = browser.fetch_page(url, wait_selector='span.item-wrapper')
         dogs = self._parse_search_html(html)
 
         if dogs:

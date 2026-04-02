@@ -1,15 +1,8 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { getDict, pickValue } from "@/lib/dict";
 import "./Home.css";
 import * as d3 from "d3";
-
-/* MOCK-VALUES */
-const stats = [
-  { label: "Членов клуба", value: 1250, plus: true },
-  { label: "Питомников", value: 350, plus: true },
-  { label: "Лет работы", value: 15, plus: true },
-];
 
 const news = [
   { id: 1, tag: "Выставки", date: "18 июля 2025", title: "«Сибирская красота 2025» — рекордное участие", excerpt: "В Москве прошла крупнейшая специализированная выставка с участием более 200 собак из 15 стран.", featured: true, link: "Читать полный отчет", icon: "🏆", to: "/news/1" },
@@ -27,20 +20,22 @@ const puppies = [
 
 
 type HomeNewsItem = {
-  id: string;
-  tag: string;
-  date: string;
-  title: string;
-  excerpt: string;
-  link: string;
-  icon: string;
-  to: string;
+  id: string; tag: string; date: string; title: string;
+  excerpt: string; link: string; icon: string; to: string;
+};
+
+type HeroDog = {
+  id: number;
+  display_name: string;
+  photo_url: string | null;
+  prefix_titles: string | null;
+  suffix_titles: string | null;
+  year_of_birth: number | null;
+  color: string | null;
 };
 
 const homeNewsDateFormatter = new Intl.DateTimeFormat("ru-RU", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
+  day: "numeric", month: "long", year: "numeric",
 });
 
 function formatNewsDate(value?: string | null): string {
@@ -54,8 +49,7 @@ function capitalizeTag(tag: string): string {
   if (!tag) return tag;
   const trimmed = tag.trim();
   if (!trimmed) return trimmed;
-  const first = trimmed[0].toLocaleUpperCase("ru-RU");
-  return `${first}${trimmed.slice(1)}`;
+  return `${trimmed[0].toLocaleUpperCase("ru-RU")}${trimmed.slice(1)}`;
 }
 
 /* UTILS */
@@ -268,7 +262,13 @@ function ActivityFeed() {
   );
 }
 
+// ---------- Код из ветки feature/add-coi-fix-pedigree-add-dna-logic ----------
+const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
+const DEFAULT_DOG_IMG = "/no-image-dog.png";
+const dogPhoto = (url: string | null | undefined): string =>
+  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
+// ---------- Код из ветки dev (компонент карты) ----------
 type KennelItem = {
   name_rus?: string;
   FCIname?: string;
@@ -979,10 +979,12 @@ function KennelsMap() {
   );
 }
 
-
 /* PAGE */
 export default function Home() {
   const [homeNews, setHomeNews] = useState<HomeNewsItem[]>([]);
+  const [breederCount, setBreederCount] = useState(350);
+  const [heroDog, setHeroDog] = useState<HeroDog | null | "loading">("loading");
+
   const visibleNews = useMemo(() => {
     const source: Array<(typeof news)[number] | HomeNewsItem> = homeNews.length ? homeNews : news;
     return source.slice(0, 5);
@@ -990,6 +992,29 @@ export default function Home() {
   const featured = visibleNews[0] ?? news[0];
   const others = featured ? visibleNews.slice(1) : visibleNews;
 
+  // ── Загружаем кол-во питомников (заводчиков) из БД ──────────────────────────────
+  useEffect(() => {
+    fetch("/api/dogs/stats/")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.breeders != null) setBreederCount(data.breeders);
+      })
+      .catch(() => {});
+  }, []);
+
+  // ── Загружаем собаку-звезду для hero-карточки ───────────────────────────────
+  useEffect(() => {
+    fetch("/api/dogs/search/?q=Chudni Medvezhonok Gold Sensation")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const results = Array.isArray(data) ? data : data?.results;
+        if (results?.length) setHeroDog(results[0] as HeroDog);
+        else setHeroDog(null);
+      })
+      .catch(() => setHeroDog(null));
+  }, []);
+
+  // ── Новости ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     let ignore = false;
 
@@ -1001,69 +1026,40 @@ export default function Home() {
         let payload: any = null;
         try {
           const res = await fetch("/api/news/");
-          if (res.ok) {
-            payload = await res.json();
-          }
-        } catch {
-          payload = null;
-        }
+          if (res.ok) payload = await res.json();
+        } catch { payload = null; }
         if (ignore) return;
 
         const results: any[] = Array.isArray(payload?.results)
           ? payload.results
-          : Array.isArray(payload)
-          ? payload
-          : [];
+          : Array.isArray(payload) ? payload : [];
 
-        const sorted = [...results].sort((a, b) => {
-          const aTime = a?.published_at ? new Date(a.published_at).getTime() : 0;
-          const bTime = b?.published_at ? new Date(b.published_at).getTime() : 0;
-          return bTime - aTime;
-        });
+        const mapped: HomeNewsItem[] = results.map((item: any) => ({
+          id:      String(item.id ?? Math.random()),
+          tag:     pickValue(dict, item.category) ?? item.category ?? "Новости",
+          date:    formatNewsDate(item.published_at ?? item.created_at) || item.date || "",
+          title:   item.title ?? "",
+          excerpt: item.excerpt ?? item.description ?? "",
+          link:    "Подробнее",
+          icon:    item.icon ?? "📰",
+          to:      `/news/${item.id ?? item.slug ?? "#"}`,
+        }));
 
-        const mapped: HomeNewsItem[] = sorted
-          .map((entry: any, index: number): HomeNewsItem | null => {
-            if (!entry) return null;
-            const titleKey = typeof entry.title_key === "string" ? entry.title_key : "";
-            const leadKey = typeof entry.lead_key === "string" ? entry.lead_key : "";
-            const bodyKey = typeof entry.body_key === "string" ? entry.body_key : "";
-            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-            const title = titleFromDict || titleKey || entry.slug || `news-${index}`;
-            if (!title) return null;
-            const lead = leadKey ? pickValue(dict, leadKey, "ru") || leadKey : null;
-            const body = bodyKey ? pickValue(dict, bodyKey, "ru") || bodyKey : null;
-            const tags = Array.isArray(entry.tags)
-              ? entry.tags.filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
-              : [];
-            const tag = capitalizeTag(tags[0] ?? "Новости");
-            const id = String(entry.id ?? entry.slug ?? index);
-            const to = entry.slug ? `/news/${entry.slug}` : `/news/${entry.id ?? index}`;
-            return {
-              id,
-              tag,
-              date: formatNewsDate(entry.published_at),
-              title,
-              excerpt: lead || body || "",
-              link: "Читать",
-              icon: "📰",
-              to,
-            };
-          })
-          .filter((item): item is HomeNewsItem => Boolean(item));
-
-        if (!ignore && mapped.length) {
-          setHomeNews(mapped);
-        }
+        if (!ignore && mapped.length) setHomeNews(mapped);
       } catch {
         if (!ignore) setHomeNews([]);
       }
     };
 
     loadNews();
-    return () => {
-      ignore = true;
-    };
+    return () => { ignore = true; };
   }, []);
+
+  const stats = [
+    { label: "Членов клуба", value: 1250,        plus: true },
+    { label: "Питомников",   value: breederCount, plus: true },
+    { label: "Лет работы",   value: 15,           plus: true },
+  ];
 
   return (
     <div className="home-page">
@@ -1086,13 +1082,30 @@ export default function Home() {
             </div>
           </div>
 
+          {/* ── Hero-карточка с реальной собакой ── */}
           <div className="home-hero-visual">
-            <div className="home-hero-card">
-              <div className="home-hero-image">🐕</div>
-              <h3>Arctic Storm's Thunder King</h3>
-              <p>Чемпион России 2023, Гранд Чемпион</p>
-              <Link to="/pedigree/123" className="home-btn home-btn-primary">Посмотреть профиль</Link>
-            </div>
+            {heroDog === "loading" || heroDog === null ? (
+              <p className="home-hero-loading">Загрузка...</p>
+            ) : (
+              <div className="home-hero-card">
+                <div className="home-hero-image">
+                  {heroDog.photo_url ? (
+                    <img
+                      src={dogPhoto(heroDog.photo_url)}
+                      alt={heroDog.display_name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                    />
+                  ) : "🐕"}
+                </div>
+                <h3>{heroDog.display_name}</h3>
+                <p>
+                  {[heroDog.prefix_titles, heroDog.suffix_titles].filter(Boolean).join(" · ") || "Сибирский хаски"}
+                </p>
+                <Link to={`/archive/dog/${heroDog.id}`} className="home-btn home-btn-primary">
+                  Посмотреть профиль
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>

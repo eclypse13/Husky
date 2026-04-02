@@ -26,7 +26,14 @@ from .serializers import (
     MedicalRecordSerializer,
     ImportZooportalDogSerializer,
     ImportZooportalPageSerializer,
-    ImportZooportalRangeSerializer, ImportHybridRangeSerializer, ImportHybridPageSerializer, ImportHybridDogSerializer,
+    ImportZooportalRangeSerializer,
+    ImportHybridRangeSerializer,
+    ImportHybridPageSerializer,
+    ImportHybridDogSerializer,
+    ImportBreedarchiveFullPedigreeSerializer,
+    ImportHybridFullDogSerializer,
+    ImportHybridFullPageSerializer,
+    ImportHybridFullRangeSerializer,
 )
 from .tasks.tasks_zooportal import (
     import_zooportal_dog_task,
@@ -37,6 +44,10 @@ from .tasks.tasks_breedarchive import (
     sync_breedarchive_recent_task,
     sync_breedarchive_browse_task,
     fetch_breedarchive_dog_task,
+    fetch_full_pedigree_task,
+    import_hybrid_full_dog_task,
+    import_hybrid_full_page_task,
+    import_hybrid_full_range_task,
 )
 
 from .serializers import (
@@ -463,6 +474,42 @@ class ImportBreedarchiveDogView(APIView):
         }, status=202)
 
 
+class ImportBreedarchiveFullPedigreeView(APIView):
+    """
+    Загружает полное дерево предков собаки из BreedArchive по UUID.
+
+    Этот эндпоинт рекурсивно обходит всё дерево вплоть до самых ранних предков.
+    """
+
+    @extend_schema(
+        summary="Загрузка полной родословной по UUID (все поколения)",
+        description=(
+                "Запускает рекурсивную загрузку всех предков из BreedArchive. "
+                "Каждый граничный предок (sire/dam=null, но sireId/damId>0) "
+                "запрашивается отдельно до тех пор, пока не будут загружены все поколения. "
+                "Возвращает task_id для отслеживания прогресса."
+        ),
+        request=ImportBreedarchiveFullPedigreeSerializer,
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Import BreedArchive"],
+    )
+    def post(self, request):
+        serializer = ImportBreedarchiveFullPedigreeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        uuid = serializer.validated_data['uuid']
+        force_update = serializer.validated_data.get('force_update', False)
+
+        task = fetch_full_pedigree_task.apply_async(args=[uuid, force_update])
+        return Response({
+            'task_id': task.id,
+            'status': 'PENDING',
+            'message': f'Запущена загрузка полной родословной для UUID {uuid}',
+            'check_status_url': f'/api/dogs/import/status/{task.id}/',
+        }, status=202)
+
+
 class ImportBreedarchiveRecentView(APIView):
     """Импорт последних обновлённых собак из BreedArchive (operation=all)."""
 
@@ -647,3 +694,102 @@ class RecalculateAllCoiView(APIView):
             ),
             'check_status_url': f'/api/dogs/import/status/{task.id}/',
         }, status=status.HTTP_202_ACCEPTED)
+
+
+class ImportHybridFullDogView(APIView):
+    """
+    Гибридный импорт одной собаки: Zoo данные + BA полное дерево предков.
+    """
+
+    @extend_schema(
+        summary="Гибридный импорт одной собаки Zoo→BA (все поколения)",
+        description=(
+                "Zoo страница по zooportal_id → поиск в BA по имени → "
+                "BA полное дерево всех предков → Zoo патч. "
+                "Время: от нескольких минут до нескольких часов."
+        ),
+        request=ImportHybridFullDogSerializer,
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Import Hybrid Full"],
+    )
+    def post(self, request):
+        serializer = ImportHybridFullDogSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        data = serializer.validated_data
+        task = import_hybrid_full_dog_task.apply_async(
+            kwargs={
+                'zooportal_id': data['zooportal_id'],
+                'generations': data.get('generations', 3),
+                'force_update': data.get('force_update', False),
+            }
+        )
+        return Response({
+            'task_id': task.id,
+            'status': 'PENDING',
+            'message': f"Запущен гибридный импорт (все поколения) для {data['zooportal_id']}",
+            'check_status_url': f'/api/dogs/import/status/{task.id}/',
+        }, status=202)
+
+
+class ImportHybridFullPageView(APIView):
+    """
+    Гибридный импорт страницы Zoo: для каждой собаки BA полное дерево предков.
+    """
+
+    @extend_schema(
+        summary="Гибридный импорт страницы Zoo→BA (все поколения)",
+        request=ImportHybridFullPageSerializer,
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Import Hybrid Full"],
+    )
+    def post(self, request):
+        serializer = ImportHybridFullPageSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        data = serializer.validated_data
+        task = import_hybrid_full_page_task.apply_async(
+            kwargs={
+                'page_num': data['page_num'],
+                'max_dogs': data.get('max_dogs', 11),
+                'generations': data.get('generations', 3),
+                'delay': data.get('delay', 2.0),
+            }
+        )
+        return Response({
+            'task_id': task.id,
+            'status': 'PENDING',
+            'message': f"Запущен гибридный импорт страницы {data['page_num']} (все поколения)",
+            'check_status_url': f'/api/dogs/import/status/{task.id}/',
+        }, status=202)
+
+
+class ImportHybridFullRangeView(APIView):
+    """
+    Гибридный импорт диапазона страниц Zoo: для каждой собаки BA полное дерево.
+    """
+
+    @extend_schema(
+        summary="Гибридный импорт диапазона страниц Zoo→BA (все поколения)",
+        request=ImportHybridFullRangeSerializer,
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Import Hybrid Full"],
+    )
+    def post(self, request):
+        serializer = ImportHybridFullRangeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        data = serializer.validated_data
+        task = import_hybrid_full_range_task.apply_async(kwargs=data)
+        return Response({
+            'task_id': task.id,
+            'status': 'PENDING',
+            'message': (
+                f"Запущен гибридный импорт страниц "
+                f"{data['start_page']}–{data['end_page']} (все поколения)"
+            ),
+            'check_status_url': f'/api/dogs/import/status/{task.id}/',
+        }, status=202)

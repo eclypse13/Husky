@@ -99,7 +99,7 @@ function truncate(s: string, max: number): string {
 
 /** How many characters fit in `pxWidth` at `fontSize` */
 function mc(pxWidth: number, fontSize: number): number {
-  return Math.floor(pxWidth / (fontSize * 0.58));
+  return Math.floor(pxWidth / (fontSize * 0.6));
 }
 
 function locationStr(n: TreeNode): string {
@@ -211,7 +211,7 @@ function drawVertical(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string)
   // Name + sex
   g.append("text").attr("x", cx + c.w / 2).attr("y", y)
     .attr("text-anchor", "middle").attr("font-size", c.nameFs)
-    .attr("font-weight", "700").attr("fill", C.name)
+    .attr("font-weight", "600").attr("fill", C.name)
     .text(truncate(n.name + sexSuffix(n.sex), nameMax));
   y += c.lineH;
 
@@ -249,7 +249,7 @@ function drawHoriz(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string) {
   const tx = cx + pad + ps + 8;
   const tw = cx + c.w - tx - 14;
   const nm = mc(tw, c.nameFs), sm = mc(tw, c.subFs);
-  let ty = cy + 14;
+  let ty = cy + 17;
 
   const t = titlesStr(n);
   if (t) {
@@ -259,7 +259,7 @@ function drawHoriz(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string) {
     ty += c.lineH;
   }
   g.append("text").attr("x", tx).attr("y", ty).attr("font-size", c.nameFs)
-    .attr("font-weight", "700").attr("fill", C.name)
+    .attr("font-weight", "600").attr("fill", C.name)
     .text(truncate(n.name + sexSuffix(n.sex), nm));
   ty += c.lineH;
   if (n.color) {
@@ -283,7 +283,7 @@ function drawHCompact(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string)
 
   const tx = cx + pad + ps + 6;
   const tw = cx + c.w - tx - 12;
-  let ty = cy + 13;
+  let ty = cy + 15;
 
   const t = titlesStr(n);
   if (t) {
@@ -293,7 +293,7 @@ function drawHCompact(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string)
     ty += c.lineH;
   }
   g.append("text").attr("x", tx).attr("y", ty).attr("font-size", c.nameFs)
-    .attr("font-weight", "700").attr("fill", C.name)
+    .attr("font-weight", "600").attr("fill", C.name)
     .text(truncate(n.name + sexSuffix(n.sex), mc(tw, c.nameFs)));
   ty += c.lineH;
   const loc = locationStr(n);
@@ -308,7 +308,7 @@ function drawHCompact(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string)
 function drawText(g: G, n: TreeNode, c: CardConfig) {
   const cx = -c.w / 2, cy = -c.h / 2;
   g.append("text").attr("x", cx + 7).attr("y", cy + c.h / 2 + 3)
-    .attr("font-size", c.nameFs).attr("font-weight", "700")
+    .attr("font-size", c.nameFs).attr("font-weight", "600")
     .attr("fill", C.name).attr("dominant-baseline", "middle")
     .text(truncate(n.name + sexSuffix(n.sex), mc(c.w - 22, c.nameFs)));
 }
@@ -478,7 +478,7 @@ export default function Pedigree() {
       />
       <div className="pedigree-controls">
         <div className="pedigree-gen-tabs" role="group">
-          <span className="pedigree-gen-label">Generations in pedigree:</span>
+          <span className="pedigree-gen-label">Глубина:</span>
           {Array.from({ length: MAX_GEN - MIN_GEN + 1 }, (_, i) => MIN_GEN + i).map(n => (
             <button key={n} className={`pedigree-gen-tab${depth === n ? " is-active" : ""}`}
               onClick={() => setDepth(n)}>{n}</button>

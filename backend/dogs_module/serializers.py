@@ -309,6 +309,16 @@ class ImportBreedarchiveRecentSerializer(serializers.Serializer):
 class ImportBreedarchiveBrowseSerializer(serializers.Serializer):
     recent_days = serializers.IntegerField(default=1, min_value=1, max_value=30)
 
+class ImportBreedarchiveFullPedigreeSerializer(serializers.Serializer):
+    """Сериализатор для загрузки полной родословной по UUID."""
+    uuid = serializers.CharField(
+        help_text="UUID собаки в BreedArchive (из URL /animal/view/name-{uuid})"
+    )
+    force_update = serializers.BooleanField(
+        default=False,
+        required=False,
+        help_text="True — сбросить кеш и загрузить заново даже если собака уже есть в БД",
+    )
 
 # ------ hybrid
 
@@ -345,3 +355,81 @@ class ImportHybridRangeSerializer(serializers.Serializer):
 
     class Meta:
         ref_name = 'ImportHybridRange'
+
+
+class ImportHybridFullDogSerializer(serializers.Serializer):
+    zooportal_id = serializers.CharField(
+        required=True,
+        max_length=20,
+        help_text="ID собаки на Zooportal"
+    )
+    generations = serializers.IntegerField(
+        required=False,
+        default=5,
+        min_value=1,
+        max_value=5,
+        help_text="Глубина парсинга Zoo страницы (для fallback родословной)"
+    )
+    force_update = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="True — сбросить BA-кеш и загрузить предков заново"
+    )
+
+    class Meta:
+        ref_name = 'ImportHybridFullDog'
+
+
+class ImportHybridFullPageSerializer(serializers.Serializer):
+    page_num = serializers.IntegerField(
+        required=True,
+        min_value=1,
+        help_text="Номер страницы Zoo поиска"
+    )
+    max_dogs = serializers.IntegerField(
+        required=False,
+        default=11,
+        min_value=1,
+        max_value=11,
+    )
+    generations = serializers.IntegerField(
+        required=False,
+        default=5,
+        min_value=1,
+        max_value=5,
+    )
+    delay = serializers.FloatField(
+        required=False,
+        default=2.0,
+        min_value=0.5,
+        max_value=10.0,
+    )
+
+    class Meta:
+        ref_name = 'ImportHybridFullPage'
+
+
+class ImportHybridFullRangeSerializer(serializers.Serializer):
+    start_page = serializers.IntegerField(required=True, min_value=1)
+    end_page = serializers.IntegerField(required=True, min_value=1)
+    max_dogs_per_page = serializers.IntegerField(
+        required=False, default=11, min_value=1, max_value=11
+    )
+    generations = serializers.IntegerField(
+        required=False, default=5, min_value=1, max_value=5
+    )
+    delay = serializers.FloatField(
+        required=False, default=2.0, min_value=0.5, max_value=10.0
+    )
+    countdown_between_pages = serializers.IntegerField(
+        required=False, default=20, min_value=1, max_value=600,
+        help_text="Пауза между страницами в секундах"
+    )
+
+    def validate(self, data):
+        if data['start_page'] > data['end_page']:
+            raise serializers.ValidationError("start_page должна быть ≤ end_page")
+        return data
+
+    class Meta:
+        ref_name = 'ImportHybridFullRange'
