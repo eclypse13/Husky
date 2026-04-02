@@ -110,6 +110,59 @@ const fallbackActivity: Activity[] = [
   { id: "4", icon: "🌟", text: "Новый член клуба: питомник «Aurora Borealis»", time: "12 часов назад" },
 ];
 
+function plural(n: number, one: string, few: string, many: string) {
+  const mod100 = n % 100;
+  const mod10 = n % 10;
+
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
+function formatTimeAgo(value: string): string {
+  if (!value) return "";
+
+  if (value === "только что" || value.includes("назад")) {
+    return value;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 1000 / 60);
+
+  if (diffMinutes < 1) {
+    return "только что";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} ${plural(diffMinutes, "минуту", "минуты", "минут")} назад`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} ${plural(diffHours, "час", "часа", "часов")} назад`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) {
+    return `${diffDays} ${plural(diffDays, "день", "дня", "дней")} назад`;
+  }
+
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) {
+    return `${diffMonths} ${plural(diffMonths, "месяц", "месяца", "месяцев")} назад`;
+  }
+
+  const diffYears = Math.floor(diffMonths / 12);
+  return `${diffYears} ${plural(diffYears, "год", "года", "лет")} назад`;
+}
+
 function ActivityFeed() {
   const [items, setItems] = useState<Activity[]>(fallbackActivity);
   const [loading, setLoading] = useState(true);
@@ -146,12 +199,13 @@ function ActivityFeed() {
               id: String(entry.id ?? index),
               icon: typeof entry.icon === "string" ? entry.icon : "📢",
               text,
-              time:
+              time: formatTimeAgo(
                 typeof entry.time_ago === "string"
                   ? entry.time_ago
                   : typeof entry.time === "string"
                   ? entry.time
-                  : "",
+                  : ""
+              ),
             };
           })
           .filter((item: Activity | null): item is Activity => Boolean(item));
@@ -192,7 +246,7 @@ function ActivityFeed() {
         <div key={a.id} className="home-activity-item">
           <div className="home-activity-avatar">{a.icon}</div>
           <div className="home-activity-text">
-            <strong>{a.text}</strong>
+            <strong className="home-activity-message">{a.text}</strong>
             <div className="home-activity-time">{a.time}</div>
           </div>
         </div>
