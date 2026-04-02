@@ -1069,3 +1069,22 @@
     grid-template-columns: 1fr;
   }
 }
+
+.home-activity-message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+.home-activity-item {
+  align-items: flex-start;
+}
+
+.home-activity-text {
+  min-width: 0;
+}
