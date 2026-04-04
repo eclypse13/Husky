@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDict, pickValue } from "@/lib/dict";
+import { useNewsList } from "@/generated";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./News.css";
 
@@ -22,23 +23,27 @@ function capitalizeTag(tag: string): string {
   return `${first?.toLocaleUpperCase?.("ru-RU") ?? first}${rest.join("")}`;
 }
 
+type NewsItem = {
+  id: string;
+  title: string;
+  lead?: string | null;
+  body?: string | null;
+  tags: string[];
+  slug?: string;
+  publishedAt?: string | null;
+};
+
 export default function News() {
   const pageRef = useRef<HTMLDivElement | null>(null);
-  type NewsItem = {
-    id: string;
-    title: string;
-    lead?: string | null;
-    body?: string | null;
-    tags: string[];
-    slug?: string;
-    publishedAt?: string | null;
-  };
   const [items, setItems] = useState<NewsItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<NewsItem[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [yearOptions, setYearOptions] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
+  const [dict, setDict] = useState<any>(null);
+
+  const { data: newsData } = useNewsList();
 
   useEffect(() => {
     const root = pageRef.current;
@@ -67,96 +72,66 @@ export default function News() {
     });
   }, []);
 
-  // Load news items from API and hydrate titles via dictionary keys
+  // Load dict
   useEffect(() => {
     let ignore = false;
-
-    const loadNews = async () => {
-      try {
-        const dict = await getDict();
-        if (ignore) return;
-
-        let payload: unknown = null;
-        try {
-          const res = await fetch("/api/news/");
-          if (res.ok) {
-            payload = await res.json();
-          }
-        } catch {
-          payload = null;
-        }
-        if (ignore) return;
-
-        const results: any[] = Array.isArray((payload as any)?.results)
-          ? (payload as any).results
-          : Array.isArray(payload)
-          ? (payload as any)
-          : [];
-
-        const mapped: NewsItem[] = results
-          .map((entry, index): NewsItem | null => {
-            if (!entry) return null;
-            const titleKey = typeof entry.title_key === "string" ? entry.title_key : "";
-            const leadKey = typeof entry.lead_key === "string" ? entry.lead_key : "";
-            const bodyKey = typeof entry.body_key === "string" ? entry.body_key : "";
-            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-            const title = titleFromDict || titleKey || entry.slug || `news-${index}`;
-            if (!title) return null;
-            const lead = leadKey ? pickValue(dict, leadKey, "ru") || leadKey : null;
-            const body = bodyKey ? pickValue(dict, bodyKey, "ru") || bodyKey : null;
-            const tags = Array.isArray(entry.tags)
-              ? entry.tags.filter((t: unknown) => typeof t === "string").map((t: string) => t.trim()).filter(Boolean)
-              : [];
-            const publishedAt = typeof entry.published_at === "string" ? entry.published_at : null;
-            return {
-              id: String(entry.id ?? entry.slug ?? index),
-              title,
-              lead,
-              body,
-              tags,
-              slug: typeof entry.slug === "string" ? entry.slug : undefined,
-              publishedAt,
-            };
-          })
-          .filter((n): n is NewsItem => Boolean(n));
-
-        mapped.sort((a, b) => {
-          const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-          const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-          return bTime - aTime;
-        });
-
-        const categorySet = new Set<string>();
-        const yearSet = new Set<string>();
-        const isYear = (tag: string) => /^\d{4}$/.test(tag);
-        mapped.forEach((item) => {
-          item.tags.forEach((tag) => {
-            if (isYear(tag)) yearSet.add(tag);
-            else categorySet.add(tag);
-          });
-        });
-
-        if (!ignore) {
-          setItems(mapped);
-          setFilteredItems(mapped);
-          setCategoryOptions(Array.from(categorySet).sort((a, b) => a.localeCompare(b, "ru", { sensitivity: "base" })));
-          setYearOptions(Array.from(yearSet).sort((a, b) => b.localeCompare(a, "ru")));
-        }
-      } catch {
-        if (!ignore) {
-          setItems([]);
-          setFilteredItems([]);
-          setCategoryOptions([]);
-          setYearOptions([]);
-        }
-      }
-    };
-
-    loadNews();
-    return () => {
-      ignore = true;
-    };
+    getDict().then((d) => { if (!ignore) setDict(d); }).catch(() => {});
+    return () => { ignore = true; };
   }, []);
+
+  // Process news data when newsData or dict changes
+  useEffect(() => {
+    if (!dict) return;
+    const results: any[] = newsData?.data?.results ?? [];
+
+    const mapped: NewsItem[] = results
+      .map((entry, index): NewsItem | null => {
+        if (!entry) return null;
+        const titleKey = typeof entry.title_key === "string" ? entry.title_key : "";
+        const leadKey = typeof entry.lead_key === "string" ? entry.lead_key : "";
+        const bodyKey = typeof entry.body_key === "string" ? entry.body_key : "";
+        const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+        const title = titleFromDict || titleKey || entry.slug || `news-${index}`;
+        if (!title) return null;
+        const lead = leadKey ? pickValue(dict, leadKey, "ru") || leadKey : null;
+        const body = bodyKey ? pickValue(dict, bodyKey, "ru") || bodyKey : null;
+        const tags = Array.isArray(entry.tags)
+          ? (entry.tags as unknown[]).filter((t): t is string => typeof t === "string").map((t: string) => t.trim()).filter(Boolean)
+          : [];
+        const publishedAt = typeof entry.published_at === "string" ? entry.published_at : null;
+        return {
+          id: String(entry.id ?? entry.slug ?? index),
+          title,
+          lead,
+          body,
+          tags,
+          slug: typeof entry.slug === "string" ? entry.slug : undefined,
+          publishedAt,
+        };
+      })
+      .filter((n): n is NewsItem => Boolean(n));
+
+    mapped.sort((a, b) => {
+      const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    const categorySet = new Set<string>();
+    const yearSet = new Set<string>();
+    const isYear = (tag: string) => /^\d{4}$/.test(tag);
+    mapped.forEach((item) => {
+      item.tags.forEach((tag) => {
+        if (isYear(tag)) yearSet.add(tag);
+        else categorySet.add(tag);
+      });
+    });
+
+    setItems(mapped);
+    setFilteredItems(mapped);
+    setCategoryOptions(Array.from(categorySet).sort((a, b) => a.localeCompare(b, "ru", { sensitivity: "base" })));
+    setYearOptions(Array.from(yearSet).sort((a, b) => b.localeCompare(a, "ru")));
+  }, [newsData, dict]);
 
   useEffect(() => {
     setFilteredItems(
@@ -188,7 +163,7 @@ export default function News() {
 
             <form
               className="news-search-form"
-              onSubmit={(e) => { e.preventDefault(); /* сюда добавишь поиск */ }}
+              onSubmit={(e) => { e.preventDefault(); }}
             >
               <input className="news-input" placeholder="Поиск по заголовку или ключевым словам…" />
               <button className="news-btn news-btn--primary">🔍 Найти</button>
@@ -241,7 +216,6 @@ export default function News() {
 
           {/* Карточки новостей */}
           <section className="news-list">
-            {/* Dynamic from API */}
             {filteredItems.length > 0 && filteredItems.map((n) => (
               <article className="news-card" key={n.id}>
                 <div className="news-avatar">📰</div>
@@ -266,7 +240,6 @@ export default function News() {
                 </div>
               </article>
             ))}
-            {/* Fallback static */}
             {items.length === 0 && [
               {
                 icon: "🏆",

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
+import { useJudgesList } from "@/generated";
 import "./Judges.css";
 
 type JudgeItem = {
@@ -14,62 +15,28 @@ type JudgeItem = {
 
 export default function Judges() {
   const pageRef = useRef<HTMLDivElement | null>(null);
-
-  const [loading, setLoading] = useState(true);
-  const [judges, setJudges] = useState<JudgeItem[]>([]);
   const [q, setQ] = useState("");
 
-  useEffect(() => {
-    let ignore = false;
+  const { data: judgesData, isLoading: loading } = useJudgesList();
 
-    const loadJudges = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/judges/");
-        if (!res.ok) return;
-
-        const payload = await res.json();
-        if (ignore) return;
-
-        const fromApi = Array.isArray((payload as any)?.results)
-          ? (payload as any).results
-          : Array.isArray(payload)
-            ? payload
-            : [];
-
-        const normalized: JudgeItem[] = fromApi
-          .map((judge: any, index: number): JudgeItem | null => {
-            if (!judge) return null;
-            const name = typeof judge.name === "string" ? judge.name : null;
-            if (!name) return null;
-
-            const rank = typeof judge.rank === "string" ? judge.rank : null;
-            const email = typeof judge.email === "string" ? judge.email : null;
-            const photo = typeof judge.photo === "string" ? judge.photo : null;
-            const judgeId = judge.judge_id != null ? String(judge.judge_id) : null;
-
-            return {
-              id: String(judge.id ?? index),
-              name,
-              rank,
-              email,
-              photo,
-              judgeId,
-            };
-          })
-          .filter((x: JudgeItem | null): x is JudgeItem => Boolean(x));
-
-        setJudges(normalized);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    loadJudges();
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const judges = useMemo((): JudgeItem[] => {
+    const fromApi = judgesData?.data?.results ?? [];
+    return fromApi
+      .map((judge, index): JudgeItem | null => {
+        if (!judge) return null;
+        const name = typeof judge.name === "string" ? judge.name : null;
+        if (!name) return null;
+        return {
+          id: String(judge.id ?? index),
+          name,
+          rank: judge.rank ?? null,
+          email: judge.email ?? null,
+          photo: judge.photo ?? null,
+          judgeId: judge.judge_id != null ? String(judge.judge_id) : null,
+        };
+      })
+      .filter((x): x is JudgeItem => Boolean(x));
+  }, [judgesData]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -98,8 +65,6 @@ export default function Judges() {
       <main className="judges-main">
         <div className="judges-container">
           <div className="judges-head">
-            {/*<h1 className="judges-title">Судьи</h1>*/}
-
             <div className="judges-search">
               <input
                 className="judges-search-input"

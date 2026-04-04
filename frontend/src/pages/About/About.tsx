@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getDict, pickValue } from "@/lib/dict";
+
+import { useClubBoardList } from "@/generated";
 
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 
@@ -23,7 +25,6 @@ export default function About() {
   const [missionLead, setMissionLead] = useState<string | null>(null);
 
   type LeaderCard = {
-
     id: string;
 
     icon?: string;
@@ -37,6 +38,8 @@ export default function About() {
     phone?: string | null;
 
     extra?: string;
+
+    working_group_id: number | null;
 
   };
 
@@ -57,8 +60,35 @@ export default function About() {
     { id: "board-sport", icon: "🏃‍♀️", name: "Елена Шепелёва", role: "Ездовой спорт", mail: "sport@nkp-husky.ru" },
     { id: "board-rating", icon: "📊", name: "Анна Фалунина", role: "Породный рейтинг", mail: "rating@nkp-husky.ru" },
   ];
-  const [highlightLeader, setHighlightLeader] = useState<LeaderCard>(fallbackHighlight);
-  const [boardLeaders, setBoardLeaders] = useState<LeaderCard[]>(fallbackLeaders);
+  const { data: boardData } = useClubBoardList();
+
+  const { highlightLeader, boardLeaders } = useMemo(() => {
+    const results: any[] = boardData?.data?.results ?? [];
+    if (!results.length) return { highlightLeader: fallbackHighlight, boardLeaders: fallbackLeaders };
+
+    const toCard = (member: any): LeaderCard => ({
+      id: String(member?.id ?? member?.email ?? Math.random()),
+      icon: member?.name ? member.name.trim().charAt(0).toUpperCase() : "👤",
+      name: member?.name ?? "Член президиума",
+      role: member?.position ?? "",
+      mail: member?.email ?? undefined,
+      phone: member?.phone ?? undefined,
+      working_group_id: member?.working_group_id ?? undefined,
+    });
+
+    const president = results.find(
+      (member) => typeof member?.position === "string" && member.position.toLowerCase().includes("президент")
+    );
+
+    const others = results
+      .filter((member) => member !== president)
+      .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0));
+
+    return {
+      highlightLeader: president ? toCard(president) : fallbackHighlight,
+      boardLeaders: others.length ? others.map(toCard) : fallbackLeaders,
+    };
+  }, [boardData]);
 
 
 
@@ -191,89 +221,6 @@ export default function About() {
 
 
 
-  // Load presidium members from API
-
-  useEffect(() => {
-
-    let ignore = false;
-
-    const fetchBoard = async () => {
-
-      try {
-
-        const res = await fetch("/api/club/board/");
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        const results: any[] = Array.isArray(data?.results) ? data.results : [];
-
-        if (!results.length) return;
-
-        const president = results.find(
-
-          (member) => typeof member?.position === "string" && member.position.toLowerCase().includes("президент")
-
-        );
-
-        const others = results
-
-          .filter((member) => member !== president)
-
-          .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0));
-
-        const toCard = (member: any): LeaderCard => ({
-
-          id: String(member?.id ?? member?.email ?? crypto.randomUUID?.() ?? Math.random()),
-
-          icon: member?.name ? member.name.trim().charAt(0).toUpperCase() : "👤",
-
-          name: member?.name ?? "Член президиума",
-
-          role: member?.position ?? "",
-
-          mail: member?.email ?? undefined,
-
-          phone: member?.phone ?? undefined,
-
-        });
-
-        if (president && !ignore) setHighlightLeader(toCard(president));
-
-        if (others.length && !ignore) setBoardLeaders(others.map(toCard));
-
-      } catch {
-
-        // leave fallbacks on failure
-
-      }
-
-    };
-
-    fetchBoard();
-
-    return () => {
-
-      ignore = true;
-
-    };
-
-  }, []);
-
-  useEffect(() => {
-    const normalizedTarget = "президент нкп";
-    const presidentCard = boardLeaders.find(
-      (member) =>
-        typeof member?.role === "string" &&
-        member.role.trim().toLowerCase() === normalizedTarget
-    );
-    if (!presidentCard) return;
-    setHighlightLeader(presidentCard);
-    setBoardLeaders((members) =>
-      members.filter((member) => member.id !== presidentCard.id)
-    );
-  }, [boardLeaders]);
 
 
 
@@ -455,11 +402,20 @@ export default function About() {
                 <h2 className="about-section-title">Руководство клуба</h2>
 
                 <div className="about-leader-highlight">
-                  <h3 className="about-leader-highlight-title">{highlightLeader.role}</h3>
+                  <h3 className="about-leader-highlight-title">
+                    {highlightLeader.role}
+                  </h3>
                   <div className="about-leader-card about-leader-card--plain">
                     <div className="about-leader-avatar">{highlightLeader.icon ?? "👤"}</div>
                     <h3 className="about-leader-name">{highlightLeader.name}</h3>
-                    <p className="about-leader-position">{highlightLeader.role}</p>
+                    <p className="about-leader-position">
+                      <Link
+                            to={`/president`}
+                            className="about-leader-position about-leader-position-link"
+                    >
+                    {highlightLeader.role}
+                    </Link>
+                    </p>
                     {(highlightLeader.mail || highlightLeader.phone) && (
                       <div className="about-leader-contact">
                         {highlightLeader.mail && <p>{highlightLeader.mail}</p>}
@@ -475,7 +431,18 @@ export default function About() {
                     <div key={p.id} className="about-leader-card">
                       <div className="about-leader-avatar">{p.icon ?? "👤"}</div>
                       <h3 className="about-leader-name">{p.name}</h3>
-                      <p className="about-leader-position">{p.role}</p>
+                      <p className="about-leader-position">
+                        {p.working_group_id ? (
+                          <Link
+                            to={`/working-groups/${p.working_group_id}`}
+                            className="about-leader-position about-leader-position-link"
+                          >
+                            {p.role}
+                          </Link>
+                        ) : (
+                          <span className="about-leader-position">{p.role}</span>
+                        )}
+                      </p>
                       <div className="about-leader-contact">
                         {p.extra && <p className="about-leader-note">{p.extra}</p>}
                         {p.mail && <p>{p.mail}</p>}

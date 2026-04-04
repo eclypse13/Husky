@@ -1,30 +1,8 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
+import { useJudgesRetrieve, useJudgeDetailsRetrieve } from "@/generated";
 import "./Judge.css";
-
-type JudgePayload = {
-  id: number | string;
-  name: string;
-  rank?: string | null;
-  email?: string | null;
-  photo?: string | null;
-  materials?: unknown;
-  judge_id?: number | null;
-};
-
-type JudgeDetailsPayload = {
-  id: number;
-  info?: unknown;
-  additional_info_title?: unknown;
-  additional_info_text?: unknown;
-  work_directions?: unknown;
-  initiatives?: unknown;
-  sidebar_text?: string | null;
-  sidebar_achievements?: unknown;
-  kennel_url?: string | null;
-  kennel?: string | null;
-};
 
 type WorkDirection = {
   title: string;
@@ -127,23 +105,36 @@ function parseInitiatives(raw: unknown): Initiative[] {
 
 export default function Judge() {
   const { id } = useParams();
+  const numId = Number(id);
   const pageRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef = useRef<HTMLDivElement | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [judge, setJudge] = useState<JudgePayload | null>(null);
-  const [details, setDetails] = useState<JudgeDetailsPayload | null>(null);
-  const [bio, setBio] = useState<string[]>([]);
-  const [workDirections, setWorkDirections] = useState<WorkDirection[]>([]);
-  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
-  const [sidebarAchievements, setSidebarAchievements] = useState<string[]>([]);
   const [isSticky, setIsSticky] = useState(false);
   const stickyTopPx = 120;
+
+  const { data: judgeData, isLoading: judgeLoading, error: judgeError } = useJudgesRetrieve(numId, {
+    query: { enabled: !!id && !isNaN(numId) },
+  });
+
+  const judge = judgeData?.data ?? null;
+  const judgeId = judge?.judge_id;
+
+  const { data: detailsData } = useJudgeDetailsRetrieve(judgeId!, {
+    query: { enabled: !!judgeId },
+  });
+
+  const details = detailsData?.data ?? null;
+  const loading = judgeLoading;
+  const notFound = !judgeLoading && judgeError;
+
+  const bio = useMemo(() => parseList(details?.info), [details]);
+  const workDirections = useMemo(() => parseWorkDirections(details?.work_directions), [details]);
+  const initiatives = useMemo(() => parseInitiatives(details?.initiatives), [details]);
+  const sidebarAchievements = useMemo(() => parseList(details?.sidebar_achievements), [details]);
+
   useEffect(() => {
     const root = pageRef.current;
     if (!root) return;
 
-    // важно: запускать только когда страница уже не в загрузке
     if (loading) return;
 
     const targets = root.querySelectorAll<HTMLElement>(
@@ -188,60 +179,6 @@ export default function Judge() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [stickyTopPx]);
-
-  useEffect(() => {
-    let ignore = false;
-    if (!id) return;
-
-    const load = async () => {
-      setLoading(true);
-      setNotFound(false);
-      setJudge(null);
-      setDetails(null);
-      setBio([]);
-      setWorkDirections([]);
-      setInitiatives([]);
-      setSidebarAchievements([]);
-
-      try {
-        const res = await fetch(`/api/judges/${id}/`);
-        if (!res.ok) {
-          if (!ignore) setNotFound(true);
-          return;
-        }
-        const payload: JudgePayload = await res.json();
-        if (ignore) return;
-        setJudge(payload);
-
-        if (payload?.judge_id) {
-          try {
-            const detRes = await fetch(`/api/judge-details/${payload.judge_id}/`);
-            if (detRes.ok) {
-              const det: JudgeDetailsPayload = await detRes.json();
-              if (!ignore) {
-                setDetails(det);
-                setBio(parseList(det.info));
-                setWorkDirections(parseWorkDirections(det.work_directions));
-                setInitiatives(parseInitiatives(det.initiatives));
-                setSidebarAchievements(parseList(det.sidebar_achievements));
-              }
-            }
-          } catch {
-            // ignore details errors
-          }
-        }
-      } catch {
-        if (!ignore) setNotFound(true);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
 
   const heroInitial = useMemo(() => {
     const letter = judge?.name?.trim().charAt(0);
@@ -339,7 +276,6 @@ if (notFound || !judge) {
             <div className="judge-col">
               <section className="judge-section judge-card">
                 {loading && <p className="judge-muted">Загрузка данных...</p>}
-                {/*{notFound && !loading && <p className="judge-muted">Эксперт не найден.</p>}*/}
                 {!loading && (
                   <>
                     {bioParagraphs.map((p, idx) => (
@@ -467,7 +403,7 @@ if (notFound || !judge) {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          🌐 {details?.kennel || "Питомник"}
+                          🌐 {(details as any)?.kennel || "Питомник"}
                         </a>
                       )}
                     </div>

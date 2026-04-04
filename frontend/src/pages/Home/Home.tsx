@@ -1,6 +1,7 @@
 ﻿import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { getDict, pickValue } from "@/lib/dict";
+import { useNewsList } from "@/generated";
 import "./Home.css";
 
 /* MOCK-VALUES */
@@ -158,88 +159,53 @@ function ActivityFeed() {
 
 /* PAGE */
 export default function Home() {
-  const [homeNews, setHomeNews] = useState<HomeNewsItem[]>([]);
+  const { data: newsData } = useNewsList();
+  const [dict, setDict] = useState<any>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    getDict().then((d) => { if (!ignore) setDict(d); }).catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+
+  const homeNews = useMemo((): HomeNewsItem[] => {
+    if (!dict) return [];
+    const results: any[] = newsData?.data?.results ?? [];
+
+    const sorted = [...results].sort((a, b) => {
+      const aTime = a?.published_at ? new Date(a.published_at).getTime() : 0;
+      const bTime = b?.published_at ? new Date(b.published_at).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return sorted
+      .map((entry: any, index: number): HomeNewsItem | null => {
+        if (!entry) return null;
+        const titleKey = typeof entry.title_key === "string" ? entry.title_key : "";
+        const leadKey = typeof entry.lead_key === "string" ? entry.lead_key : "";
+        const bodyKey = typeof entry.body_key === "string" ? entry.body_key : "";
+        const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+        const title = titleFromDict || titleKey || entry.slug || `news-${index}`;
+        if (!title) return null;
+        const lead = leadKey ? pickValue(dict, leadKey, "ru") || leadKey : null;
+        const body = bodyKey ? pickValue(dict, bodyKey, "ru") || bodyKey : null;
+        const tags = Array.isArray(entry.tags)
+          ? entry.tags.filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
+          : [];
+        const tag = capitalizeTag(tags[0] ?? "Новости");
+        const id = String(entry.id ?? entry.slug ?? index);
+        const to = entry.slug ? `/news/${entry.slug}` : `/news/${entry.id ?? index}`;
+        return { id, tag, date: formatNewsDate(entry.published_at), title, excerpt: lead || body || "", link: "Читать", icon: "📰", to };
+      })
+      .filter((item): item is HomeNewsItem => Boolean(item));
+  }, [newsData, dict]);
+
   const visibleNews = useMemo(() => {
     const source: Array<(typeof news)[number] | HomeNewsItem> = homeNews.length ? homeNews : news;
     return source.slice(0, 5);
   }, [homeNews]);
   const featured = visibleNews[0] ?? news[0];
   const others = featured ? visibleNews.slice(1) : visibleNews;
-
-  useEffect(() => {
-    let ignore = false;
-
-    const loadNews = async () => {
-      try {
-        const dict = await getDict();
-        if (ignore) return;
-
-        let payload: any = null;
-        try {
-          const res = await fetch("/api/news/");
-          if (res.ok) {
-            payload = await res.json();
-          }
-        } catch {
-          payload = null;
-        }
-        if (ignore) return;
-
-        const results: any[] = Array.isArray(payload?.results)
-          ? payload.results
-          : Array.isArray(payload)
-          ? payload
-          : [];
-
-        const sorted = [...results].sort((a, b) => {
-          const aTime = a?.published_at ? new Date(a.published_at).getTime() : 0;
-          const bTime = b?.published_at ? new Date(b.published_at).getTime() : 0;
-          return bTime - aTime;
-        });
-
-        const mapped: HomeNewsItem[] = sorted
-          .map((entry: any, index: number): HomeNewsItem | null => {
-            if (!entry) return null;
-            const titleKey = typeof entry.title_key === "string" ? entry.title_key : "";
-            const leadKey = typeof entry.lead_key === "string" ? entry.lead_key : "";
-            const bodyKey = typeof entry.body_key === "string" ? entry.body_key : "";
-            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-            const title = titleFromDict || titleKey || entry.slug || `news-${index}`;
-            if (!title) return null;
-            const lead = leadKey ? pickValue(dict, leadKey, "ru") || leadKey : null;
-            const body = bodyKey ? pickValue(dict, bodyKey, "ru") || bodyKey : null;
-            const tags = Array.isArray(entry.tags)
-              ? entry.tags.filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
-              : [];
-            const tag = capitalizeTag(tags[0] ?? "Новости");
-            const id = String(entry.id ?? entry.slug ?? index);
-            const to = entry.slug ? `/news/${entry.slug}` : `/news/${entry.id ?? index}`;
-            return {
-              id,
-              tag,
-              date: formatNewsDate(entry.published_at),
-              title,
-              excerpt: lead || body || "",
-              link: "Читать",
-              icon: "📰",
-              to,
-            };
-          })
-          .filter((item): item is HomeNewsItem => Boolean(item));
-
-        if (!ignore && mapped.length) {
-          setHomeNews(mapped);
-        }
-      } catch {
-        if (!ignore) setHomeNews([]);
-      }
-    };
-
-    loadNews();
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   return (
     <div className="home-page">

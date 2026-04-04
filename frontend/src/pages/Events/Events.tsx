@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import { Link } from "react-router-dom";
 import { getDict, pickValue } from "@/lib/dict";
+import { useEventsList, useJudgesList, useEventReportsList } from "@/generated";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./Events.css";
 
@@ -29,14 +30,12 @@ export default function Events() {
     startsAt?: string | null;
     eventType?: string | null;
   };
-  const [events, setEvents] = useState<EventItem[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1); // 1-е число текущего месяца
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
-
 
   type JudgeItem = {
     id: string;
@@ -46,235 +45,130 @@ export default function Events() {
     photo?: string | null;
     judgeId?: string | null;
   };
-  // ОТЧЕТ
   type EventReportItem = {
     id: string;
     event: string | number;
-    title?: string | null;            // готовое название для UI
-    event_title_key?: string | null;  // ключ из API (на всякий)
+    title?: string | null;
+    event_title_key?: string | null;
     created_at?: string | null;
     photosCount?: number;
     videosCount?: number;
   };
 
-  const [reports, setReports] = useState<EventReportItem[]>([]);
+  const [dict, setDict] = useState<any>(null);
 
-  const [judges, setJudges] = useState<JudgeItem[]>([]);
+  // Generated hooks
+  const { data: eventsData } = useEventsList();
+  const { data: judgesData } = useJudgesList();
+  const { data: reportsData } = useEventReportsList();
+
   const getJudgeInitial = (name?: string | null) => {
     if (!name) return "J";
     const letter = name.trim().charAt(0);
     return letter || "J";
   };
+
+  // Load dict for title translations
+  useEffect(() => {
+    let ignore = false;
+    getDict().then((d) => {
+      if (ignore) return;
+      setDict(d);
+      const t = pickValue(d, "EVENTS_TITLE", "ru");
+      const i = pickValue(d, "EVENTS_INTRO", "ru");
+      if (t) setEventsTitle(t);
+      if (i) setEventsIntro(i);
+    }).catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+
+  // Process events from hook + dict
+  const events = useMemo((): EventItem[] => {
+    if (!dict) return [];
+    const fromApi: any[] = eventsData?.data?.results ?? [];
+    const normalized: EventItem[] = fromApi
+      .map((event: any, index: number): EventItem | null => {
+        if (!event) return null;
+        const titleKey = typeof event.title_key === "string" ? event.title_key : "";
+        const descKey = typeof event.description_key === "string" ? event.description_key : "";
+        const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+        const title = titleFromDict || titleKey || `event-${index}`;
+        if (!title) return null;
+        const desc = descKey ? pickValue(dict, descKey, "ru") || descKey : null;
+        const startsAt = typeof event.starts_at === "string" ? event.starts_at : null;
+        const dateLabel = formatEventDate(startsAt);
+        const location = typeof event.location === "string" ? event.location : null;
+        const eventType = typeof event.event_type === "string" ? event.event_type : null;
+        return { id: String(event.id ?? titleKey ?? index), title, desc, location, startsAt, dateLabel, eventType };
+      })
+      .filter((item): item is EventItem => Boolean(item));
+
+    normalized.sort((a, b) => {
+      const aTime = a.startsAt ? new Date(a.startsAt).getTime() : 0;
+      const bTime = b.startsAt ? new Date(b.startsAt).getTime() : 0;
+      return aTime - bTime;
+    });
+    return normalized;
+  }, [eventsData, dict]);
+
+  // Process judges from hook
+  const judges = useMemo((): JudgeItem[] => {
+    const fromApi: any[] = judgesData?.data?.results ?? [];
+    return fromApi
+      .map((judge: any, index: number): JudgeItem | null => {
+        if (!judge) return null;
+        const name = typeof judge.name === "string" ? judge.name : null;
+        if (!name) return null;
+        return {
+          id: String(judge.id ?? index),
+          name,
+          rank: typeof judge.rank === "string" ? judge.rank : null,
+          email: typeof judge.email === "string" ? judge.email : null,
+          photo: typeof judge.photo === "string" ? judge.photo : null,
+          judgeId: judge.judge_id != null ? String(judge.judge_id) : null,
+        };
+      })
+      .filter((item): item is JudgeItem => Boolean(item));
+  }, [judgesData]);
+
+  // Process reports from hook + dict
+  const reports = useMemo((): EventReportItem[] => {
+    if (!dict) return [];
+    const fromApi: any[] = reportsData?.data?.results ?? [];
+    const normalized: EventReportItem[] = fromApi
+      .map((r: any, idx: number): EventReportItem => {
+        const titleKey = typeof r?.event_title_key === "string" ? r.event_title_key : "";
+        const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
+        const title = titleFromDict || titleKey || null;
+        const photos = Array.isArray(r?.photos) ? r.photos : [];
+        const videos = Array.isArray(r?.videos) ? r.videos : [];
+        return {
+          id: String(r?.id ?? idx), event: r?.event, event_title_key: titleKey || null,
+          title, created_at: typeof r?.created_at === "string" ? r.created_at : null,
+          photosCount: photos.length, videosCount: videos.length,
+        };
+      })
+      .filter((x) => Boolean(x.id));
+
+    normalized.sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+    });
+    return normalized;
+  }, [reportsData, dict]);
+
   // Плавное появление секций/карточек
   useEffect(() => {
     const root = pageRef.current;
     if (!root) return;
-
-    const targets = root.querySelectorAll<HTMLElement>(
-      ".events-section, .sidebar-card"
-    );
-
+    const targets = root.querySelectorAll<HTMLElement>(".events-section, .sidebar-card");
     const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.setAttribute("data-visible", "1");
-        }),
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.setAttribute("data-visible", "1"); }),
       { threshold: 0.12, rootMargin: "0px 0px -50px 0px" }
     );
-
-    targets.forEach((el) => {
-      el.setAttribute("data-visible", "0");
-      io.observe(el);
-    });
-
+    targets.forEach((el) => { el.setAttribute("data-visible", "0"); io.observe(el); });
     return () => io.disconnect();
-  }, []);
-
-  // Load Events page title, intro, and list of events from API/dict
-  useEffect(() => {
-    let ignore = false;
-
-    const loadPage = async () => {
-      try {
-        const dict = await getDict();
-        if (ignore) return;
-
-        const t = pickValue(dict, "EVENTS_TITLE", "ru");
-        const i = pickValue(dict, "EVENTS_INTRO", "ru");
-        if (t) setEventsTitle(t);
-        if (i) setEventsIntro(i);
-
-        let eventsPayload: unknown = [];
-        try {
-          const res = await fetch("/api/events/");
-          if (res.ok) {
-            eventsPayload = await res.json();
-          }
-        } catch {
-          eventsPayload = [];
-        }
-        if (ignore) return;
-
-        const fromApi = Array.isArray((eventsPayload as any)?.results)
-          ? (eventsPayload as any).results
-          : Array.isArray(eventsPayload)
-          ? eventsPayload
-          : [];
-
-        const normalized: EventItem[] = fromApi
-          .map((event: any, index: number): EventItem | null => {
-            if (!event) return null;
-            const titleKey = typeof event.title_key === "string" ? event.title_key : "";
-            const descKey = typeof event.description_key === "string" ? event.description_key : "";
-            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-            const title = titleFromDict || titleKey || `event-${index}`;
-            if (!title) return null;
-            const desc = descKey ? pickValue(dict, descKey, "ru") || descKey : null;
-            const startsAt = typeof event.starts_at === "string" ? event.starts_at : null;
-            const dateLabel = formatEventDate(startsAt);
-            const location = typeof event.location === "string" ? event.location : null;
-            const eventType = typeof event.event_type === "string" ? event.event_type : null;
-            return {
-              id: String(event.id ?? titleKey ?? index),
-              title,
-              desc,
-              location,
-              startsAt,
-              dateLabel,
-              eventType,
-            };
-          })
-          .filter((item: EventItem | null): item is EventItem => Boolean(item));
-
-        normalized.sort((a, b) => {
-          const aTime = a.startsAt ? new Date(a.startsAt).getTime() : 0;
-          const bTime = b.startsAt ? new Date(b.startsAt).getTime() : 0;
-          return aTime - bTime;
-        });
-
-        setEvents(normalized);
-      } catch {
-        // leave fallbacks when API fails
-      }
-    };
-
-    loadPage();
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
-  // Load judges from API
-  useEffect(() => {
-    let ignore = false;
-
-    const loadJudges = async () => {
-      try {
-        const res = await fetch("/api/judges/");
-        if (!res.ok) return;
-        const payload = await res.json();
-        if (ignore) return;
-
-        const fromApi = Array.isArray((payload as any)?.results)
-          ? (payload as any).results
-          : Array.isArray(payload)
-          ? payload
-          : [];
-
-        const normalized: JudgeItem[] = fromApi
-          .map((judge: any, index: number): JudgeItem | null => {
-            if (!judge) return null;
-            const name = typeof judge.name === "string" ? judge.name : null;
-            if (!name) return null;
-            const rank = typeof judge.rank === "string" ? judge.rank : null;
-            const email = typeof judge.email === "string" ? judge.email : null;
-            const photo = typeof judge.photo === "string" ? judge.photo : null;
-            const judgeId = judge.judge_id != null ? String(judge.judge_id) : null;
-            return {
-              id: String(judge.id ?? index),
-              name,
-              rank,
-              email,
-              photo,
-              judgeId,
-            };
-          })
-          .filter((item: JudgeItem | null): item is JudgeItem => Boolean(item));
-
-        setJudges(normalized);
-      } catch {
-        // ignore judges errors silently
-      }
-    };
-
-    loadJudges();
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
-  // загрузка ОТЧЕТА из API
-  useEffect(() => {
-    let ignore = false;
-
-    const loadReports = async () => {
-      try {
-        const res = await fetch("/api/event-reports/");
-        if (!res.ok) return;
-        const payload = await res.json();
-        if (ignore) return;
-
-        const dict = await getDict();
-        if (ignore) return;
-
-        const fromApi = Array.isArray((payload as any)?.results)
-          ? (payload as any).results
-          : Array.isArray(payload)
-          ? payload
-          : [];
-
-        const normalized: EventReportItem[] = fromApi
-          .map((r: any, idx: number): EventReportItem => {
-            const titleKey =
-              typeof r?.event_title_key === "string" ? r.event_title_key : "";
-
-            const titleFromDict = titleKey ? pickValue(dict, titleKey, "ru") : null;
-            const title = titleFromDict || titleKey || null;
-            const photos = Array.isArray(r?.photos) ? r.photos : [];
-            const videos = Array.isArray(r?.videos) ? r.videos : [];
-
-            return {
-              id: String(r?.id ?? idx),
-              event: r?.event,
-              event_title_key: titleKey || null,
-              title,
-              created_at: typeof r?.created_at === "string" ? r.created_at : null,
-              photosCount: photos.length,
-              videosCount: videos.length,
-            };
-          })
-          .filter((x: EventReportItem) => Boolean(x.id));
-
-        normalized.sort((a, b) => {
-          const aTimeRaw = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const bTimeRaw = b.created_at ? new Date(b.created_at).getTime() : 0;
-
-          const aTime = Number.isNaN(aTimeRaw) ? 0 : aTimeRaw;
-          const bTime = Number.isNaN(bTimeRaw) ? 0 : bTimeRaw;
-
-          return bTime - aTime; // САМЫЕ СВЕЖИЕ СНАЧАЛА
-        });
-
-        setReports(normalized);
-      } catch {
-        // игнор
-      }
-    };
-
-    loadReports();
-    return () => {
-      ignore = true;
-    };
   }, []);
 
 
