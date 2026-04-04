@@ -1,13 +1,19 @@
-version: '3.8'
+#version: '3.8'
+version: '3.9'
 
 services:
   web:
     build: .
-    command: gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3
+#    command: gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py migrate --database=dogs_db &&
+             gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - shared_volume:/shared
     ports:
       - "8000:8000"
     env_file:
@@ -17,6 +23,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+#        postgres
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -34,6 +43,30 @@ services:
       - "27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# НОВЫЙ СЕРВИС: PostgreSQL для модуля собак
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DOGS_DB_NAME}
+      POSTGRES_USER: ${DOGS_DB_USER}
+      POSTGRES_PASSWORD: ${DOGS_DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DOGS_DB_USER} -d ${DOGS_DB_NAME}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -63,7 +96,8 @@ services:
 
   celery:
     build: .
-    command: celery -A nkp_project worker -l info
+#    command: celery -A nkp_project worker -l info
+    command: celery -A nkp_project worker -l info --pool=prefork --concurrency=4
     volumes:
       - .:/app
     env_file:
@@ -73,6 +107,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -92,6 +128,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  flower:
+    build: .
+    command: celery -A nkp_project flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - celery
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -101,15 +158,66 @@ services:
 
   nginx:
     image: nginx:alpine
-    ports:
-      - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - static_volume:/static:ro
       - media_volume:/media:ro
       - ../frontend/dist:/usr/share/nginx/html:ro
+    environment:
+      - VIRTUAL_HOST=husky-nkp.ru
+      - LETSENCRYPT_HOST=husky-nkp.ru
+      - LETSENCRYPT_EMAIL=vlada.kugurakova@gmail.com
     depends_on:
       - web
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    labels:
+      - com.github.nginx-proxy.nginx
+    restart: unless-stopped
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+      - DEFAULT_EMAIL=vlada.kugurakova@gmail.com
+    depends_on:
+      - nginx-proxy
+    restart: unless-stopped
+
+  telegram_bot:
+    build: .
+    command: python bot/bot.py
+    volumes:
+      - .:/app
+      - shared_volume:/shared
+    env_file:
+      - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -121,3 +229,8 @@ volumes:
   mongo_data:
   static_volume:
   media_volume:
+  postgres_data:
+  certs:
+  vhost:
+  html:
+  shared_volume:

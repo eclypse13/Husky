@@ -20,9 +20,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
+    # For tokens
+    'rest_framework.authtoken',
     
     # Local
     'core',
+
+    # Archive, pedigree, dog page
+    'dogs_module',
 ]
 
 MIDDLEWARE = [
@@ -100,8 +105,21 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+
+    'dogs_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DOGS_DB_NAME'),
+        'USER': config('DOGS_DB_USER'),
+        'PASSWORD': config('DOGS_DB_PASSWORD'),
+        # 'HOST': config('DOGS_DB_HOST', default='localhost'),
+        'HOST': config('DOGS_DB_HOST', default='postgres'),
+        'PORT': config('DOGS_DB_PORT', default='5432'),
     }
 }
+
+# Роутер — направляет запросы в нужную БД
+DATABASE_ROUTERS = ['nkp_project.db_routers.DogsRouter']
 
 # Redis Cache
 CACHES = {
@@ -111,7 +129,20 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'IGNORE_EXCEPTIONS': True,
-        }
+        },
+        'KEY_PREFIX': 'nkp',
+        'TIMEOUT': 3600,
+    },
+    # Отдельный кэш для парсеров (большой TTL, не мешается с основным)
+    'parsers': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"redis://{config('REDIS_HOST', default='redis')}:{config('REDIS_PORT', default=6379)}/2",  # БД 2
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,  # Если Redis упадёт — парсеры продолжат работать (просто без кэша)
+        },
+        'KEY_PREFIX': 'parsers',
+        'TIMEOUT': 7200,  # 2 часа
     }
 }
 
@@ -152,6 +183,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        # For tokens
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -181,6 +214,7 @@ SPECTACULAR_SETTINGS = {
 # CORS
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000').split(',')
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = ['https://husky-nkp.ru']
 
 # Logging
 LOGGING = {

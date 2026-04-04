@@ -7,6 +7,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
+    path('api/', include('dogs_module.urls')),
     
     # API Schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState, MouseEvent} from "react";
 import { getDict, pickValue } from "@/lib/dict";
 import { useClubDocumentsList } from "@/generated";
@@ -325,7 +326,7 @@ export default function ClubSidebar({
         >
           <div className="club-sidebar__card sidebar-card">
             <h3 className="club-sidebar__title">📄 Документы клуба</h3>
-            <div className="club-sidebar__documents">
+            <div className="club-sidQebar__documents">
               {loading ? (
                 <div className="club-sidebar__document-placeholder">Загрузка…</div>
               ) : error ? (

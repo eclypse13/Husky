@@ -227,10 +227,17 @@
     height: 72px;
     border-radius: 50%;
     background: var(--ice-blue);
-    color: var(--bright-blue);
-    display: grid;
-    place-items: center;
-    font-size: 1.6rem;
+    display: block;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.archive-dog-avatar img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
 }
 
 .archive-dog-name {
@@ -253,7 +260,9 @@
 .archive-dog-meta-item {
     white-space: nowrap;
 }
-
+.capitalize-text {
+  text-transform: capitalize;
+}
 .archive-dog-badges {
     display: flex;
     flex-wrap: wrap;
@@ -268,8 +277,11 @@
 }
 
 .archive-badge--champ {
-    background: var(--gradient-secondary);
-    color: var(--snow-white);
+    /*background: var(--gradient-secondary);*/
+    /*color: var(--snow-white);*/
+    background: var(--title-bg-color);
+    color: var(--title-color);
+    border: 1px solid var(--title-border-color);
 }
 
 .archive-badge--health {
@@ -433,6 +445,15 @@
     font-size: .9rem;
     color: var(--text-light);
 }
+.archive-partner-link {
+    text-decoration: none;
+}
+.archive-partner-link:hover,
+.archive-partner-link:visited,
+.archive-partner-link:active {
+    text-decoration: none;
+}
+
 
 .archive-labs {
     border-top: 1px solid var(--border-light);
@@ -583,6 +604,11 @@
 
     .archive-dog-avatar {
         grid-area: avatar;
+        width: 56px;
+        height: 56px;
+    }
+
+    .archive-dog-avatar img {
         width: 56px;
         height: 56px;
     }

@@ -18,7 +18,9 @@ router.register(r'event-reports', EventReportViewSet, basename='event-reports')
 router.register(r'judges', JudgeViewSet, basename='judges')
 router.register(r'judge-details', JudgeDetailsViewSet, basename='judge-details')
 router.register(r'club/documents', ClubDocumentViewSet, basename='club-documents')
+router.register(r'club/stats', ClubStatsViewSet, basename='club-stats')
 router.register(r'club/board', BoardMemberViewSet, basename='club-board')
+router.register(r'working-groups', WorkingGroupViewSet, basename='working-groups')
 router.register(r'breed/standards', BreedStandardViewSet, basename='breed-standards')
 router.register(r'breed/articles', BreedArticleViewSet, basename='breed-articles')
 
@@ -47,6 +49,9 @@ urlpatterns = [
 
     # Админка для MongoEngine моделей
     path('nkp-admin/', include(admin_views.get_admin_urls())),
+
+    # сообщения из тг-группы
+    path("activity-feed/", activity_feed, name="activity-feed"),
 
 ]
 
