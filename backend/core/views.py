@@ -6,7 +6,16 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiExample,
+    inline_serializer,
+)
+from drf_spectacular.openapi import OpenApiTypes
+from rest_framework import serializers as drf_serializers
 from . import models_django as models
 from .serializers import *
 from .permissions import IsNKPMember, IsOwnerOrReadOnly
@@ -16,39 +25,75 @@ from .permissions import IsNKPMember, IsOwnerOrReadOnly
 # КОНТЕНТ-СПРАВОЧНИК API
 # ============================================
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список контент-записей",
+        description="Возвращает все записи контент-справочника. Поддерживает фильтрацию по странице и ключу.",
+        parameters=[
+            OpenApiParameter('page', str, description='Фильтр по странице'),
+            OpenApiParameter('key', str, description='Поиск по ключу (частичное совпадение)'),
+        ],
+        responses={200: ContentDictionarySerializer(many=True)},
+        tags=["Контент-справочник"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить запись по ID",
+        responses={
+            200: ContentDictionarySerializer,
+            404: OpenApiResponse(description="Запись не найдена"),
+        },
+        tags=["Контент-справочник"],
+    ),
+)
 class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
     """API для контент-справочника"""
     queryset = models.ContentDictionary.objects.all()
     serializer_class = ContentDictionarySerializer
     permission_classes = [AllowAny]
-    
-    @extend_schema(
-        parameters=[
-            OpenApiParameter('page', str, description='Фильтр по странице'),
-            OpenApiParameter('key', str, description='Поиск по ключу'),
-        ]
-    )
+
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         page_filter = request.query_params.get('page')
         if page_filter:
             queryset = queryset.filter(page=page_filter)
-        
+
         key_filter = request.query_params.get('key')
         if key_filter:
             queryset = queryset.filter(key__icontains=key_filter)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
+    @extend_schema(
+        summary="Получить значение по ключу",
+        description="Возвращает одну запись контент-справочника по точному совпадению ключа.",
+        parameters=[
+            OpenApiParameter('key', str, required=True, description='Точный ключ записи'),
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Запись найдена",
+                response=inline_serializer(
+                    name="ContentByKeyResponse",
+                    fields={
+                        "key": drf_serializers.CharField(),
+                        "value": drf_serializers.JSONField(),
+                    },
+                ),
+            ),
+            400: OpenApiResponse(description="Параметр key не передан"),
+            404: OpenApiResponse(description="Запись с указанным ключом не найдена"),
+        },
+        tags=["Контент-справочник"],
+    )
     @action(detail=False, methods=['get'])
     def by_key(self, request):
         """Получить значение по ключу"""
         key = request.query_params.get('key')
         if not key:
             return Response({'error': 'Key parameter required'}, status=400)
-        
+
         try:
             content = models.ContentDictionary.objects.get(key=key)
             return Response({'key': content.key, 'value': content.value})
@@ -60,52 +105,102 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
 # ПУБЛИЧНЫЕ API
 # ============================================
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список новостей",
+        description="Возвращает пагинированный список новостей. Поддерживает фильтрацию по избранному и тегам.",
+        parameters=[
+            OpenApiParameter('featured', bool, description='Только избранные новости'),
+            OpenApiParameter('tag', str, description='Фильтр по тегу'),
+        ],
+        responses={200: NewsSerializer(many=True)},
+        tags=["Новости"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить новость по ID",
+        responses={
+            200: NewsSerializer,
+            404: OpenApiResponse(description="Новость не найдена"),
+        },
+        tags=["Новости"],
+    ),
+)
 class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     """API новостей"""
     queryset = models.News.objects.all()
     serializer_class = NewsSerializer
     permission_classes = [AllowAny]
-    
-    @extend_schema(
-        parameters=[
-            OpenApiParameter('featured', bool, description='Только избранные'),
-            OpenApiParameter('tag', str, description='Фильтр по тегу'),
-        ]
-    )
-    @method_decorator(cache_page(60 * 5))  # Кеш на 5 минут
+
+    @method_decorator(cache_page(60 * 5))
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         if request.query_params.get('featured'):
             queryset = queryset.filter(is_featured=True)
-        
+
         tag = request.query_params.get('tag')
         if tag:
             queryset = queryset.filter(tags__contains=tag)
-        
+
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список CMS-страниц",
+        responses={200: PageSerializer(many=True)},
+        tags=["CMS-страницы"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить CMS-страницу по slug",
+        responses={
+            200: PageSerializer,
+            404: OpenApiResponse(description="Страница не найдена"),
+        },
+        tags=["CMS-страницы"],
+    ),
+)
 class PageViewSet(viewsets.ReadOnlyModelViewSet):
     """API CMS страниц"""
     queryset = models.Page.objects.all()
     serializer_class = PageSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
-    
+
     @method_decorator(cache_page(60 * 10))
     def retrieve(self, request, slug=None):
         return super().retrieve(request, slug)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список галерей",
+        responses={200: GallerySerializer(many=True)},
+        tags=["Галереи"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить галерею по ID",
+        responses={
+            200: GallerySerializer,
+            404: OpenApiResponse(description="Галерея не найдена"),
+        },
+        tags=["Галереи"],
+    ),
+)
 class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
     """API галерей"""
     queryset = models.Gallery.objects.all()
     serializer_class = GallerySerializer
     permission_classes = [AllowAny]
-    
+
+    @extend_schema(
+        summary="Избранные галереи",
+        description="Возвращает галереи, отмеченные как избранные (для главной страницы).",
+        responses={200: GallerySerializer(many=True)},
+        tags=["Галереи"],
+    )
     @action(detail=False, methods=['get'])
     def highlights(self, request):
         """Избранные галереи для главной"""
@@ -114,45 +209,88 @@ class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список мероприятий",
+        description="Возвращает список мероприятий. Поддерживает фильтрацию по датам и типу.",
+        parameters=[
+            OpenApiParameter('from_date', str, description='От даты (YYYY-MM-DD)'),
+            OpenApiParameter('to_date', str, description='До даты (YYYY-MM-DD)'),
+            OpenApiParameter('type', str, description='Тип мероприятия'),
+        ],
+        responses={200: EventSerializer(many=True)},
+        tags=["Мероприятия"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить мероприятие по ID",
+        responses={
+            200: EventSerializer,
+            404: OpenApiResponse(description="Мероприятие не найдено"),
+        },
+        tags=["Мероприятия"],
+    ),
+)
 class EventViewSet(viewsets.ReadOnlyModelViewSet):
     """API мероприятий"""
     queryset = models.Event.objects.all()
     serializer_class = EventSerializer
     permission_classes = [AllowAny]
-    
-    @extend_schema(
-        parameters=[
-            OpenApiParameter('from_date', str, description='От даты (YYYY-MM-DD)'),
-            OpenApiParameter('to_date', str, description='До даты (YYYY-MM-DD)'),
-            OpenApiParameter('type', str, description='Тип мероприятия'),
-        ]
-    )
+
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         from_date = request.query_params.get('from_date')
         to_date = request.query_params.get('to_date')
         event_type = request.query_params.get('type')
-        
+
         if from_date:
             queryset = queryset.filter(starts_at__gte=from_date)
         if to_date:
             queryset = queryset.filter(starts_at__lte=to_date)
         if event_type:
             queryset = queryset.filter(event_type=event_type)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список отчётов о мероприятиях",
+        responses={200: EventReportSerializer(many=True)},
+        tags=["Отчёты о мероприятиях"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить отчёт о мероприятии по ID",
+        responses={
+            200: EventReportSerializer,
+            404: OpenApiResponse(description="Отчёт не найден"),
+        },
+        tags=["Отчёты о мероприятиях"],
+    ),
+)
 class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
     """API отчетов о мероприятиях"""
-    # queryset = models.EventReport.objects.all()
     queryset = models.EventReport.objects.all().prefetch_related("photo_items", "video_items")
     serializer_class = EventReportSerializer
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список судей",
+        responses={200: JudgeSerializer(many=True)},
+        tags=["Судьи"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить судью по ID",
+        responses={
+            200: JudgeSerializer,
+            404: OpenApiResponse(description="Судья не найден"),
+        },
+        tags=["Судьи"],
+    ),
+)
 class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     """API судей"""
     queryset = models.Judge.objects.all()
@@ -160,13 +298,43 @@ class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список детальных профилей судей",
+        responses={200: JudgeDetailsSerializer(many=True)},
+        tags=["Судьи"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить детальный профиль судьи",
+        responses={
+            200: JudgeDetailsSerializer,
+            404: OpenApiResponse(description="Профиль судьи не найден"),
+        },
+        tags=["Судьи"],
+    ),
+)
 class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
-    """API ??????? ?????"""
+    """API детальных профилей судей"""
     queryset = models.JudgeDetails.objects.all()
     serializer_class = JudgeDetailsSerializer
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список документов клуба",
+        responses={200: ClubDocumentSerializer(many=True)},
+        tags=["Документы клуба"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить документ клуба по ID",
+        responses={
+            200: ClubDocumentSerializer,
+            404: OpenApiResponse(description="Документ не найден"),
+        },
+        tags=["Документы клуба"],
+    ),
+)
 class ClubDocumentViewSet(viewsets.ReadOnlyModelViewSet):
     """API документов клуба"""
     queryset = models.ClubDocument.objects.all()
@@ -178,10 +346,17 @@ class ClubStatsViewSet(viewsets.ViewSet):
     """API статистики клуба (одна запись)"""
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="Статистика клуба",
+        description="Возвращает последнюю запись статистики клуба. Если данных ещё нет — возвращает нулевые значения.",
+        responses={
+            200: ClubStatsSerializer,
+        },
+        tags=["Статистика клуба"],
+    )
     def list(self, request):
         obj = models.ClubStats.objects.order_by("-updated_at").first()
         if not obj:
-            # если запись ещё не создана в админке
             return Response(
                 {
                     "members_count": 0,
@@ -196,6 +371,21 @@ class ClubStatsViewSet(viewsets.ViewSet):
         return Response(ClubStatsSerializer(obj).data)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список членов Президиума",
+        responses={200: BoardMemberSerializer(many=True)},
+        tags=["Руководство"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить члена Президиума по ID",
+        responses={
+            200: BoardMemberSerializer,
+            404: OpenApiResponse(description="Член Президиума не найден"),
+        },
+        tags=["Руководство"],
+    ),
+)
 class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
     """API членов Президиума"""
     queryset = models.BoardMember.objects.all()
@@ -203,12 +393,43 @@ class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список рабочих групп",
+        description="Возвращает рабочие группы вместе с вложенными участниками.",
+        responses={200: WorkingGroupSerializer(many=True)},
+        tags=["Руководство"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить рабочую группу по ID",
+        responses={
+            200: WorkingGroupSerializer,
+            404: OpenApiResponse(description="Рабочая группа не найдена"),
+        },
+        tags=["Руководство"],
+    ),
+)
 class WorkingGroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = models.WorkingGroup.objects.all().prefetch_related("members")
     serializer_class = WorkingGroupSerializer
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список стандартов породы",
+        responses={200: BreedStandardSerializer(many=True)},
+        tags=["Порода"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить стандарт породы по ID",
+        responses={
+            200: BreedStandardSerializer,
+            404: OpenApiResponse(description="Стандарт не найден"),
+        },
+        tags=["Порода"],
+    ),
+)
 class BreedStandardViewSet(viewsets.ReadOnlyModelViewSet):
     """API стандартов породы"""
     queryset = models.BreedStandard.objects.all()
@@ -216,24 +437,38 @@ class BreedStandardViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список статей о породе",
+        description="Возвращает список статей. Поддерживает фильтрацию по категории.",
+        parameters=[
+            OpenApiParameter('category', str, description='Категория статьи'),
+        ],
+        responses={200: BreedArticleSerializer(many=True)},
+        tags=["Порода"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить статью о породе по ID",
+        responses={
+            200: BreedArticleSerializer,
+            404: OpenApiResponse(description="Статья не найдена"),
+        },
+        tags=["Порода"],
+    ),
+)
 class BreedArticleViewSet(viewsets.ReadOnlyModelViewSet):
     """API статей о породе"""
     queryset = models.BreedArticle.objects.all()
     serializer_class = BreedArticleSerializer
     permission_classes = [AllowAny]
-    
-    @extend_schema(
-        parameters=[
-            OpenApiParameter('category', str, description='Категория статьи'),
-        ]
-    )
+
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         category = request.query_params.get('category')
         if category:
             queryset = queryset.filter(category=category)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -245,7 +480,17 @@ class BreedArticleViewSet(viewsets.ReadOnlyModelViewSet):
 class MyProfileViewSet(viewsets.ViewSet):
     """API профиля пользователя"""
     permission_classes = [IsAuthenticated]
-    
+
+    @extend_schema(
+        summary="Получить свой профиль",
+        description="Возвращает профиль текущего авторизованного пользователя.",
+        responses={
+            200: UserProfileSerializer,
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Профиль пользователя не найден"),
+        },
+        tags=["Личный кабинет"],
+    )
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Получить информацию о себе"""
@@ -255,7 +500,19 @@ class MyProfileViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         except models.User.DoesNotExist:
             return Response({'error': 'User not found'}, status=404)
-    
+
+    @extend_schema(
+        summary="Обновить свой профиль",
+        description="Частичное обновление профиля текущего пользователя.",
+        request=UserProfileSerializer,
+        responses={
+            200: UserProfileSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Профиль пользователя не найден"),
+        },
+        tags=["Личный кабинет"],
+    )
     @action(detail=False, methods=['put'])
     def update_profile(self, request):
         """Обновить профиль"""
@@ -270,15 +527,81 @@ class MyProfileViewSet(viewsets.ViewSet):
             return Response({'error': 'User not found'}, status=404)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список моих собак",
+        responses={
+            200: DogSerializer(many=True),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои собаки"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить мою собаку по ID",
+        responses={
+            200: DogSerializer,
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Мои собаки"],
+    ),
+    create=extend_schema(
+        summary="Добавить собаку",
+        responses={
+            201: DogSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои собаки"],
+    ),
+    update=extend_schema(
+        summary="Обновить данные собаки",
+        responses={
+            200: DogSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Мои собаки"],
+    ),
+    partial_update=extend_schema(
+        summary="Частично обновить данные собаки",
+        responses={
+            200: DogSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Мои собаки"],
+    ),
+    destroy=extend_schema(
+        summary="Удалить собаку",
+        responses={
+            204: OpenApiResponse(description="Собака удалена"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Мои собаки"],
+    ),
+)
 class MyDogViewSet(viewsets.ModelViewSet):
     """API собак пользователя"""
     serializer_class = DogSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Dog.objects.filter(owner=user)
-    
+
+    @extend_schema(
+        summary="Список моих чемпионов",
+        description="Возвращает только собак с титулом чемпиона.",
+        responses={
+            200: DogSerializer(many=True),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои собаки"],
+    )
     @action(detail=False, methods=['get'])
     def champions(self, request):
         """Только чемпионы"""
@@ -287,42 +610,232 @@ class MyDogViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список моих питомников",
+        responses={
+            200: KennelSerializer(many=True),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои питомники"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить мой питомник по ID",
+        responses={
+            200: KennelSerializer,
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Питомник не найден"),
+        },
+        tags=["Мои питомники"],
+    ),
+    create=extend_schema(
+        summary="Создать питомник",
+        responses={
+            201: KennelSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои питомники"],
+    ),
+    update=extend_schema(
+        summary="Обновить питомник",
+        responses={
+            200: KennelSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Питомник не найден"),
+        },
+        tags=["Мои питомники"],
+    ),
+    partial_update=extend_schema(
+        summary="Частично обновить питомник",
+        responses={
+            200: KennelSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Питомник не найден"),
+        },
+        tags=["Мои питомники"],
+    ),
+    destroy=extend_schema(
+        summary="Удалить питомник",
+        responses={
+            204: OpenApiResponse(description="Питомник удалён"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Питомник не найден"),
+        },
+        tags=["Мои питомники"],
+    ),
+)
 class MyKennelViewSet(viewsets.ModelViewSet):
     """API питомника пользователя"""
     serializer_class = KennelSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Kennel.objects.filter(owner=user)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список моих помётов",
+        responses={
+            200: LitterSerializer(many=True),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои помёты"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить мой помёт по ID",
+        responses={
+            200: LitterSerializer,
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Помёт не найден"),
+        },
+        tags=["Мои помёты"],
+    ),
+    create=extend_schema(
+        summary="Создать помёт",
+        responses={
+            201: LitterSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои помёты"],
+    ),
+    update=extend_schema(
+        summary="Обновить помёт",
+        responses={
+            200: LitterSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Помёт не найден"),
+        },
+        tags=["Мои помёты"],
+    ),
+    partial_update=extend_schema(
+        summary="Частично обновить помёт",
+        responses={
+            200: LitterSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Помёт не найден"),
+        },
+        tags=["Мои помёты"],
+    ),
+    destroy=extend_schema(
+        summary="Удалить помёт",
+        responses={
+            204: OpenApiResponse(description="Помёт удалён"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Помёт не найден"),
+        },
+        tags=["Мои помёты"],
+    ),
+)
 class MyLitterViewSet(viewsets.ModelViewSet):
     """API пометов пользователя"""
     serializer_class = LitterSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         kennels = models.Kennel.objects.filter(owner=user)
         return models.Litter.objects.filter(kennel__in=kennels)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список моих заявлений",
+        responses={
+            200: ApplicationSerializer(many=True),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои заявления"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить моё заявление по ID",
+        responses={
+            200: ApplicationSerializer,
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Заявление не найдено"),
+        },
+        tags=["Мои заявления"],
+    ),
+    create=extend_schema(
+        summary="Создать заявление",
+        responses={
+            201: ApplicationSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои заявления"],
+    ),
+    update=extend_schema(
+        summary="Обновить заявление",
+        responses={
+            200: ApplicationSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Заявление не найдено"),
+        },
+        tags=["Мои заявления"],
+    ),
+    partial_update=extend_schema(
+        summary="Частично обновить заявление",
+        responses={
+            200: ApplicationSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Заявление не найдено"),
+        },
+        tags=["Мои заявления"],
+    ),
+    destroy=extend_schema(
+        summary="Удалить заявление",
+        responses={
+            204: OpenApiResponse(description="Заявление удалено"),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Заявление не найдено"),
+        },
+        tags=["Мои заявления"],
+    ),
+)
 class MyApplicationViewSet(viewsets.ModelViewSet):
     """API заявлений пользователя"""
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Application.objects.filter(user=user)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список моих достижений",
+        responses={
+            200: AchievementSerializer(many=True),
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+        },
+        tags=["Мои достижения"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить моё достижение по ID",
+        responses={
+            200: AchievementSerializer,
+            401: OpenApiResponse(description="Пользователь не авторизован"),
+            404: OpenApiResponse(description="Достижение не найдено"),
+        },
+        tags=["Мои достижения"],
+    ),
+)
 class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
     """API достижений пользователя"""
     serializer_class = AchievementSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Achievement.objects.filter(user=user)
@@ -332,17 +845,39 @@ class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
 # АУТЕНТИФИКАЦИЯ API
 # ============================================
 
-@extend_schema(
-    request={
-        'application/json': {
-            'type': 'object',
-            'properties': {
-                'email': {'type': 'string'},
-                'password': {'type': 'string'}
-            }
-        }
+_LoginRequestSerializer = inline_serializer(
+    name="LoginRequest",
+    fields={
+        "email": drf_serializers.EmailField(help_text="Email пользователя"),
+        "password": drf_serializers.CharField(help_text="Пароль"),
     },
-    responses={200: {'description': 'Login successful'}}
+)
+
+_LoginSuccessSerializer = inline_serializer(
+    name="LoginSuccess",
+    fields={
+        "success": drf_serializers.BooleanField(),
+        "user": inline_serializer(
+            name="LoginUser",
+            fields={
+                "email": drf_serializers.EmailField(),
+                "name": drf_serializers.CharField(),
+                "is_nkp_member": drf_serializers.BooleanField(),
+            },
+        ),
+    },
+)
+
+
+@extend_schema(
+    summary="Вход в систему",
+    description="Аутентификация пользователя по email и паролю. Устанавливает сессионный cookie.",
+    request=_LoginRequestSerializer,
+    responses={
+        200: OpenApiResponse(response=_LoginSuccessSerializer, description="Успешная аутентификация"),
+        401: OpenApiResponse(description="Неверный email или пароль"),
+    },
+    tags=["Аутентификация"],
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -350,12 +885,12 @@ def login_view(request):
     """Вход в систему"""
     email = request.data.get('email')
     password = request.data.get('password')
-    
+
     # Django auth
     user = authenticate(request, username=email, password=password)
     if user:
         login(request, user)
-        
+
         # Получаем MongoDB пользователя
         try:
             mongo_user = models.User.objects.get(email=email)
@@ -369,10 +904,20 @@ def login_view(request):
             })
         except:
             return Response({'success': True, 'user': {'email': email}})
-    
+
     return Response({'error': 'Invalid credentials'}, status=401)
 
 
+@extend_schema(
+    summary="Выход из системы",
+    description="Завершает текущую сессию пользователя.",
+    request=None,
+    responses={
+        200: OpenApiResponse(description="Сессия завершена"),
+        401: OpenApiResponse(description="Пользователь не авторизован"),
+    },
+    tags=["Аутентификация"],
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
@@ -385,19 +930,21 @@ def logout_view(request):
 # ГЛАВНАЯ СТРАНИЦА API
 # ============================================
 
+_HomeResponseSerializer = inline_serializer(
+    name="HomeResponse",
+    fields={
+        "featured_news": NewsSerializer(many=True),
+        "upcoming_events": EventSerializer(many=True),
+        "highlight_galleries": GallerySerializer(many=True),
+    },
+)
+
+
 @extend_schema(
-    responses={200: {
-        'description': 'Home page data',
-        'content': {
-            'application/json': {
-                'example': {
-                    'featured_news': [],
-                    'upcoming_events': [],
-                    'highlight_galleries': []
-                }
-            }
-        }
-    }}
+    summary="Данные для главной страницы",
+    description="Возвращает избранные новости (до 3), ближайшие мероприятия (до 5) и избранные галереи (до 2).",
+    responses={200: _HomeResponseSerializer},
+    tags=["Главная страница"],
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -407,7 +954,7 @@ def home_api(request):
     featured_news = models.News.objects.filter(is_featured=True)[:3]
     upcoming_events = models.Event.objects.filter(starts_at__gte=datetime.utcnow())[:5]
     highlight_galleries = models.Gallery.objects.filter(is_highlight=True)[:2]
-    
+
     return Response({
         'featured_news': NewsSerializer(featured_news, many=True).data,
         'upcoming_events': EventSerializer(upcoming_events, many=True).data,
@@ -418,6 +965,23 @@ def home_api(request):
 import json
 from pathlib import Path
 
+_ActivityFeedSerializer = inline_serializer(
+    name="ActivityFeedResponse",
+    fields={
+        "results": drf_serializers.ListField(
+            child=drf_serializers.JSONField(),
+            help_text="Список последних сообщений из Telegram-канала",
+        ),
+    },
+)
+
+
+@extend_schema(
+    summary="Лента активности",
+    description="Возвращает последние сообщения из Telegram-канала клуба (кешируется на 1 минуту).",
+    responses={200: _ActivityFeedSerializer},
+    tags=["Главная страница"],
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @cache_page(60 * 1)

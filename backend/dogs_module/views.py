@@ -10,9 +10,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from celery.result import AsyncResult
 
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.openapi import OpenApiTypes
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiResponse,
+    inline_serializer,
+)
+
 from rest_framework.permissions import AllowAny
+from rest_framework import serializers as drf_serializers
 
 from .models import Dog, Breeder, Owner, Title, Litter, MedicalRecord
 from .serializers import (
@@ -24,6 +31,8 @@ from .serializers import (
     LitterSerializer,
     PedigreeSerializer,
     MedicalRecordSerializer,
+    TaskResponseSerializer,
+    TaskStatusResponseSerializer,
     ImportZooportalDogSerializer,
     ImportZooportalPageSerializer,
     ImportZooportalRangeSerializer,
@@ -59,6 +68,28 @@ from .utils.coi_calculator import calculate_coi, save_coi
 
 logger = logging.getLogger(__name__)
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список собак",
+        description="Возвращает пагинированный список собак. Поддерживает поиск и фильтрацию.",
+        parameters=[
+            OpenApiParameter('q', str, description='Поиск по кличке (частичное совпадение)'),
+            OpenApiParameter('sex', int, description='Фильтр по полу (1 — кобель, 2 — сука)'),
+            OpenApiParameter('year', int, description='Фильтр по году рождения'),
+        ],
+        responses={200: DogListSerializer(many=True)},
+        tags=["Собаки"],
+    ),
+    retrieve=extend_schema(
+        summary="Детальная информация о собаке",
+        description="Возвращает полную информацию о собаке, включая родителей, заводчиков, титулы и медицинские записи.",
+        responses={
+            200: DogDetailSerializer,
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Собаки"],
+    ),
+)
 class DogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet для собак
@@ -93,6 +124,18 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 
+    @extend_schema(
+        summary="Родословная собаки",
+        description="Возвращает рекурсивное дерево предков до указанной глубины (1–10 поколений).",
+        parameters=[
+            OpenApiParameter('generations', int, description='Глубина дерева (1–10, по умолчанию 3)'),
+        ],
+        responses={
+            200: PedigreeSerializer,
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Собаки"],
+    )
     @action(detail=True, methods=['get'])
     def pedigree(self, request, pk=None):
         """
@@ -116,6 +159,15 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 
+    @extend_schema(
+        summary="Сиблинги собаки",
+        description="Возвращает братьев и сестёр (однопомётников) собаки.",
+        responses={
+            200: DogListSerializer(many=True),
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Собаки"],
+    )
     @action(detail=True, methods=['get'])
     def siblings(self, request, pk=None):
         """
@@ -133,6 +185,15 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = DogListSerializer(siblings, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Потомки собаки",
+        description="Возвращает всех потомков собаки (щенков, для которых она является отцом или матерью).",
+        responses={
+            200: DogListSerializer(many=True),
+            404: OpenApiResponse(description="Собака не найдена"),
+        },
+        tags=["Собаки"],
+    )
     @action(detail=True, methods=['get'])
     def offspring(self, request, pk=None):
         """
@@ -152,6 +213,18 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = DogListSerializer(offspring, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Поиск собак по кличке",
+        description="Возвращает до 20 собак, кличка которых содержит строку поиска.",
+        parameters=[
+            OpenApiParameter('q', str, required=True, description='Строка поиска по кличке'),
+        ],
+        responses={
+            200: DogListSerializer(many=True),
+            400: OpenApiResponse(description="Параметр q не передан"),
+        },
+        tags=["Собаки"],
+    )
     @action(detail=False, methods=['get'])
     def search(self, request):
         """
@@ -171,6 +244,24 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = DogListSerializer(dogs, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Статистика по базе собак",
+        description="Возвращает общую статистику: количество собак, кобелей, сук, заводчиков и т.д.",
+        responses={
+            200: inline_serializer(
+                name="DogStatsResponse",
+                fields={
+                    "total": drf_serializers.IntegerField(),
+                    "males": drf_serializers.IntegerField(),
+                    "females": drf_serializers.IntegerField(),
+                    "breeders": drf_serializers.IntegerField(),
+                    "with_zooportal_id": drf_serializers.IntegerField(),
+                    "with_uuid": drf_serializers.IntegerField(),
+                },
+            ),
+        },
+        tags=["Собаки"],
+    )
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """
@@ -195,29 +286,44 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             ).count()
         })
 
+    @extend_schema(
+        summary="Рассчитать COI для собаки",
+        description=(
+            "Рассчитывает и сохраняет коэффициент инбридинга (COI) для указанной собаки. "
+            "Глубина расчёта от 1 до 10 поколений."
+        ),
+        request=inline_serializer(
+            name="CalculateCoiRequest",
+            fields={
+                "generations": drf_serializers.IntegerField(
+                    required=False, default=5, help_text="Глубина расчёта (1–10, по умолчанию 5)"
+                ),
+                "use_ancestor_coi": drf_serializers.BooleanField(
+                    required=False, default=False, help_text="Учитывать COI предков (точнее, но медленнее)"
+                ),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                name="CalculateCoiResponse",
+                fields={
+                    "coi": drf_serializers.FloatField(),
+                    "coi_updated_on": drf_serializers.DateTimeField(),
+                    "generations": drf_serializers.IntegerField(),
+                    "common_ancestors": drf_serializers.IntegerField(),
+                    "total_ancestors_sire": drf_serializers.IntegerField(),
+                    "total_ancestors_dam": drf_serializers.IntegerField(),
+                    "ancestor_contributions": drf_serializers.DictField(child=drf_serializers.FloatField()),
+                },
+            ),
+            404: OpenApiResponse(description="Собака не найдена"),
+            422: OpenApiResponse(description="Невозможно рассчитать COI (неполная родословная)"),
+        },
+        tags=["Собаки"],
+    )
     @action(detail=True, methods=['post'], permission_classes=[AllowAny], authentication_classes=[])
     def calculate_coi(self, request, pk=None):
-        """
-        Рассчитывает и сохраняет COI для одной собаки.
-
-        POST /api/dogs/{id}/calculate_coi/
-        Body (всё опционально):
-          {
-            "generations": 5,           // 1–10, стандарт = 5
-            "use_ancestor_coi": false   // учитывать F_A предков
-          }
-
-        Возвращает:
-          {
-            "coi": 6.25,
-            "coi_updated_on": "2026-03-01T12:00:00Z",
-            "generations": 5,
-            "common_ancestors": 3,
-            "total_ancestors_sire": 15,
-            "total_ancestors_dam": 14,
-            "ancestor_contributions": {"123": 3.125, "456": 1.5625}
-          }
-        """
+        """Рассчитывает и сохраняет COI для одной собаки."""
         dog = self.get_object()
         generations = max(1, min(int(request.data.get('generations', 5)), 10))
         use_ancestor_coi = bool(request.data.get('use_ancestor_coi', False))
@@ -257,9 +363,9 @@ class ImportZooportalDogView(APIView):
         description="Запускает асинхронный импорт собаки по её ID из Zooportal.",
         request=ImportZooportalDogSerializer,
         responses={
-            202: OpenApiTypes.OBJECT,
-            400: OpenApiTypes.OBJECT,
-            500: OpenApiTypes.OBJECT,
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            500: OpenApiResponse(description="Внутренняя ошибка сервера"),
         },
         tags=["Import Zooportal"],
     )
@@ -292,9 +398,9 @@ class ImportZooportalPageView(APIView):
         description="Импортирует всех собак с указанной страницы поиска Zooportal.",
         request=ImportZooportalPageSerializer,
         responses={
-            202: OpenApiTypes.OBJECT,
-            400: OpenApiTypes.OBJECT,
-            500: OpenApiTypes.OBJECT,
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            500: OpenApiResponse(description="Внутренняя ошибка сервера"),
         },
         tags=["Import Zooportal"],
     )
@@ -331,9 +437,9 @@ class ImportZooportalRangeView(APIView):
         description="Импортирует собак из нескольких страниц поиска Zooportal.",
         request=ImportZooportalRangeSerializer,
         responses={
-            202: OpenApiTypes.OBJECT,
-            400: OpenApiTypes.OBJECT,
-            500: OpenApiTypes.OBJECT,
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+            500: OpenApiResponse(description="Внутренняя ошибка сервера"),
         },
         tags=["Import Zooportal"],
     )
@@ -383,8 +489,8 @@ class ImportTaskStatusView(APIView):
             )
         ],
         responses={
-            200: OpenApiTypes.OBJECT,
-            500: OpenApiTypes.OBJECT,
+            200: TaskStatusResponseSerializer,
+            500: OpenApiResponse(description="Внутренняя ошибка сервера"),
         },
         tags=["Status of Import Task"],
     )
@@ -418,30 +524,90 @@ class ImportTaskStatusView(APIView):
             return Response({'error': str(e)}, status=500)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список заводчиков",
+        responses={200: BreederSerializer(many=True)},
+        tags=["Справочники собак"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить заводчика по ID",
+        responses={200: BreederSerializer, 404: OpenApiResponse(description="Заводчик не найден")},
+        tags=["Справочники собак"],
+    ),
+)
 class BreederViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet для заводчиков"""
     queryset = Breeder.objects.using('dogs_db').all()
     serializer_class = BreederSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список владельцев",
+        responses={200: OwnerSerializer(many=True)},
+        tags=["Справочники собак"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить владельца по ID",
+        responses={200: OwnerSerializer, 404: OpenApiResponse(description="Владелец не найден")},
+        tags=["Справочники собак"],
+    ),
+)
 class OwnerViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet для владельцев"""
     queryset = Owner.objects.using('dogs_db').all()
     serializer_class = OwnerSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список титулов",
+        responses={200: TitleSerializer(many=True)},
+        tags=["Справочники собак"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить титул по ID",
+        responses={200: TitleSerializer, 404: OpenApiResponse(description="Титул не найден")},
+        tags=["Справочники собак"],
+    ),
+)
 class TitleViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet для титулов"""
     queryset = Title.objects.using('dogs_db').all()
     serializer_class = TitleSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список помётов",
+        responses={200: LitterSerializer(many=True)},
+        tags=["Справочники собак"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить помёт по ID",
+        responses={200: LitterSerializer, 404: OpenApiResponse(description="Помёт не найден")},
+        tags=["Справочники собак"],
+    ),
+)
 class LitterViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet для помётов"""
     queryset = Litter.objects.using('dogs_db').all()
     serializer_class = LitterSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список медицинских записей",
+        responses={200: MedicalRecordSerializer(many=True)},
+        tags=["Справочники собак"],
+    ),
+    retrieve=extend_schema(
+        summary="Получить медицинскую запись по ID",
+        responses={200: MedicalRecordSerializer, 404: OpenApiResponse(description="Запись не найдена")},
+        tags=["Справочники собак"],
+    ),
+)
 class MedicalRecordViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet для медицинских записей"""
     queryset = MedicalRecord.objects.using('dogs_db').all()
@@ -453,7 +619,10 @@ class ImportBreedarchiveDogView(APIView):
     @extend_schema(
         summary="Импорт одной собаки из BreedArchive",
         request=ImportBreedarchiveDogSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import BreedArchive"],
     )
     def post(self, request):
@@ -490,7 +659,10 @@ class ImportBreedarchiveFullPedigreeView(APIView):
                 "Возвращает task_id для отслеживания прогресса."
         ),
         request=ImportBreedarchiveFullPedigreeSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import BreedArchive"],
     )
     def post(self, request):
@@ -516,7 +688,10 @@ class ImportBreedarchiveRecentView(APIView):
     @extend_schema(
         summary="Импорт последних обновлений BreedArchive",
         request=ImportBreedarchiveRecentSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import BreedArchive"],
     )
     def post(self, request):
@@ -545,7 +720,10 @@ class ImportBreedarchiveBrowseView(APIView):
     @extend_schema(
         summary="Импорт собак через browse-страницу BreedArchive",
         request=ImportBreedarchiveBrowseSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import BreedArchive"],
     )
     def post(self, request):
@@ -576,7 +754,10 @@ class ImportHybridDogView(APIView):
             "(registered_name uppercase, zooportal_id всегда из Zoo)."
         ),
         request=ImportHybridDogSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import Hybrid"],
     )
     def post(self, request):
@@ -605,7 +786,10 @@ class ImportHybridPageView(APIView):
             "Zoo страница → поиск в BA → BA дерево предков (до 5 поколений) → Zoo патч."
         ),
         request=ImportHybridPageSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import Hybrid"],
     )
     def post(self, request):
@@ -631,7 +815,10 @@ class ImportHybridRangeView(APIView):
         summary="Гибридный импорт диапазона страниц Zoo→BA",
         description="Диспатчит гибридный импорт для каждой страницы из диапазона.",
         request=ImportHybridRangeSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import Hybrid"],
     )
     def post(self, request):
@@ -653,21 +840,36 @@ class ImportHybridRangeView(APIView):
 
 
 class RecalculateAllCoiView(APIView):
-    """
-    Массовый пересчёт COI для всех собак — запускает Celery-задачу.
+    """Массовый пересчёт COI для всех собак — запускает Celery-задачу."""
 
-    POST /api/dogs/coi/recalculate/
-    Body:
-      {
-        "generations": 5,           // 1–10, стандарт = 5
-        "only_missing": true,       // true = только Dog.coi IS NULL
-        "use_ancestor_coi": false,  // учитывать COI предков (точнее, медленнее)
-        "batch_size": 100           // размер батча (10–500)
-      }
-
-    Возвращает task_id. Прогресс: GET /api/dogs/import/status/{task_id}/
-    """
-
+    @extend_schema(
+        summary="Массовый пересчёт COI",
+        description=(
+            "Запускает Celery-задачу для пересчёта коэффициента инбридинга (COI) "
+            "для всех собак в базе. Прогресс можно отслеживать через GET /api/dogs/import/status/{task_id}/."
+        ),
+        request=inline_serializer(
+            name="RecalculateAllCoiRequest",
+            fields={
+                "generations": drf_serializers.IntegerField(
+                    required=False, default=5, help_text="Глубина расчёта (1–10, по умолчанию 5)"
+                ),
+                "only_missing": drf_serializers.BooleanField(
+                    required=False, default=True, help_text="True — только собаки с COI IS NULL"
+                ),
+                "use_ancestor_coi": drf_serializers.BooleanField(
+                    required=False, default=False, help_text="Учитывать COI предков"
+                ),
+                "batch_size": drf_serializers.IntegerField(
+                    required=False, default=100, help_text="Размер батча (10–500)"
+                ),
+            },
+        ),
+        responses={
+            202: TaskResponseSerializer,
+        },
+        tags=["Собаки"],
+    )
     def post(self, request):
         from .tasks.tasks_coi import recalculate_all_coi_task
 
@@ -709,7 +911,10 @@ class ImportHybridFullDogView(APIView):
                 "Время: от нескольких минут до нескольких часов."
         ),
         request=ImportHybridFullDogSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import Hybrid Full"],
     )
     def post(self, request):
@@ -741,7 +946,10 @@ class ImportHybridFullPageView(APIView):
     @extend_schema(
         summary="Гибридный импорт страницы Zoo→BA (все поколения)",
         request=ImportHybridFullPageSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import Hybrid Full"],
     )
     def post(self, request):
@@ -774,7 +982,10 @@ class ImportHybridFullRangeView(APIView):
     @extend_schema(
         summary="Гибридный импорт диапазона страниц Zoo→BA (все поколения)",
         request=ImportHybridFullRangeSerializer,
-        responses={202: OpenApiTypes.OBJECT},
+        responses={
+            202: TaskResponseSerializer,
+            400: OpenApiResponse(description="Ошибки валидации"),
+        },
         tags=["Import Hybrid Full"],
     )
     def post(self, request):
