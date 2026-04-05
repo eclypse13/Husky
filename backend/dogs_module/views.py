@@ -78,7 +78,7 @@ logger = logging.getLogger(__name__)
             OpenApiParameter('year', int, description='Фильтр по году рождения'),
         ],
         responses={200: DogListSerializer(many=True)},
-        tags=["Собаки"],
+        tags=["Dogs"],
     ),
     retrieve=extend_schema(
         summary="Детальная информация о собаке",
@@ -87,7 +87,7 @@ logger = logging.getLogger(__name__)
             200: DogDetailSerializer,
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     ),
 )
 class DogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -134,7 +134,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             200: PedigreeSerializer,
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     @action(detail=True, methods=['get'])
     def pedigree(self, request, pk=None):
@@ -166,7 +166,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             200: DogListSerializer(many=True),
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     @action(detail=True, methods=['get'])
     def siblings(self, request, pk=None):
@@ -192,7 +192,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             200: DogListSerializer(many=True),
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     @action(detail=True, methods=['get'])
     def offspring(self, request, pk=None):
@@ -223,7 +223,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             200: DogListSerializer(many=True),
             400: OpenApiResponse(description="Параметр q не передан"),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     @action(detail=False, methods=['get'])
     def search(self, request):
@@ -260,7 +260,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
                 },
             ),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -319,7 +319,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             404: OpenApiResponse(description="Собака не найдена"),
             422: OpenApiResponse(description="Невозможно рассчитать COI (неполная родословная)"),
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     @action(detail=True, methods=['post'], permission_classes=[AllowAny], authentication_classes=[])
     def calculate_coi(self, request, pk=None):
@@ -528,12 +528,12 @@ class ImportTaskStatusView(APIView):
     list=extend_schema(
         summary="Список заводчиков",
         responses={200: BreederSerializer(many=True)},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
     retrieve=extend_schema(
         summary="Получить заводчика по ID",
         responses={200: BreederSerializer, 404: OpenApiResponse(description="Заводчик не найден")},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
 )
 class BreederViewSet(viewsets.ReadOnlyModelViewSet):
@@ -546,12 +546,12 @@ class BreederViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список владельцев",
         responses={200: OwnerSerializer(many=True)},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
     retrieve=extend_schema(
         summary="Получить владельца по ID",
         responses={200: OwnerSerializer, 404: OpenApiResponse(description="Владелец не найден")},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
 )
 class OwnerViewSet(viewsets.ReadOnlyModelViewSet):
@@ -564,12 +564,12 @@ class OwnerViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список титулов",
         responses={200: TitleSerializer(many=True)},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
     retrieve=extend_schema(
         summary="Получить титул по ID",
         responses={200: TitleSerializer, 404: OpenApiResponse(description="Титул не найден")},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
 )
 class TitleViewSet(viewsets.ReadOnlyModelViewSet):
@@ -582,12 +582,12 @@ class TitleViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список помётов",
         responses={200: LitterSerializer(many=True)},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
     retrieve=extend_schema(
         summary="Получить помёт по ID",
         responses={200: LitterSerializer, 404: OpenApiResponse(description="Помёт не найден")},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
 )
 class LitterViewSet(viewsets.ReadOnlyModelViewSet):
@@ -600,12 +600,12 @@ class LitterViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список медицинских записей",
         responses={200: MedicalRecordSerializer(many=True)},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
     retrieve=extend_schema(
         summary="Получить медицинскую запись по ID",
         responses={200: MedicalRecordSerializer, 404: OpenApiResponse(description="Запись не найдена")},
-        tags=["Справочники собак"],
+        tags=["Dog References"],
     ),
 )
 class MedicalRecordViewSet(viewsets.ReadOnlyModelViewSet):
@@ -868,7 +868,7 @@ class RecalculateAllCoiView(APIView):
         responses={
             202: TaskResponseSerializer,
         },
-        tags=["Собаки"],
+        tags=["Dogs"],
     )
     def post(self, request):
         from .tasks.tasks_coi import recalculate_all_coi_task

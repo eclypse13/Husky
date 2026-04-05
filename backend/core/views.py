@@ -34,7 +34,7 @@ from .permissions import IsNKPMember, IsOwnerOrReadOnly
             OpenApiParameter('key', str, description='Поиск по ключу (частичное совпадение)'),
         ],
         responses={200: ContentDictionarySerializer(many=True)},
-        tags=["Контент-справочник"],
+        tags=["Content Dictionary"],
     ),
     retrieve=extend_schema(
         summary="Получить запись по ID",
@@ -42,7 +42,7 @@ from .permissions import IsNKPMember, IsOwnerOrReadOnly
             200: ContentDictionarySerializer,
             404: OpenApiResponse(description="Запись не найдена"),
         },
-        tags=["Контент-справочник"],
+        tags=["Content Dictionary"],
     ),
 )
 class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -85,7 +85,7 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
             400: OpenApiResponse(description="Параметр key не передан"),
             404: OpenApiResponse(description="Запись с указанным ключом не найдена"),
         },
-        tags=["Контент-справочник"],
+        tags=["Content Dictionary"],
     )
     @action(detail=False, methods=['get'])
     def by_key(self, request):
@@ -114,7 +114,7 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter('tag', str, description='Фильтр по тегу'),
         ],
         responses={200: NewsSerializer(many=True)},
-        tags=["Новости"],
+        tags=["News"],
     ),
     retrieve=extend_schema(
         summary="Получить новость по ID",
@@ -122,7 +122,7 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
             200: NewsSerializer,
             404: OpenApiResponse(description="Новость не найдена"),
         },
-        tags=["Новости"],
+        tags=["News"],
     ),
 )
 class NewsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -151,7 +151,7 @@ class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список CMS-страниц",
         responses={200: PageSerializer(many=True)},
-        tags=["CMS-страницы"],
+        tags=["Pages"],
     ),
     retrieve=extend_schema(
         summary="Получить CMS-страницу по slug",
@@ -159,7 +159,7 @@ class NewsViewSet(viewsets.ReadOnlyModelViewSet):
             200: PageSerializer,
             404: OpenApiResponse(description="Страница не найдена"),
         },
-        tags=["CMS-страницы"],
+        tags=["Pages"],
     ),
 )
 class PageViewSet(viewsets.ReadOnlyModelViewSet):
@@ -178,7 +178,7 @@ class PageViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список галерей",
         responses={200: GallerySerializer(many=True)},
-        tags=["Галереи"],
+        tags=["Galleries"],
     ),
     retrieve=extend_schema(
         summary="Получить галерею по ID",
@@ -186,7 +186,7 @@ class PageViewSet(viewsets.ReadOnlyModelViewSet):
             200: GallerySerializer,
             404: OpenApiResponse(description="Галерея не найдена"),
         },
-        tags=["Галереи"],
+        tags=["Galleries"],
     ),
 )
 class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -199,7 +199,7 @@ class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
         summary="Избранные галереи",
         description="Возвращает галереи, отмеченные как избранные (для главной страницы).",
         responses={200: GallerySerializer(many=True)},
-        tags=["Галереи"],
+        tags=["Galleries"],
     )
     @action(detail=False, methods=['get'])
     def highlights(self, request):
@@ -219,7 +219,7 @@ class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter('type', str, description='Тип мероприятия'),
         ],
         responses={200: EventSerializer(many=True)},
-        tags=["Мероприятия"],
+        tags=["Events"],
     ),
     retrieve=extend_schema(
         summary="Получить мероприятие по ID",
@@ -227,7 +227,7 @@ class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
             200: EventSerializer,
             404: OpenApiResponse(description="Мероприятие не найдено"),
         },
-        tags=["Мероприятия"],
+        tags=["Events"],
     ),
 )
 class EventViewSet(viewsets.ReadOnlyModelViewSet):
@@ -258,7 +258,7 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список отчётов о мероприятиях",
         responses={200: EventReportSerializer(many=True)},
-        tags=["Отчёты о мероприятиях"],
+        tags=["Event Reports"],
     ),
     retrieve=extend_schema(
         summary="Получить отчёт о мероприятии по ID",
@@ -266,7 +266,7 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
             200: EventReportSerializer,
             404: OpenApiResponse(description="Отчёт не найден"),
         },
-        tags=["Отчёты о мероприятиях"],
+        tags=["Event Reports"],
     ),
 )
 class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
@@ -280,7 +280,7 @@ class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список судей",
         responses={200: JudgeSerializer(many=True)},
-        tags=["Судьи"],
+        tags=["Judges"],
     ),
     retrieve=extend_schema(
         summary="Получить судью по ID",
@@ -288,7 +288,7 @@ class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
             200: JudgeSerializer,
             404: OpenApiResponse(description="Судья не найден"),
         },
-        tags=["Судьи"],
+        tags=["Judges"],
     ),
 )
 class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -302,7 +302,7 @@ class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список детальных профилей судей",
         responses={200: JudgeDetailsSerializer(many=True)},
-        tags=["Судьи"],
+        tags=["Judges"],
     ),
     retrieve=extend_schema(
         summary="Получить детальный профиль судьи",
@@ -310,7 +310,7 @@ class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
             200: JudgeDetailsSerializer,
             404: OpenApiResponse(description="Профиль судьи не найден"),
         },
-        tags=["Судьи"],
+        tags=["Judges"],
     ),
 )
 class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -324,7 +324,7 @@ class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список документов клуба",
         responses={200: ClubDocumentSerializer(many=True)},
-        tags=["Документы клуба"],
+        tags=["Club Documents"],
     ),
     retrieve=extend_schema(
         summary="Получить документ клуба по ID",
@@ -332,7 +332,7 @@ class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
             200: ClubDocumentSerializer,
             404: OpenApiResponse(description="Документ не найден"),
         },
-        tags=["Документы клуба"],
+        tags=["Club Documents"],
     ),
 )
 class ClubDocumentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -352,7 +352,7 @@ class ClubStatsViewSet(viewsets.ViewSet):
         responses={
             200: ClubStatsSerializer,
         },
-        tags=["Статистика клуба"],
+        tags=["Club Stats"],
     )
     def list(self, request):
         obj = models.ClubStats.objects.order_by("-updated_at").first()
@@ -375,7 +375,7 @@ class ClubStatsViewSet(viewsets.ViewSet):
     list=extend_schema(
         summary="Список членов Президиума",
         responses={200: BoardMemberSerializer(many=True)},
-        tags=["Руководство"],
+        tags=["Leadership"],
     ),
     retrieve=extend_schema(
         summary="Получить члена Президиума по ID",
@@ -383,7 +383,7 @@ class ClubStatsViewSet(viewsets.ViewSet):
             200: BoardMemberSerializer,
             404: OpenApiResponse(description="Член Президиума не найден"),
         },
-        tags=["Руководство"],
+        tags=["Leadership"],
     ),
 )
 class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
@@ -398,7 +398,7 @@ class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
         summary="Список рабочих групп",
         description="Возвращает рабочие группы вместе с вложенными участниками.",
         responses={200: WorkingGroupSerializer(many=True)},
-        tags=["Руководство"],
+        tags=["Leadership"],
     ),
     retrieve=extend_schema(
         summary="Получить рабочую группу по ID",
@@ -406,7 +406,7 @@ class BoardMemberViewSet(viewsets.ReadOnlyModelViewSet):
             200: WorkingGroupSerializer,
             404: OpenApiResponse(description="Рабочая группа не найдена"),
         },
-        tags=["Руководство"],
+        tags=["Leadership"],
     ),
 )
 class WorkingGroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -419,7 +419,7 @@ class WorkingGroupViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         summary="Список стандартов породы",
         responses={200: BreedStandardSerializer(many=True)},
-        tags=["Порода"],
+        tags=["Breed"],
     ),
     retrieve=extend_schema(
         summary="Получить стандарт породы по ID",
@@ -427,7 +427,7 @@ class WorkingGroupViewSet(viewsets.ReadOnlyModelViewSet):
             200: BreedStandardSerializer,
             404: OpenApiResponse(description="Стандарт не найден"),
         },
-        tags=["Порода"],
+        tags=["Breed"],
     ),
 )
 class BreedStandardViewSet(viewsets.ReadOnlyModelViewSet):
@@ -445,7 +445,7 @@ class BreedStandardViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter('category', str, description='Категория статьи'),
         ],
         responses={200: BreedArticleSerializer(many=True)},
-        tags=["Порода"],
+        tags=["Breed"],
     ),
     retrieve=extend_schema(
         summary="Получить статью о породе по ID",
@@ -453,7 +453,7 @@ class BreedStandardViewSet(viewsets.ReadOnlyModelViewSet):
             200: BreedArticleSerializer,
             404: OpenApiResponse(description="Статья не найдена"),
         },
-        tags=["Порода"],
+        tags=["Breed"],
     ),
 )
 class BreedArticleViewSet(viewsets.ReadOnlyModelViewSet):
@@ -489,7 +489,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Профиль пользователя не найден"),
         },
-        tags=["Личный кабинет"],
+        tags=["Profile"],
     )
     @action(detail=False, methods=['get'])
     def me(self, request):
@@ -511,7 +511,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Профиль пользователя не найден"),
         },
-        tags=["Личный кабинет"],
+        tags=["Profile"],
     )
     @action(detail=False, methods=['put'])
     def update_profile(self, request):
@@ -534,7 +534,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             200: DogSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     ),
     retrieve=extend_schema(
         summary="Получить мою собаку по ID",
@@ -543,7 +543,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     ),
     create=extend_schema(
         summary="Добавить собаку",
@@ -552,7 +552,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             400: OpenApiResponse(description="Ошибки валидации"),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     ),
     update=extend_schema(
         summary="Обновить данные собаки",
@@ -562,7 +562,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     ),
     partial_update=extend_schema(
         summary="Частично обновить данные собаки",
@@ -572,7 +572,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     ),
     destroy=extend_schema(
         summary="Удалить собаку",
@@ -581,7 +581,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     ),
 )
 class MyDogViewSet(viewsets.ModelViewSet):
@@ -600,7 +600,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             200: DogSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои собаки"],
+        tags=["My Dogs"],
     )
     @action(detail=False, methods=['get'])
     def champions(self, request):
@@ -617,7 +617,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             200: KennelSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои питомники"],
+        tags=["My Kennels"],
     ),
     retrieve=extend_schema(
         summary="Получить мой питомник по ID",
@@ -626,7 +626,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
-        tags=["Мои питомники"],
+        tags=["My Kennels"],
     ),
     create=extend_schema(
         summary="Создать питомник",
@@ -635,7 +635,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             400: OpenApiResponse(description="Ошибки валидации"),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои питомники"],
+        tags=["My Kennels"],
     ),
     update=extend_schema(
         summary="Обновить питомник",
@@ -645,7 +645,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
-        tags=["Мои питомники"],
+        tags=["My Kennels"],
     ),
     partial_update=extend_schema(
         summary="Частично обновить питомник",
@@ -655,7 +655,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
-        tags=["Мои питомники"],
+        tags=["My Kennels"],
     ),
     destroy=extend_schema(
         summary="Удалить питомник",
@@ -664,7 +664,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
-        tags=["Мои питомники"],
+        tags=["My Kennels"],
     ),
 )
 class MyKennelViewSet(viewsets.ModelViewSet):
@@ -684,7 +684,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
             200: LitterSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои помёты"],
+        tags=["My Litters"],
     ),
     retrieve=extend_schema(
         summary="Получить мой помёт по ID",
@@ -693,7 +693,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
-        tags=["Мои помёты"],
+        tags=["My Litters"],
     ),
     create=extend_schema(
         summary="Создать помёт",
@@ -702,7 +702,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
             400: OpenApiResponse(description="Ошибки валидации"),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои помёты"],
+        tags=["My Litters"],
     ),
     update=extend_schema(
         summary="Обновить помёт",
@@ -712,7 +712,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
-        tags=["Мои помёты"],
+        tags=["My Litters"],
     ),
     partial_update=extend_schema(
         summary="Частично обновить помёт",
@@ -722,7 +722,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
-        tags=["Мои помёты"],
+        tags=["My Litters"],
     ),
     destroy=extend_schema(
         summary="Удалить помёт",
@@ -731,7 +731,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
-        tags=["Мои помёты"],
+        tags=["My Litters"],
     ),
 )
 class MyLitterViewSet(viewsets.ModelViewSet):
@@ -752,7 +752,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
             200: ApplicationSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои заявления"],
+        tags=["My Applications"],
     ),
     retrieve=extend_schema(
         summary="Получить моё заявление по ID",
@@ -761,7 +761,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
-        tags=["Мои заявления"],
+        tags=["My Applications"],
     ),
     create=extend_schema(
         summary="Создать заявление",
@@ -770,7 +770,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
             400: OpenApiResponse(description="Ошибки валидации"),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои заявления"],
+        tags=["My Applications"],
     ),
     update=extend_schema(
         summary="Обновить заявление",
@@ -780,7 +780,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
-        tags=["Мои заявления"],
+        tags=["My Applications"],
     ),
     partial_update=extend_schema(
         summary="Частично обновить заявление",
@@ -790,7 +790,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
-        tags=["Мои заявления"],
+        tags=["My Applications"],
     ),
     destroy=extend_schema(
         summary="Удалить заявление",
@@ -799,7 +799,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
-        tags=["Мои заявления"],
+        tags=["My Applications"],
     ),
 )
 class MyApplicationViewSet(viewsets.ModelViewSet):
@@ -819,7 +819,7 @@ class MyApplicationViewSet(viewsets.ModelViewSet):
             200: AchievementSerializer(many=True),
             401: OpenApiResponse(description="Пользователь не авторизован"),
         },
-        tags=["Мои достижения"],
+        tags=["My Achievements"],
     ),
     retrieve=extend_schema(
         summary="Получить моё достижение по ID",
@@ -828,7 +828,7 @@ class MyApplicationViewSet(viewsets.ModelViewSet):
             401: OpenApiResponse(description="Пользователь не авторизован"),
             404: OpenApiResponse(description="Достижение не найдено"),
         },
-        tags=["Мои достижения"],
+        tags=["My Achievements"],
     ),
 )
 class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
@@ -877,7 +877,7 @@ _LoginSuccessSerializer = inline_serializer(
         200: OpenApiResponse(response=_LoginSuccessSerializer, description="Успешная аутентификация"),
         401: OpenApiResponse(description="Неверный email или пароль"),
     },
-    tags=["Аутентификация"],
+    tags=["Auth"],
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -916,7 +916,7 @@ def login_view(request):
         200: OpenApiResponse(description="Сессия завершена"),
         401: OpenApiResponse(description="Пользователь не авторизован"),
     },
-    tags=["Аутентификация"],
+    tags=["Auth"],
 )
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -944,7 +944,7 @@ _HomeResponseSerializer = inline_serializer(
     summary="Данные для главной страницы",
     description="Возвращает избранные новости (до 3), ближайшие мероприятия (до 5) и избранные галереи (до 2).",
     responses={200: _HomeResponseSerializer},
-    tags=["Главная страница"],
+    tags=["Home"],
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -980,7 +980,7 @@ _ActivityFeedSerializer = inline_serializer(
     summary="Лента активности",
     description="Возвращает последние сообщения из Telegram-канала клуба (кешируется на 1 минуту).",
     responses={200: _ActivityFeedSerializer},
-    tags=["Главная страница"],
+    tags=["Home"],
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
