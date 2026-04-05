@@ -30,7 +30,8 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 /**
- * API новостей
+ * Возвращает пагинированный список новостей. Поддерживает фильтрацию по избранному и тегам.
+ * @summary Список новостей
  */
 export type newsListResponse200 = {
   data: PaginatedNewsList
@@ -109,6 +110,9 @@ export type NewsListQueryResult = NonNullable<Awaited<ReturnType<typeof newsList
 export type NewsListQueryError = unknown
 
 
+/**
+ * @summary Список новостей
+ */
 
 export function useNewsList<TData = Awaited<ReturnType<typeof newsList>>, TError = unknown>(
  params?: NewsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof newsList>>, TError, TData>, fetch?: RequestInit}
@@ -127,18 +131,26 @@ export function useNewsList<TData = Awaited<ReturnType<typeof newsList>>, TError
 
 /**
  * API новостей
+ * @summary Получить новость по ID
  */
 export type newsRetrieveResponse200 = {
   data: News
   status: 200
 }
 
+export type newsRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type newsRetrieveResponseSuccess = (newsRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type newsRetrieveResponseError = (newsRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type newsRetrieveResponse = (newsRetrieveResponseSuccess)
+export type newsRetrieveResponse = (newsRetrieveResponseSuccess | newsRetrieveResponseError)
 
 export const getNewsRetrieveUrl = (id: number,) => {
 
@@ -176,7 +188,7 @@ export const getNewsRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getNewsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof newsRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof newsRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getNewsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof newsRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof newsRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -195,11 +207,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type NewsRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof newsRetrieve>>>
-export type NewsRetrieveQueryError = unknown
+export type NewsRetrieveQueryError = void
 
 
+/**
+ * @summary Получить новость по ID
+ */
 
-export function useNewsRetrieve<TData = Awaited<ReturnType<typeof newsRetrieve>>, TError = unknown>(
+export function useNewsRetrieve<TData = Awaited<ReturnType<typeof newsRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof newsRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

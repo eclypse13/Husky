@@ -17,7 +17,10 @@ import type {
 
 import type {
   Judge,
+  JudgeDetails,
+  JudgeDetailsListParams,
   JudgesListParams,
+  PaginatedJudgeDetailsList,
   PaginatedJudgeList
 } from '../api.schemas';
 
@@ -30,7 +33,208 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 /**
+ * API детальных профилей судей
+ * @summary Список детальных профилей судей
+ */
+export type judgeDetailsListResponse200 = {
+  data: PaginatedJudgeDetailsList
+  status: 200
+}
+
+export type judgeDetailsListResponseSuccess = (judgeDetailsListResponse200) & {
+  headers: Headers;
+};
+;
+
+export type judgeDetailsListResponse = (judgeDetailsListResponseSuccess)
+
+export const getJudgeDetailsListUrl = (params?: JudgeDetailsListParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/judge-details/?${stringifiedParams}` : `/api/judge-details/`
+}
+
+export const judgeDetailsList = async (params?: JudgeDetailsListParams, options?: RequestInit): Promise<judgeDetailsListResponse> => {
+  
+  const res = await fetch(getJudgeDetailsListUrl(params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  
+  const data: judgeDetailsListResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as judgeDetailsListResponse
+}
+  
+
+
+
+
+export const getJudgeDetailsListQueryKey = (params?: JudgeDetailsListParams,) => {
+    return [
+    `/api/judge-details/`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+    
+export const getJudgeDetailsListQueryOptions = <TData = Awaited<ReturnType<typeof judgeDetailsList>>, TError = unknown>(params?: JudgeDetailsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgeDetailsList>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getJudgeDetailsListQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof judgeDetailsList>>> = ({ signal }) => judgeDetailsList(params, { signal, ...fetchOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof judgeDetailsList>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type JudgeDetailsListQueryResult = NonNullable<Awaited<ReturnType<typeof judgeDetailsList>>>
+export type JudgeDetailsListQueryError = unknown
+
+
+/**
+ * @summary Список детальных профилей судей
+ */
+
+export function useJudgeDetailsList<TData = Awaited<ReturnType<typeof judgeDetailsList>>, TError = unknown>(
+ params?: JudgeDetailsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgeDetailsList>>, TError, TData>, fetch?: RequestInit}
+  
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getJudgeDetailsListQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * API детальных профилей судей
+ * @summary Получить детальный профиль судьи
+ */
+export type judgeDetailsRetrieveResponse200 = {
+  data: JudgeDetails
+  status: 200
+}
+
+export type judgeDetailsRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
+export type judgeDetailsRetrieveResponseSuccess = (judgeDetailsRetrieveResponse200) & {
+  headers: Headers;
+};
+export type judgeDetailsRetrieveResponseError = (judgeDetailsRetrieveResponse404) & {
+  headers: Headers;
+};
+
+export type judgeDetailsRetrieveResponse = (judgeDetailsRetrieveResponseSuccess | judgeDetailsRetrieveResponseError)
+
+export const getJudgeDetailsRetrieveUrl = (id: number,) => {
+
+
+  
+
+  return `/api/judge-details/${id}/`
+}
+
+export const judgeDetailsRetrieve = async (id: number, options?: RequestInit): Promise<judgeDetailsRetrieveResponse> => {
+  
+  const res = await fetch(getJudgeDetailsRetrieveUrl(id),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  
+  const data: judgeDetailsRetrieveResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as judgeDetailsRetrieveResponse
+}
+  
+
+
+
+
+export const getJudgeDetailsRetrieveQueryKey = (id: number,) => {
+    return [
+    `/api/judge-details/${id}/`
+    ] as const;
+    }
+
+    
+export const getJudgeDetailsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof judgeDetailsRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgeDetailsRetrieve>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getJudgeDetailsRetrieveQueryKey(id);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof judgeDetailsRetrieve>>> = ({ signal }) => judgeDetailsRetrieve(id, { signal, ...fetchOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof judgeDetailsRetrieve>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type JudgeDetailsRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof judgeDetailsRetrieve>>>
+export type JudgeDetailsRetrieveQueryError = void
+
+
+/**
+ * @summary Получить детальный профиль судьи
+ */
+
+export function useJudgeDetailsRetrieve<TData = Awaited<ReturnType<typeof judgeDetailsRetrieve>>, TError = void>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgeDetailsRetrieve>>, TError, TData>, fetch?: RequestInit}
+  
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getJudgeDetailsRetrieveQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
  * API судей
+ * @summary Список судей
  */
 export type judgesListResponse200 = {
   data: PaginatedJudgeList
@@ -109,6 +313,9 @@ export type JudgesListQueryResult = NonNullable<Awaited<ReturnType<typeof judges
 export type JudgesListQueryError = unknown
 
 
+/**
+ * @summary Список судей
+ */
 
 export function useJudgesList<TData = Awaited<ReturnType<typeof judgesList>>, TError = unknown>(
  params?: JudgesListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgesList>>, TError, TData>, fetch?: RequestInit}
@@ -127,18 +334,26 @@ export function useJudgesList<TData = Awaited<ReturnType<typeof judgesList>>, TE
 
 /**
  * API судей
+ * @summary Получить судью по ID
  */
 export type judgesRetrieveResponse200 = {
   data: Judge
   status: 200
 }
 
+export type judgesRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type judgesRetrieveResponseSuccess = (judgesRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type judgesRetrieveResponseError = (judgesRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type judgesRetrieveResponse = (judgesRetrieveResponseSuccess)
+export type judgesRetrieveResponse = (judgesRetrieveResponseSuccess | judgesRetrieveResponseError)
 
 export const getJudgesRetrieveUrl = (id: number,) => {
 
@@ -176,7 +391,7 @@ export const getJudgesRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getJudgesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof judgesRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgesRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getJudgesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof judgesRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgesRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -195,11 +410,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type JudgesRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof judgesRetrieve>>>
-export type JudgesRetrieveQueryError = unknown
+export type JudgesRetrieveQueryError = void
 
 
+/**
+ * @summary Получить судью по ID
+ */
 
-export function useJudgesRetrieve<TData = Awaited<ReturnType<typeof judgesRetrieve>>, TError = unknown>(
+export function useJudgesRetrieve<TData = Awaited<ReturnType<typeof judgesRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof judgesRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

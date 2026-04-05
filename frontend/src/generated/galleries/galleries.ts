@@ -16,6 +16,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  GalleriesHighlightsListParams,
   GalleriesListParams,
   Gallery,
   PaginatedGalleryList
@@ -31,6 +32,7 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 /**
  * API галерей
+ * @summary Список галерей
  */
 export type galleriesListResponse200 = {
   data: PaginatedGalleryList
@@ -109,6 +111,9 @@ export type GalleriesListQueryResult = NonNullable<Awaited<ReturnType<typeof gal
 export type GalleriesListQueryError = unknown
 
 
+/**
+ * @summary Список галерей
+ */
 
 export function useGalleriesList<TData = Awaited<ReturnType<typeof galleriesList>>, TError = unknown>(
  params?: GalleriesListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesList>>, TError, TData>, fetch?: RequestInit}
@@ -127,18 +132,26 @@ export function useGalleriesList<TData = Awaited<ReturnType<typeof galleriesList
 
 /**
  * API галерей
+ * @summary Получить галерею по ID
  */
 export type galleriesRetrieveResponse200 = {
   data: Gallery
   status: 200
 }
 
+export type galleriesRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type galleriesRetrieveResponseSuccess = (galleriesRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type galleriesRetrieveResponseError = (galleriesRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type galleriesRetrieveResponse = (galleriesRetrieveResponseSuccess)
+export type galleriesRetrieveResponse = (galleriesRetrieveResponseSuccess | galleriesRetrieveResponseError)
 
 export const getGalleriesRetrieveUrl = (id: number,) => {
 
@@ -176,7 +189,7 @@ export const getGalleriesRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getGalleriesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof galleriesRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getGalleriesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof galleriesRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -195,11 +208,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type GalleriesRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof galleriesRetrieve>>>
-export type GalleriesRetrieveQueryError = unknown
+export type GalleriesRetrieveQueryError = void
 
 
+/**
+ * @summary Получить галерею по ID
+ */
 
-export function useGalleriesRetrieve<TData = Awaited<ReturnType<typeof galleriesRetrieve>>, TError = unknown>(
+export function useGalleriesRetrieve<TData = Awaited<ReturnType<typeof galleriesRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -215,31 +231,39 @@ export function useGalleriesRetrieve<TData = Awaited<ReturnType<typeof galleries
 
 
 /**
- * Избранные галереи для главной
+ * Возвращает галереи, отмеченные как избранные (для главной страницы).
+ * @summary Избранные галереи
  */
-export type galleriesHighlightsRetrieveResponse200 = {
-  data: Gallery
+export type galleriesHighlightsListResponse200 = {
+  data: PaginatedGalleryList
   status: 200
 }
 
-export type galleriesHighlightsRetrieveResponseSuccess = (galleriesHighlightsRetrieveResponse200) & {
+export type galleriesHighlightsListResponseSuccess = (galleriesHighlightsListResponse200) & {
   headers: Headers;
 };
 ;
 
-export type galleriesHighlightsRetrieveResponse = (galleriesHighlightsRetrieveResponseSuccess)
+export type galleriesHighlightsListResponse = (galleriesHighlightsListResponseSuccess)
 
-export const getGalleriesHighlightsRetrieveUrl = () => {
+export const getGalleriesHighlightsListUrl = (params?: GalleriesHighlightsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
-  
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/galleries/highlights/`
+  return stringifiedParams.length > 0 ? `/api/galleries/highlights/?${stringifiedParams}` : `/api/galleries/highlights/`
 }
 
-export const galleriesHighlightsRetrieve = async ( options?: RequestInit): Promise<galleriesHighlightsRetrieveResponse> => {
+export const galleriesHighlightsList = async (params?: GalleriesHighlightsListParams, options?: RequestInit): Promise<galleriesHighlightsListResponse> => {
   
-  const res = await fetch(getGalleriesHighlightsRetrieveUrl(),
+  const res = await fetch(getGalleriesHighlightsListUrl(params),
   {      
     ...options,
     method: 'GET'
@@ -250,50 +274,53 @@ export const galleriesHighlightsRetrieve = async ( options?: RequestInit): Promi
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
   
-  const data: galleriesHighlightsRetrieveResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as galleriesHighlightsRetrieveResponse
+  const data: galleriesHighlightsListResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as galleriesHighlightsListResponse
 }
   
 
 
 
 
-export const getGalleriesHighlightsRetrieveQueryKey = () => {
+export const getGalleriesHighlightsListQueryKey = (params?: GalleriesHighlightsListParams,) => {
     return [
-    `/api/galleries/highlights/`
+    `/api/galleries/highlights/`, ...(params ? [params] : [])
     ] as const;
     }
 
     
-export const getGalleriesHighlightsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>, TError = unknown>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getGalleriesHighlightsListQueryOptions = <TData = Awaited<ReturnType<typeof galleriesHighlightsList>>, TError = unknown>(params?: GalleriesHighlightsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesHighlightsList>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGalleriesHighlightsRetrieveQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGalleriesHighlightsListQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>> = ({ signal }) => galleriesHighlightsRetrieve({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof galleriesHighlightsList>>> = ({ signal }) => galleriesHighlightsList(params, { signal, ...fetchOptions });
 
       
 
       
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof galleriesHighlightsList>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GalleriesHighlightsRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>>
-export type GalleriesHighlightsRetrieveQueryError = unknown
+export type GalleriesHighlightsListQueryResult = NonNullable<Awaited<ReturnType<typeof galleriesHighlightsList>>>
+export type GalleriesHighlightsListQueryError = unknown
 
 
+/**
+ * @summary Избранные галереи
+ */
 
-export function useGalleriesHighlightsRetrieve<TData = Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>, TError = unknown>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesHighlightsRetrieve>>, TError, TData>, fetch?: RequestInit}
+export function useGalleriesHighlightsList<TData = Awaited<ReturnType<typeof galleriesHighlightsList>>, TError = unknown>(
+ params?: GalleriesHighlightsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof galleriesHighlightsList>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGalleriesHighlightsRetrieveQueryOptions(options)
+  const queryOptions = getGalleriesHighlightsListQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

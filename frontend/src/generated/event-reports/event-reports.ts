@@ -31,6 +31,7 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 /**
  * API отчетов о мероприятиях
+ * @summary Список отчётов о мероприятиях
  */
 export type eventReportsListResponse200 = {
   data: PaginatedEventReportList
@@ -109,6 +110,9 @@ export type EventReportsListQueryResult = NonNullable<Awaited<ReturnType<typeof 
 export type EventReportsListQueryError = unknown
 
 
+/**
+ * @summary Список отчётов о мероприятиях
+ */
 
 export function useEventReportsList<TData = Awaited<ReturnType<typeof eventReportsList>>, TError = unknown>(
  params?: EventReportsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof eventReportsList>>, TError, TData>, fetch?: RequestInit}
@@ -127,18 +131,26 @@ export function useEventReportsList<TData = Awaited<ReturnType<typeof eventRepor
 
 /**
  * API отчетов о мероприятиях
+ * @summary Получить отчёт о мероприятии по ID
  */
 export type eventReportsRetrieveResponse200 = {
   data: EventReport
   status: 200
 }
 
+export type eventReportsRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type eventReportsRetrieveResponseSuccess = (eventReportsRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type eventReportsRetrieveResponseError = (eventReportsRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type eventReportsRetrieveResponse = (eventReportsRetrieveResponseSuccess)
+export type eventReportsRetrieveResponse = (eventReportsRetrieveResponseSuccess | eventReportsRetrieveResponseError)
 
 export const getEventReportsRetrieveUrl = (id: number,) => {
 
@@ -176,7 +188,7 @@ export const getEventReportsRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getEventReportsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof eventReportsRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof eventReportsRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getEventReportsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof eventReportsRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof eventReportsRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -195,11 +207,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type EventReportsRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof eventReportsRetrieve>>>
-export type EventReportsRetrieveQueryError = unknown
+export type EventReportsRetrieveQueryError = void
 
 
+/**
+ * @summary Получить отчёт о мероприятии по ID
+ */
 
-export function useEventReportsRetrieve<TData = Awaited<ReturnType<typeof eventReportsRetrieve>>, TError = unknown>(
+export function useEventReportsRetrieve<TData = Awaited<ReturnType<typeof eventReportsRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof eventReportsRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

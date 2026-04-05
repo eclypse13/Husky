@@ -33,7 +33,8 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 /**
- * API статей о породе
+ * Возвращает список статей. Поддерживает фильтрацию по категории.
+ * @summary Список статей о породе
  */
 export type breedArticlesListResponse200 = {
   data: PaginatedBreedArticleList
@@ -112,6 +113,9 @@ export type BreedArticlesListQueryResult = NonNullable<Awaited<ReturnType<typeof
 export type BreedArticlesListQueryError = unknown
 
 
+/**
+ * @summary Список статей о породе
+ */
 
 export function useBreedArticlesList<TData = Awaited<ReturnType<typeof breedArticlesList>>, TError = unknown>(
  params?: BreedArticlesListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedArticlesList>>, TError, TData>, fetch?: RequestInit}
@@ -130,18 +134,26 @@ export function useBreedArticlesList<TData = Awaited<ReturnType<typeof breedArti
 
 /**
  * API статей о породе
+ * @summary Получить статью о породе по ID
  */
 export type breedArticlesRetrieveResponse200 = {
   data: BreedArticle
   status: 200
 }
 
+export type breedArticlesRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type breedArticlesRetrieveResponseSuccess = (breedArticlesRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type breedArticlesRetrieveResponseError = (breedArticlesRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type breedArticlesRetrieveResponse = (breedArticlesRetrieveResponseSuccess)
+export type breedArticlesRetrieveResponse = (breedArticlesRetrieveResponseSuccess | breedArticlesRetrieveResponseError)
 
 export const getBreedArticlesRetrieveUrl = (id: number,) => {
 
@@ -179,7 +191,7 @@ export const getBreedArticlesRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getBreedArticlesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getBreedArticlesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -198,11 +210,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type BreedArticlesRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof breedArticlesRetrieve>>>
-export type BreedArticlesRetrieveQueryError = unknown
+export type BreedArticlesRetrieveQueryError = void
 
 
+/**
+ * @summary Получить статью о породе по ID
+ */
 
-export function useBreedArticlesRetrieve<TData = Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError = unknown>(
+export function useBreedArticlesRetrieve<TData = Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedArticlesRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -219,6 +234,7 @@ export function useBreedArticlesRetrieve<TData = Awaited<ReturnType<typeof breed
 
 /**
  * API стандартов породы
+ * @summary Список стандартов породы
  */
 export type breedStandardsListResponse200 = {
   data: PaginatedBreedStandardList
@@ -297,6 +313,9 @@ export type BreedStandardsListQueryResult = NonNullable<Awaited<ReturnType<typeo
 export type BreedStandardsListQueryError = unknown
 
 
+/**
+ * @summary Список стандартов породы
+ */
 
 export function useBreedStandardsList<TData = Awaited<ReturnType<typeof breedStandardsList>>, TError = unknown>(
  params?: BreedStandardsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedStandardsList>>, TError, TData>, fetch?: RequestInit}
@@ -315,18 +334,26 @@ export function useBreedStandardsList<TData = Awaited<ReturnType<typeof breedSta
 
 /**
  * API стандартов породы
+ * @summary Получить стандарт породы по ID
  */
 export type breedStandardsRetrieveResponse200 = {
   data: BreedStandard
   status: 200
 }
 
+export type breedStandardsRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type breedStandardsRetrieveResponseSuccess = (breedStandardsRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type breedStandardsRetrieveResponseError = (breedStandardsRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type breedStandardsRetrieveResponse = (breedStandardsRetrieveResponseSuccess)
+export type breedStandardsRetrieveResponse = (breedStandardsRetrieveResponseSuccess | breedStandardsRetrieveResponseError)
 
 export const getBreedStandardsRetrieveUrl = (id: number,) => {
 
@@ -364,7 +391,7 @@ export const getBreedStandardsRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getBreedStandardsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getBreedStandardsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -383,11 +410,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type BreedStandardsRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof breedStandardsRetrieve>>>
-export type BreedStandardsRetrieveQueryError = unknown
+export type BreedStandardsRetrieveQueryError = void
 
 
+/**
+ * @summary Получить стандарт породы по ID
+ */
 
-export function useBreedStandardsRetrieve<TData = Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError = unknown>(
+export function useBreedStandardsRetrieve<TData = Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof breedStandardsRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

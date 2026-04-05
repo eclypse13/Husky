@@ -15,7 +15,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  AuthLoginCreateBody
+  LoginRequestRequest,
+  LoginSuccess
 } from '../api.schemas';
 
 
@@ -27,19 +28,27 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 /**
- * Вход в систему
+ * Аутентификация пользователя по email и паролю. Устанавливает сессионный cookie.
+ * @summary Вход в систему
  */
 export type authLoginCreateResponse200 = {
-  data: unknown
+  data: LoginSuccess
   status: 200
+}
+
+export type authLoginCreateResponse401 = {
+  data: void
+  status: 401
 }
 
 export type authLoginCreateResponseSuccess = (authLoginCreateResponse200) & {
   headers: Headers;
 };
-;
+export type authLoginCreateResponseError = (authLoginCreateResponse401) & {
+  headers: Headers;
+};
 
-export type authLoginCreateResponse = (authLoginCreateResponseSuccess)
+export type authLoginCreateResponse = (authLoginCreateResponseSuccess | authLoginCreateResponseError)
 
 export const getAuthLoginCreateUrl = () => {
 
@@ -49,7 +58,7 @@ export const getAuthLoginCreateUrl = () => {
   return `/api/auth/login/`
 }
 
-export const authLoginCreate = async (authLoginCreateBody: AuthLoginCreateBody, options?: RequestInit): Promise<authLoginCreateResponse> => {
+export const authLoginCreate = async (loginRequestRequest: LoginRequestRequest, options?: RequestInit): Promise<authLoginCreateResponse> => {
   
   const res = await fetch(getAuthLoginCreateUrl(),
   {      
@@ -57,7 +66,7 @@ export const authLoginCreate = async (authLoginCreateBody: AuthLoginCreateBody, 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      authLoginCreateBody,)
+      loginRequestRequest,)
   }
 )
 
@@ -70,9 +79,9 @@ export const authLoginCreate = async (authLoginCreateBody: AuthLoginCreateBody, 
 
 
 
-export const getAuthLoginCreateMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLoginCreate>>, TError,{data: AuthLoginCreateBody}, TContext>, fetch?: RequestInit}
-): UseMutationOptions<Awaited<ReturnType<typeof authLoginCreate>>, TError,{data: AuthLoginCreateBody}, TContext> => {
+export const getAuthLoginCreateMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLoginCreate>>, TError,{data: LoginRequestRequest}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof authLoginCreate>>, TError,{data: LoginRequestRequest}, TContext> => {
 
 const mutationKey = ['authLoginCreate'];
 const {mutation: mutationOptions, fetch: fetchOptions} = options ?
@@ -84,7 +93,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLoginCreate>>, {data: AuthLoginCreateBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLoginCreate>>, {data: LoginRequestRequest}> = (props) => {
           const {data} = props ?? {};
 
           return  authLoginCreate(data,fetchOptions)
@@ -98,33 +107,44 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AuthLoginCreateMutationResult = NonNullable<Awaited<ReturnType<typeof authLoginCreate>>>
-    export type AuthLoginCreateMutationBody = AuthLoginCreateBody
-    export type AuthLoginCreateMutationError = unknown
+    export type AuthLoginCreateMutationBody = LoginRequestRequest
+    export type AuthLoginCreateMutationError = void
 
-    export const useAuthLoginCreate = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLoginCreate>>, TError,{data: AuthLoginCreateBody}, TContext>, fetch?: RequestInit}
+    /**
+ * @summary Вход в систему
+ */
+export const useAuthLoginCreate = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLoginCreate>>, TError,{data: LoginRequestRequest}, TContext>, fetch?: RequestInit}
  ): UseMutationResult<
         Awaited<ReturnType<typeof authLoginCreate>>,
         TError,
-        {data: AuthLoginCreateBody},
+        {data: LoginRequestRequest},
         TContext
       > => {
       return useMutation(getAuthLoginCreateMutationOptions(options));
     }
     /**
- * Выход из системы
+ * Завершает текущую сессию пользователя.
+ * @summary Выход из системы
  */
 export type authLogoutCreateResponse200 = {
   data: void
   status: 200
 }
 
+export type authLogoutCreateResponse401 = {
+  data: void
+  status: 401
+}
+
 export type authLogoutCreateResponseSuccess = (authLogoutCreateResponse200) & {
   headers: Headers;
 };
-;
+export type authLogoutCreateResponseError = (authLogoutCreateResponse401) & {
+  headers: Headers;
+};
 
-export type authLogoutCreateResponse = (authLogoutCreateResponseSuccess)
+export type authLogoutCreateResponse = (authLogoutCreateResponseSuccess | authLogoutCreateResponseError)
 
 export const getAuthLogoutCreateUrl = () => {
 
@@ -154,7 +174,7 @@ export const authLogoutCreate = async ( options?: RequestInit): Promise<authLogo
 
 
 
-export const getAuthLogoutCreateMutationOptions = <TError = unknown,
+export const getAuthLogoutCreateMutationOptions = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogoutCreate>>, TError,void, TContext>, fetch?: RequestInit}
 ): UseMutationOptions<Awaited<ReturnType<typeof authLogoutCreate>>, TError,void, TContext> => {
 
@@ -183,9 +203,12 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
 
     export type AuthLogoutCreateMutationResult = NonNullable<Awaited<ReturnType<typeof authLogoutCreate>>>
     
-    export type AuthLogoutCreateMutationError = unknown
+    export type AuthLogoutCreateMutationError = void
 
-    export const useAuthLogoutCreate = <TError = unknown,
+    /**
+ * @summary Выход из системы
+ */
+export const useAuthLogoutCreate = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogoutCreate>>, TError,void, TContext>, fetch?: RequestInit}
  ): UseMutationResult<
         Awaited<ReturnType<typeof authLogoutCreate>>,

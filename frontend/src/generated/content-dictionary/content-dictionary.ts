@@ -16,7 +16,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ContentByKeyResponse,
   ContentDictionary,
+  DictByKeyRetrieveParams,
   DictListParams,
   PaginatedContentDictionaryList
 } from '../api.schemas';
@@ -30,7 +32,8 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 /**
- * API для контент-справочника
+ * Возвращает все записи контент-справочника. Поддерживает фильтрацию по странице и ключу.
+ * @summary Список контент-записей
  */
 export type dictListResponse200 = {
   data: PaginatedContentDictionaryList
@@ -109,6 +112,9 @@ export type DictListQueryResult = NonNullable<Awaited<ReturnType<typeof dictList
 export type DictListQueryError = unknown
 
 
+/**
+ * @summary Список контент-записей
+ */
 
 export function useDictList<TData = Awaited<ReturnType<typeof dictList>>, TError = unknown>(
  params?: DictListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictList>>, TError, TData>, fetch?: RequestInit}
@@ -127,18 +133,26 @@ export function useDictList<TData = Awaited<ReturnType<typeof dictList>>, TError
 
 /**
  * API для контент-справочника
+ * @summary Получить запись по ID
  */
 export type dictRetrieveResponse200 = {
   data: ContentDictionary
   status: 200
 }
 
+export type dictRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type dictRetrieveResponseSuccess = (dictRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type dictRetrieveResponseError = (dictRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type dictRetrieveResponse = (dictRetrieveResponseSuccess)
+export type dictRetrieveResponse = (dictRetrieveResponseSuccess | dictRetrieveResponseError)
 
 export const getDictRetrieveUrl = (id: number,) => {
 
@@ -176,7 +190,7 @@ export const getDictRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getDictRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof dictRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getDictRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof dictRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -195,11 +209,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type DictRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof dictRetrieve>>>
-export type DictRetrieveQueryError = unknown
+export type DictRetrieveQueryError = void
 
 
+/**
+ * @summary Получить запись по ID
+ */
 
-export function useDictRetrieve<TData = Awaited<ReturnType<typeof dictRetrieve>>, TError = unknown>(
+export function useDictRetrieve<TData = Awaited<ReturnType<typeof dictRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -215,31 +232,51 @@ export function useDictRetrieve<TData = Awaited<ReturnType<typeof dictRetrieve>>
 
 
 /**
- * Получить значение по ключу
+ * Возвращает одну запись контент-справочника по точному совпадению ключа.
+ * @summary Получить значение по ключу
  */
 export type dictByKeyRetrieveResponse200 = {
-  data: ContentDictionary
+  data: ContentByKeyResponse
   status: 200
+}
+
+export type dictByKeyRetrieveResponse400 = {
+  data: void
+  status: 400
+}
+
+export type dictByKeyRetrieveResponse404 = {
+  data: void
+  status: 404
 }
 
 export type dictByKeyRetrieveResponseSuccess = (dictByKeyRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type dictByKeyRetrieveResponseError = (dictByKeyRetrieveResponse400 | dictByKeyRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type dictByKeyRetrieveResponse = (dictByKeyRetrieveResponseSuccess)
+export type dictByKeyRetrieveResponse = (dictByKeyRetrieveResponseSuccess | dictByKeyRetrieveResponseError)
 
-export const getDictByKeyRetrieveUrl = () => {
+export const getDictByKeyRetrieveUrl = (params: DictByKeyRetrieveParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
-  
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/dict/by_key/`
+  return stringifiedParams.length > 0 ? `/api/dict/by_key/?${stringifiedParams}` : `/api/dict/by_key/`
 }
 
-export const dictByKeyRetrieve = async ( options?: RequestInit): Promise<dictByKeyRetrieveResponse> => {
+export const dictByKeyRetrieve = async (params: DictByKeyRetrieveParams, options?: RequestInit): Promise<dictByKeyRetrieveResponse> => {
   
-  const res = await fetch(getDictByKeyRetrieveUrl(),
+  const res = await fetch(getDictByKeyRetrieveUrl(params),
   {      
     ...options,
     method: 'GET'
@@ -258,23 +295,23 @@ export const dictByKeyRetrieve = async ( options?: RequestInit): Promise<dictByK
 
 
 
-export const getDictByKeyRetrieveQueryKey = () => {
+export const getDictByKeyRetrieveQueryKey = (params?: DictByKeyRetrieveParams,) => {
     return [
-    `/api/dict/by_key/`
+    `/api/dict/by_key/`, ...(params ? [params] : [])
     ] as const;
     }
 
     
-export const getDictByKeyRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError = unknown>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getDictByKeyRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError = void>(params: DictByKeyRetrieveParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getDictByKeyRetrieveQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getDictByKeyRetrieveQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof dictByKeyRetrieve>>> = ({ signal }) => dictByKeyRetrieve({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof dictByKeyRetrieve>>> = ({ signal }) => dictByKeyRetrieve(params, { signal, ...fetchOptions });
 
       
 
@@ -284,16 +321,19 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type DictByKeyRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof dictByKeyRetrieve>>>
-export type DictByKeyRetrieveQueryError = unknown
+export type DictByKeyRetrieveQueryError = void
 
 
+/**
+ * @summary Получить значение по ключу
+ */
 
-export function useDictByKeyRetrieve<TData = Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError = unknown>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError, TData>, fetch?: RequestInit}
+export function useDictByKeyRetrieve<TData = Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError = void>(
+ params: DictByKeyRetrieveParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof dictByKeyRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getDictByKeyRetrieveQueryOptions(options)
+  const queryOptions = getDictByKeyRetrieveQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

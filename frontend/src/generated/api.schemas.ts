@@ -26,6 +26,11 @@ export interface Achievement {
   event?: number | null;
 }
 
+export interface ActivityFeedResponse {
+  /** Список последних сообщений из Telegram-канала */
+  results: unknown[];
+}
+
 /**
  * * `membership` - Членство
 * `litter_registration` - Регистрация помёта
@@ -90,6 +95,7 @@ export const BlankEnum = {
 
 export interface BoardMember {
   readonly id: number;
+  readonly working_group_id: number;
   /** @maxLength 200 */
   name: string;
   /** @maxLength 200 */
@@ -107,6 +113,8 @@ export interface BoardMember {
    * @maximum 9223372036854776000
    */
   order?: number;
+  /** @nullable */
+  working_group?: number | null;
 }
 
 /**
@@ -153,11 +161,56 @@ export interface BreedStandard {
   approved_date?: string | null;
 }
 
+export interface Breeder {
+  readonly id: number;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  uuid?: string | null;
+  /** @maxLength 500 */
+  name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  kennel?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  breeder_url?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  kennel_url?: string | null;
+}
+
+export interface CalculateCoiRequestRequest {
+  /** Глубина расчёта (1–10, по умолчанию 5) */
+  generations?: number;
+  /** Учитывать COI предков (точнее, но медленнее) */
+  use_ancestor_coi?: boolean;
+}
+
+export type CalculateCoiResponseAncestorContributions = {[key: string]: number};
+
+export interface CalculateCoiResponse {
+  coi: number;
+  coi_updated_on: string;
+  generations: number;
+  common_ancestors: number;
+  total_ancestors_sire: number;
+  total_ancestors_dam: number;
+  ancestor_contributions: CalculateCoiResponseAncestorContributions;
+}
+
 /**
- * * `charter` - charter
-* `regulation` - regulation
-* `standard` - standard
-* `form` - form
+ * * `charter` - устав
+* `regulation` - регламент
+* `standard` - стандарт
+* `form` - форма
  */
 export type DocumentTypeEnum = typeof DocumentTypeEnum[keyof typeof DocumentTypeEnum];
 
@@ -177,6 +230,43 @@ export interface ClubDocument {
   file: string;
   document_type: DocumentTypeEnum;
   readonly uploaded_at: string;
+  readonly file_size: string;
+  readonly file_ext: string;
+  readonly mime_type: string;
+  /**
+   * @minimum 0
+   * @maximum 9223372036854776000
+   */
+  order?: number;
+}
+
+export interface ClubStats {
+  /**
+   * @minimum 0
+   * @maximum 9223372036854776000
+   */
+  members_count?: number;
+  /**
+   * @minimum 0
+   * @maximum 9223372036854776000
+   */
+  kennels_count?: number;
+  /**
+   * @minimum 0
+   * @maximum 9223372036854776000
+   */
+  dogs_in_archive_count?: number;
+  /**
+   * @minimum 0
+   * @maximum 9223372036854776000
+   */
+  regions_count?: number;
+  readonly updated_at: string;
+}
+
+export interface ContentByKeyResponse {
+  key: string;
+  value: unknown;
 }
 
 export interface ContentDictionary {
@@ -197,15 +287,15 @@ export interface ContentDictionary {
  * * `male` - male
 * `female` - female
  */
-export type SexEnum = typeof SexEnum[keyof typeof SexEnum];
+export type DogSexEnum = typeof DogSexEnum[keyof typeof DogSexEnum];
 
 
-export const SexEnum = {
+export const DogSexEnum = {
   male: 'male',
   female: 'female',
 } as const;
 
-export const DogSex = {...SexEnum,...BlankEnum,} as const
+export const DogSex = {...DogSexEnum,...BlankEnum,} as const
 export interface Dog {
   readonly id: number;
   /** @maxLength 200 */
@@ -232,7 +322,395 @@ export interface Dog {
   dam?: number | null;
 }
 
-export const DogRequestSex = {...SexEnum,...BlankEnum,} as const
+/**
+ * * `1` - Кобель
+* `2` - Сука
+ */
+export type Sex6bbEnum = typeof Sex6bbEnum[keyof typeof Sex6bbEnum];
+
+
+export const Sex6bbEnum = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+} as const;
+
+/**
+ * Краткая информация о родителе (без вложенных).
+ */
+export interface DogParent {
+  readonly id: number;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  uuid?: string | null;
+  /**
+   * @maxLength 64
+   * @nullable
+   */
+  zoo_hash?: string | null;
+  readonly display_name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  registered_name?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  call_name?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   */
+  sex: Sex6bbEnum;
+  readonly sex_display: string;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  year_of_birth?: number | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  color?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  photo_url?: string | null;
+}
+
+export interface Owner {
+  readonly id: number;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  uuid?: string | null;
+  /** @maxLength 500 */
+  name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  kennel?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  owner_url?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  kennel_url?: string | null;
+}
+
+export interface Title {
+  readonly id: number;
+  /** @maxLength 100 */
+  short_name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  long_name?: string | null;
+  is_prefix: boolean;
+  /**
+   * @maxLength 100
+   * @nullable
+   */
+  country?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  winner_year?: number | null;
+}
+
+export interface MedicalRecord {
+  readonly id: number;
+  /** @maxLength 255 */
+  registry: string;
+  /** @nullable */
+  test_date?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  conclusion?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  ofa_number?: string | null;
+  /** @maxLength 255 */
+  source: string;
+}
+
+export interface Litter {
+  readonly id: number;
+  /** @nullable */
+  date_of_birth?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  litter_male_count?: number | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  litter_female_count?: number | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  litter_undef_count?: number | null;
+}
+
+/**
+ * Полная информация о собаке.
+ */
+export interface DogDetail {
+  readonly id: number;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  uuid?: string | null;
+  /**
+   * @maxLength 64
+   * @nullable
+   */
+  zoo_hash?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  zooportal_id?: string | null;
+  readonly display_name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  registered_name?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  call_name?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  link_name?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   */
+  sex: Sex6bbEnum;
+  readonly sex_display: string;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  year_of_birth?: number | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  month_of_birth?: number | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  day_of_birth?: number | null;
+  /** @nullable */
+  date_of_birth?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  year_of_death?: number | null;
+  /** @nullable */
+  date_of_death?: string | null;
+  readonly is_alive: string;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  land_of_birth?: string | null;
+  /**
+   * @maxLength 10
+   * @nullable
+   */
+  land_of_birth_code?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  land_of_standing?: string | null;
+  /** @nullable */
+  size?: number | null;
+  /** @nullable */
+  weight?: number | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  color?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  color_marking?: string | null;
+  /**
+   * @maxLength 100
+   * @nullable
+   */
+  eyes_color?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  variety?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  photo_url?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  prefix_titles?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  suffix_titles?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  other_titles?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  registration_number?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  brand_chip?: string | null;
+  /** @nullable */
+  coi?: number | null;
+  /** @nullable */
+  incomplete_pedigree?: boolean | null;
+  /** @nullable */
+  neutered?: boolean | null;
+  /** @nullable */
+  approved_for_breeding?: boolean | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  kennel?: string | null;
+  readonly dam: DogParent;
+  readonly sire: DogParent;
+  readonly breeders: readonly Breeder[];
+  readonly owners: readonly Owner[];
+  readonly titles: readonly Title[];
+  readonly medical_records: readonly MedicalRecord[];
+  readonly birth_litter: Litter;
+}
+
+/**
+ * Краткая информация о собаке для списка/поиска.
+
+breeder_names — список имён заводчиков (из таблицы breeder через dogbreederlink).
+Это правильный источник данных о питомнике, а НЕ dog.kennel.
+ */
+export interface DogList {
+  readonly id: number;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  uuid?: string | null;
+  /**
+   * @maxLength 64
+   * @nullable
+   */
+  zoo_hash?: string | null;
+  readonly display_name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  registered_name?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  call_name?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   */
+  sex: Sex6bbEnum;
+  readonly sex_display: string;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  year_of_birth?: number | null;
+  /** @nullable */
+  date_of_birth?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  color?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  photo_url?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  land_of_birth?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  prefix_titles?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  suffix_titles?: string | null;
+  readonly breeder_names: string;
+}
+
+export const DogRequestSex = {...DogSexEnum,...BlankEnum,} as const
 export interface DogRequest {
   /**
    * @minLength 1
@@ -258,6 +736,15 @@ export interface DogRequest {
   sire?: number | null;
   /** @nullable */
   dam?: number | null;
+}
+
+export interface DogStatsResponse {
+  total: number;
+  males: number;
+  females: number;
+  breeders: number;
+  with_zooportal_id: number;
+  with_uuid: number;
 }
 
 /**
@@ -351,6 +838,241 @@ export interface HomeResponse {
   highlight_galleries: Gallery[];
 }
 
+export interface ImportBreedarchiveBrowseRequest {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  recent_days?: number;
+}
+
+export interface ImportBreedarchiveDogRequest {
+  /**
+   * UUID собаки в BreedArchive
+   * @minLength 1
+   */
+  uuid: string;
+  force_update?: boolean;
+}
+
+/**
+ * Сериализатор для загрузки полной родословной по UUID.
+ */
+export interface ImportBreedarchiveFullPedigreeRequest {
+  /**
+   * UUID собаки в BreedArchive (из URL /animal/view/name-{uuid})
+   * @minLength 1
+   */
+  uuid: string;
+  /** True — сбросить кеш и загрузить заново даже если собака уже есть в БД */
+  force_update?: boolean;
+}
+
+export interface ImportBreedarchiveRecentRequest {
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  pages_count?: number;
+  /**
+   * @minimum 0
+   * @maximum 9
+   */
+  start_page?: number;
+  is_full_sync?: boolean;
+}
+
+export interface ImportHybridDogRequest {
+  /**
+   * @minLength 1
+   * @maxLength 20
+   */
+  zooportal_id: string;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  generations?: number;
+}
+
+export interface ImportHybridFullDogRequest {
+  /**
+   * ID собаки на Zooportal
+   * @minLength 1
+   * @maxLength 20
+   */
+  zooportal_id: string;
+  /**
+   * Глубина парсинга Zoo страницы (для fallback родословной)
+   * @minimum 1
+   * @maximum 5
+   */
+  generations?: number;
+  /** True — сбросить BA-кеш и загрузить предков заново */
+  force_update?: boolean;
+}
+
+export interface ImportHybridFullPageRequest {
+  /**
+   * Номер страницы Zoo поиска
+   * @minimum 1
+   */
+  page_num: number;
+  /**
+   * @minimum 1
+   * @maximum 11
+   */
+  max_dogs?: number;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  generations?: number;
+  /**
+   * @minimum 0.5
+   * @maximum 10
+   */
+  delay?: number;
+}
+
+export interface ImportHybridFullRangeRequest {
+  /** @minimum 1 */
+  start_page: number;
+  /** @minimum 1 */
+  end_page: number;
+  /**
+   * @minimum 1
+   * @maximum 11
+   */
+  max_dogs_per_page?: number;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  generations?: number;
+  /**
+   * @minimum 0.5
+   * @maximum 10
+   */
+  delay?: number;
+  /**
+   * Пауза между страницами в секундах
+   * @minimum 1
+   * @maximum 600
+   */
+  countdown_between_pages?: number;
+}
+
+export interface ImportHybridPageRequest {
+  /** @minimum 1 */
+  page_num: number;
+  /**
+   * @minimum 1
+   * @maximum 11
+   */
+  max_dogs?: number;
+  /**
+   * @minimum 0.5
+   * @maximum 10
+   */
+  delay?: number;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  generations?: number;
+}
+
+export interface ImportHybridRangeRequest {
+  /** @minimum 1 */
+  start_page: number;
+  /** @minimum 1 */
+  end_page: number;
+  /**
+   * @minimum 1
+   * @maximum 11
+   */
+  max_dogs_per_page?: number;
+  /**
+   * @minimum 0.5
+   * @maximum 10
+   */
+  delay?: number;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  generations?: number;
+  /**
+   * @minimum 1
+   * @maximum 600
+   */
+  countdown_between_pages?: number;
+}
+
+/**
+ * Сериализатор для импорта одной собаки
+ */
+export interface ImportZooportalDogRequest {
+  /**
+   * ID собаки на Zooportal (например: 17516431)
+   * @minLength 1
+   * @maxLength 20
+   */
+  zooportal_id: string;
+}
+
+/**
+ * Сериализатор для импорта страницы поиска
+ */
+export interface ImportZooportalPageRequest {
+  /**
+   * Номер страницы поиска (от 1 и выше)
+   * @minimum 1
+   */
+  page_num: number;
+  /**
+   * Максимальное количество собак (по умолчанию 10)
+   * @minimum 1
+   * @maximum 11
+   */
+  max_dogs?: number;
+  /**
+   * Задержка между собаками в секундах (по умолчанию 2.0)
+   * @minimum 0.5
+   * @maximum 10
+   */
+  delay?: number;
+}
+
+/**
+ * Сериализатор для импорта диапазона страниц
+ */
+export interface ImportZooportalRangeRequest {
+  /**
+   * Начальная страница (включительно)
+   * @minimum 1
+   */
+  start_page: number;
+  /**
+   * Конечная страница (включительно)
+   * @minimum 1
+   */
+  end_page: number;
+  /**
+   * Максимум собак на странице (по умолчанию 10)
+   * @minimum 1
+   * @maximum 11
+   */
+  max_dogs_per_page?: number;
+  /**
+   * Задержка между собаками (по умолчанию 2.0)
+   * @minimum 0.5
+   * @maximum 10
+   */
+  delay?: number;
+}
+
 export interface Judge {
   readonly id: number;
   /** @maxLength 200 */
@@ -436,25 +1158,6 @@ export const LitterStatusEnum = {
   sold: 'sold',
 } as const;
 
-export interface Litter {
-  readonly id: number;
-  /** @nullable */
-  whelped_at?: string | null;
-  /**
-   * @minimum -9223372036854776000
-   * @maximum 9223372036854776000
-   * @nullable
-   */
-  puppies_count?: number | null;
-  /** @maxLength 200 */
-  notes_key?: string;
-  status?: LitterStatusEnum;
-  readonly created_at: string;
-  kennel: number;
-  sire: number;
-  dam: number;
-}
-
 export interface LitterRequest {
   /** @nullable */
   whelped_at?: string | null;
@@ -471,6 +1174,48 @@ export interface LitterRequest {
   sire: number;
   dam: number;
 }
+
+export interface LoginRequestRequest {
+  /**
+   * Email пользователя
+   * @minLength 1
+   */
+  email: string;
+  /**
+   * Пароль
+   * @minLength 1
+   */
+  password: string;
+}
+
+export interface LoginUser {
+  email: string;
+  name: string;
+  is_nkp_member: boolean;
+}
+
+export interface LoginSuccess {
+  success: boolean;
+  user: LoginUser;
+}
+
+/**
+ * * `physical` - physical
+* `legal` - legal
+ */
+export type MembershipTypeEnum = typeof MembershipTypeEnum[keyof typeof MembershipTypeEnum];
+
+
+export const MembershipTypeEnum = {
+  physical: 'physical',
+  legal: 'legal',
+} as const;
+
+export type NullEnum = typeof NullEnum[keyof typeof NullEnum];
+
+
+export const NullEnum = {
+} as const;
 
 export interface Page {
   readonly id: number;
@@ -532,6 +1277,15 @@ export interface PaginatedBreedStandardList {
   results?: BreedStandard[];
 }
 
+export interface PaginatedBreederList {
+  count?: number;
+  /** @nullable */
+  next?: string | null;
+  /** @nullable */
+  previous?: string | null;
+  results?: Breeder[];
+}
+
 export interface PaginatedClubDocumentList {
   count?: number;
   /** @nullable */
@@ -557,6 +1311,15 @@ export interface PaginatedDogList {
   /** @nullable */
   previous?: string | null;
   results?: Dog[];
+}
+
+export interface PaginatedDogListList {
+  count?: number;
+  /** @nullable */
+  next?: string | null;
+  /** @nullable */
+  previous?: string | null;
+  results?: DogList[];
 }
 
 export interface PaginatedEventList {
@@ -622,6 +1385,15 @@ export interface PaginatedLitterList {
   results?: Litter[];
 }
 
+export interface PaginatedMedicalRecordList {
+  count?: number;
+  /** @nullable */
+  next?: string | null;
+  /** @nullable */
+  previous?: string | null;
+  results?: MedicalRecord[];
+}
+
 export interface PaginatedNewsList {
   count?: number;
   /** @nullable */
@@ -629,6 +1401,15 @@ export interface PaginatedNewsList {
   /** @nullable */
   previous?: string | null;
   results?: News[];
+}
+
+export interface PaginatedOwnerList {
+  count?: number;
+  /** @nullable */
+  next?: string | null;
+  /** @nullable */
+  previous?: string | null;
+  results?: Owner[];
 }
 
 export interface PaginatedPageList {
@@ -640,6 +1421,31 @@ export interface PaginatedPageList {
   results?: Page[];
 }
 
+export interface PaginatedTitleList {
+  count?: number;
+  /** @nullable */
+  next?: string | null;
+  /** @nullable */
+  previous?: string | null;
+  results?: Title[];
+}
+
+export interface WorkingGroup {
+  readonly id: number;
+  /** @maxLength 200 */
+  name: string;
+  readonly members: readonly BoardMember[];
+}
+
+export interface PaginatedWorkingGroupList {
+  count?: number;
+  /** @nullable */
+  next?: string | null;
+  /** @nullable */
+  previous?: string | null;
+  results?: WorkingGroup[];
+}
+
 export interface PatchedApplicationRequest {
   application_type?: ApplicationTypeEnum;
   payload?: unknown;
@@ -648,7 +1454,7 @@ export interface PatchedApplicationRequest {
   user?: number;
 }
 
-export const PatchedDogRequestSex = {...SexEnum,...BlankEnum,} as const
+export const PatchedDogRequestSex = {...DogSexEnum,...BlankEnum,} as const
 export interface PatchedDogRequest {
   /**
    * @minLength 1
@@ -712,10 +1518,147 @@ export interface PatchedLitterRequest {
   dam?: number;
 }
 
-export type AuthLoginCreateBody = {
-  email?: string;
-  password?: string;
-};
+/**
+ * Рекурсивное дерево родословной.
+ */
+export interface Pedigree {
+  readonly id: number;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  uuid?: string | null;
+  readonly display_name: string;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  registered_name?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  call_name?: string | null;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   */
+  sex: Sex6bbEnum;
+  /**
+   * @minimum -9223372036854776000
+   * @maximum 9223372036854776000
+   * @nullable
+   */
+  year_of_birth?: number | null;
+  /** @nullable */
+  date_of_birth?: string | null;
+  /**
+   * @maxLength 1000
+   * @nullable
+   */
+  photo_url?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  color?: string | null;
+  /**
+   * @maxLength 255
+   * @nullable
+   */
+  land_of_birth?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  prefix_titles?: string | null;
+  /**
+   * @maxLength 500
+   * @nullable
+   */
+  suffix_titles?: string | null;
+  /** @nullable */
+  coi?: number | null;
+  readonly dam: string;
+  readonly sire: string;
+}
+
+export interface RecalculateAllCoiRequestRequest {
+  /** Глубина расчёта (1–10, по умолчанию 5) */
+  generations?: number;
+  /** True — только собаки с COI IS NULL */
+  only_missing?: boolean;
+  /** Учитывать COI предков */
+  use_ancestor_coi?: boolean;
+  /** Размер батча (10–500) */
+  batch_size?: number;
+}
+
+/**
+ * Ответ с task_id
+ */
+export interface TaskResponse {
+  task_id: string;
+  status: string;
+  message: string;
+  check_status_url: string;
+}
+
+export type TaskStatusResponseProgress = {[key: string]: unknown};
+
+export type TaskStatusResponseResult = {[key: string]: unknown};
+
+/**
+ * Ответ со статусом задачи
+ */
+export interface TaskStatusResponse {
+  task_id: string;
+  status: string;
+  message?: string;
+  progress?: TaskStatusResponseProgress;
+  result?: TaskStatusResponseResult;
+  error?: string;
+}
+
+export const UserProfileMembershipType = {...MembershipTypeEnum,...BlankEnum,} as const
+export interface UserProfile {
+  readonly id: number;
+  /** @maxLength 254 */
+  email: string;
+  /** @maxLength 100 */
+  first_name?: string;
+  /** @maxLength 100 */
+  last_name?: string;
+  /** @maxLength 20 */
+  phone?: string;
+  /** @maxLength 100 */
+  city?: string;
+  is_nkp_member?: boolean;
+  membership_type?: typeof UserProfileMembershipType[keyof typeof UserProfileMembershipType] | null;
+  /** @nullable */
+  membership_expires_at?: string | null;
+}
+
+export const UserProfileRequestMembershipType = {...MembershipTypeEnum,...BlankEnum,} as const
+export interface UserProfileRequest {
+  /**
+   * @minLength 1
+   * @maxLength 254
+   */
+  email: string;
+  /** @maxLength 100 */
+  first_name?: string;
+  /** @maxLength 100 */
+  last_name?: string;
+  /** @maxLength 20 */
+  phone?: string;
+  /** @maxLength 100 */
+  city?: string;
+  is_nkp_member?: boolean;
+  membership_type?: typeof UserProfileRequestMembershipType[keyof typeof UserProfileRequestMembershipType] | null;
+  /** @nullable */
+  membership_expires_at?: string | null;
+}
 
 export type BreedArticlesListParams = {
 /**
@@ -729,6 +1672,13 @@ page?: number;
 };
 
 export type BreedStandardsListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
+export type BreedersListParams = {
 /**
  * A page number within the paginated result set.
  */
@@ -751,13 +1701,71 @@ page?: number;
 
 export type DictListParams = {
 /**
- * Поиск по ключу
+ * Поиск по ключу (частичное совпадение)
  */
 key?: string;
 /**
  * Фильтр по странице
  */
 page?: string;
+};
+
+export type DictByKeyRetrieveParams = {
+/**
+ * Точный ключ записи
+ */
+key: string;
+};
+
+export type DogsListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+/**
+ * Поиск по кличке (частичное совпадение)
+ */
+q?: string;
+/**
+ * Фильтр по полу (1 — кобель, 2 — сука)
+ */
+sex?: number;
+/**
+ * Фильтр по году рождения
+ */
+year?: number;
+};
+
+export type DogsOffspringListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
+export type DogsPedigreeRetrieveParams = {
+/**
+ * Глубина дерева (1–10, по умолчанию 3)
+ */
+generations?: number;
+};
+
+export type DogsSiblingsListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
+export type DogsSearchListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+/**
+ * Строка поиска по кличке
+ */
+q: string;
 };
 
 export type EventReportsListParams = {
@@ -793,6 +1801,13 @@ export type GalleriesListParams = {
 page?: number;
 };
 
+export type GalleriesHighlightsListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
 export type JudgeDetailsListParams = {
 /**
  * A page number within the paginated result set.
@@ -801,6 +1816,13 @@ page?: number;
 };
 
 export type JudgesListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
+export type LittersListParams = {
 /**
  * A page number within the paginated result set.
  */
@@ -828,6 +1850,13 @@ export type MeDogsListParams = {
 page?: number;
 };
 
+export type MeDogsChampionsListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
 export type MeKennelsListParams = {
 /**
  * A page number within the paginated result set.
@@ -842,9 +1871,16 @@ export type MeLittersListParams = {
 page?: number;
 };
 
+export type MedicalRecordsListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
 export type NewsListParams = {
 /**
- * Только избранные
+ * Только избранные новости
  */
 featured?: boolean;
 /**
@@ -857,7 +1893,28 @@ page?: number;
 tag?: string;
 };
 
+export type OwnersListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
 export type PagesListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
+export type TitlesListParams = {
+/**
+ * A page number within the paginated result set.
+ */
+page?: number;
+};
+
+export type WorkingGroupsListParams = {
 /**
  * A page number within the paginated result set.
  */

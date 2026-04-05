@@ -31,6 +31,7 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 /**
  * API CMS страниц
+ * @summary Список CMS-страниц
  */
 export type pagesListResponse200 = {
   data: PaginatedPageList
@@ -109,6 +110,9 @@ export type PagesListQueryResult = NonNullable<Awaited<ReturnType<typeof pagesLi
 export type PagesListQueryError = unknown
 
 
+/**
+ * @summary Список CMS-страниц
+ */
 
 export function usePagesList<TData = Awaited<ReturnType<typeof pagesList>>, TError = unknown>(
  params?: PagesListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof pagesList>>, TError, TData>, fetch?: RequestInit}
@@ -127,18 +131,26 @@ export function usePagesList<TData = Awaited<ReturnType<typeof pagesList>>, TErr
 
 /**
  * API CMS страниц
+ * @summary Получить CMS-страницу по slug
  */
 export type pagesRetrieveResponse200 = {
   data: Page
   status: 200
 }
 
+export type pagesRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type pagesRetrieveResponseSuccess = (pagesRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type pagesRetrieveResponseError = (pagesRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type pagesRetrieveResponse = (pagesRetrieveResponseSuccess)
+export type pagesRetrieveResponse = (pagesRetrieveResponseSuccess | pagesRetrieveResponseError)
 
 export const getPagesRetrieveUrl = (slug: string,) => {
 
@@ -176,7 +188,7 @@ export const getPagesRetrieveQueryKey = (slug: string,) => {
     }
 
     
-export const getPagesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof pagesRetrieve>>, TError = unknown>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof pagesRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getPagesRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof pagesRetrieve>>, TError = void>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof pagesRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -195,11 +207,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type PagesRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof pagesRetrieve>>>
-export type PagesRetrieveQueryError = unknown
+export type PagesRetrieveQueryError = void
 
 
+/**
+ * @summary Получить CMS-страницу по slug
+ */
 
-export function usePagesRetrieve<TData = Awaited<ReturnType<typeof pagesRetrieve>>, TError = unknown>(
+export function usePagesRetrieve<TData = Awaited<ReturnType<typeof pagesRetrieve>>, TError = void>(
  slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof pagesRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

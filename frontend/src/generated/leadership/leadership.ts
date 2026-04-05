@@ -18,9 +18,10 @@ import type {
 import type {
   BoardMember,
   ClubBoardListParams,
-  ClubDocumentsListParams,
   PaginatedBoardMemberList,
-  PaginatedClubDocumentList
+  PaginatedWorkingGroupList,
+  WorkingGroup,
+  WorkingGroupsListParams
 } from '../api.schemas';
 
 
@@ -33,6 +34,7 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 /**
  * API членов Президиума
+ * @summary Список членов Президиума
  */
 export type clubBoardListResponse200 = {
   data: PaginatedBoardMemberList
@@ -111,6 +113,9 @@ export type ClubBoardListQueryResult = NonNullable<Awaited<ReturnType<typeof clu
 export type ClubBoardListQueryError = unknown
 
 
+/**
+ * @summary Список членов Президиума
+ */
 
 export function useClubBoardList<TData = Awaited<ReturnType<typeof clubBoardList>>, TError = unknown>(
  params?: ClubBoardListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof clubBoardList>>, TError, TData>, fetch?: RequestInit}
@@ -129,18 +134,26 @@ export function useClubBoardList<TData = Awaited<ReturnType<typeof clubBoardList
 
 /**
  * API членов Президиума
+ * @summary Получить члена Президиума по ID
  */
 export type clubBoardRetrieveResponse200 = {
   data: BoardMember
   status: 200
 }
 
+export type clubBoardRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
 export type clubBoardRetrieveResponseSuccess = (clubBoardRetrieveResponse200) & {
   headers: Headers;
 };
-;
+export type clubBoardRetrieveResponseError = (clubBoardRetrieveResponse404) & {
+  headers: Headers;
+};
 
-export type clubBoardRetrieveResponse = (clubBoardRetrieveResponseSuccess)
+export type clubBoardRetrieveResponse = (clubBoardRetrieveResponseSuccess | clubBoardRetrieveResponseError)
 
 export const getClubBoardRetrieveUrl = (id: number,) => {
 
@@ -178,7 +191,7 @@ export const getClubBoardRetrieveQueryKey = (id: number,) => {
     }
 
     
-export const getClubBoardRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof clubBoardRetrieve>>, TError = unknown>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof clubBoardRetrieve>>, TError, TData>, fetch?: RequestInit}
+export const getClubBoardRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof clubBoardRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof clubBoardRetrieve>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
@@ -197,11 +210,14 @@ const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 }
 
 export type ClubBoardRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof clubBoardRetrieve>>>
-export type ClubBoardRetrieveQueryError = unknown
+export type ClubBoardRetrieveQueryError = void
 
 
+/**
+ * @summary Получить члена Президиума по ID
+ */
 
-export function useClubBoardRetrieve<TData = Awaited<ReturnType<typeof clubBoardRetrieve>>, TError = unknown>(
+export function useClubBoardRetrieve<TData = Awaited<ReturnType<typeof clubBoardRetrieve>>, TError = void>(
  id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof clubBoardRetrieve>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -217,21 +233,22 @@ export function useClubBoardRetrieve<TData = Awaited<ReturnType<typeof clubBoard
 
 
 /**
- * API документов клуба
+ * Возвращает рабочие группы вместе с вложенными участниками.
+ * @summary Список рабочих групп
  */
-export type clubDocumentsListResponse200 = {
-  data: PaginatedClubDocumentList
+export type workingGroupsListResponse200 = {
+  data: PaginatedWorkingGroupList
   status: 200
 }
 
-export type clubDocumentsListResponseSuccess = (clubDocumentsListResponse200) & {
+export type workingGroupsListResponseSuccess = (workingGroupsListResponse200) & {
   headers: Headers;
 };
 ;
 
-export type clubDocumentsListResponse = (clubDocumentsListResponseSuccess)
+export type workingGroupsListResponse = (workingGroupsListResponseSuccess)
 
-export const getClubDocumentsListUrl = (params?: ClubDocumentsListParams,) => {
+export const getWorkingGroupsListUrl = (params?: WorkingGroupsListParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -243,12 +260,12 @@ export const getClubDocumentsListUrl = (params?: ClubDocumentsListParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/club/documents/?${stringifiedParams}` : `/api/club/documents/`
+  return stringifiedParams.length > 0 ? `/api/working-groups/?${stringifiedParams}` : `/api/working-groups/`
 }
 
-export const clubDocumentsList = async (params?: ClubDocumentsListParams, options?: RequestInit): Promise<clubDocumentsListResponse> => {
+export const workingGroupsList = async (params?: WorkingGroupsListParams, options?: RequestInit): Promise<workingGroupsListResponse> => {
   
-  const res = await fetch(getClubDocumentsListUrl(params),
+  const res = await fetch(getWorkingGroupsListUrl(params),
   {      
     ...options,
     method: 'GET'
@@ -259,50 +276,152 @@ export const clubDocumentsList = async (params?: ClubDocumentsListParams, option
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
   
-  const data: clubDocumentsListResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as clubDocumentsListResponse
+  const data: workingGroupsListResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as workingGroupsListResponse
 }
   
 
 
 
 
-export const getClubDocumentsListQueryKey = (params?: ClubDocumentsListParams,) => {
+export const getWorkingGroupsListQueryKey = (params?: WorkingGroupsListParams,) => {
     return [
-    `/api/club/documents/`, ...(params ? [params] : [])
+    `/api/working-groups/`, ...(params ? [params] : [])
     ] as const;
     }
 
     
-export const getClubDocumentsListQueryOptions = <TData = Awaited<ReturnType<typeof clubDocumentsList>>, TError = unknown>(params?: ClubDocumentsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof clubDocumentsList>>, TError, TData>, fetch?: RequestInit}
+export const getWorkingGroupsListQueryOptions = <TData = Awaited<ReturnType<typeof workingGroupsList>>, TError = unknown>(params?: WorkingGroupsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof workingGroupsList>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getClubDocumentsListQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getWorkingGroupsListQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof clubDocumentsList>>> = ({ signal }) => clubDocumentsList(params, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof workingGroupsList>>> = ({ signal }) => workingGroupsList(params, { signal, ...fetchOptions });
 
       
 
       
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof clubDocumentsList>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof workingGroupsList>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type ClubDocumentsListQueryResult = NonNullable<Awaited<ReturnType<typeof clubDocumentsList>>>
-export type ClubDocumentsListQueryError = unknown
+export type WorkingGroupsListQueryResult = NonNullable<Awaited<ReturnType<typeof workingGroupsList>>>
+export type WorkingGroupsListQueryError = unknown
 
 
+/**
+ * @summary Список рабочих групп
+ */
 
-export function useClubDocumentsList<TData = Awaited<ReturnType<typeof clubDocumentsList>>, TError = unknown>(
- params?: ClubDocumentsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof clubDocumentsList>>, TError, TData>, fetch?: RequestInit}
+export function useWorkingGroupsList<TData = Awaited<ReturnType<typeof workingGroupsList>>, TError = unknown>(
+ params?: WorkingGroupsListParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof workingGroupsList>>, TError, TData>, fetch?: RequestInit}
   
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getClubDocumentsListQueryOptions(params,options)
+  const queryOptions = getWorkingGroupsListQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * @summary Получить рабочую группу по ID
+ */
+export type workingGroupsRetrieveResponse200 = {
+  data: WorkingGroup
+  status: 200
+}
+
+export type workingGroupsRetrieveResponse404 = {
+  data: void
+  status: 404
+}
+
+export type workingGroupsRetrieveResponseSuccess = (workingGroupsRetrieveResponse200) & {
+  headers: Headers;
+};
+export type workingGroupsRetrieveResponseError = (workingGroupsRetrieveResponse404) & {
+  headers: Headers;
+};
+
+export type workingGroupsRetrieveResponse = (workingGroupsRetrieveResponseSuccess | workingGroupsRetrieveResponseError)
+
+export const getWorkingGroupsRetrieveUrl = (id: number,) => {
+
+
+  
+
+  return `/api/working-groups/${id}/`
+}
+
+export const workingGroupsRetrieve = async (id: number, options?: RequestInit): Promise<workingGroupsRetrieveResponse> => {
+  
+  const res = await fetch(getWorkingGroupsRetrieveUrl(id),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  
+  const data: workingGroupsRetrieveResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as workingGroupsRetrieveResponse
+}
+  
+
+
+
+
+export const getWorkingGroupsRetrieveQueryKey = (id: number,) => {
+    return [
+    `/api/working-groups/${id}/`
+    ] as const;
+    }
+
+    
+export const getWorkingGroupsRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof workingGroupsRetrieve>>, TError = void>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof workingGroupsRetrieve>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getWorkingGroupsRetrieveQueryKey(id);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof workingGroupsRetrieve>>> = ({ signal }) => workingGroupsRetrieve(id, { signal, ...fetchOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof workingGroupsRetrieve>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type WorkingGroupsRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof workingGroupsRetrieve>>>
+export type WorkingGroupsRetrieveQueryError = void
+
+
+/**
+ * @summary Получить рабочую группу по ID
+ */
+
+export function useWorkingGroupsRetrieve<TData = Awaited<ReturnType<typeof workingGroupsRetrieve>>, TError = void>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof workingGroupsRetrieve>>, TError, TData>, fetch?: RequestInit}
+  
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getWorkingGroupsRetrieveQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

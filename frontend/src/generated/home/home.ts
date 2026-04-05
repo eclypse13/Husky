@@ -16,6 +16,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ActivityFeedResponse,
   HomeResponse
 } from '../api.schemas';
 
@@ -28,7 +29,101 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 /**
- * API главной страницы
+ * Возвращает последние сообщения из Telegram-канала клуба (кешируется на 1 минуту).
+ * @summary Лента активности
+ */
+export type activityFeedRetrieveResponse200 = {
+  data: ActivityFeedResponse
+  status: 200
+}
+
+export type activityFeedRetrieveResponseSuccess = (activityFeedRetrieveResponse200) & {
+  headers: Headers;
+};
+;
+
+export type activityFeedRetrieveResponse = (activityFeedRetrieveResponseSuccess)
+
+export const getActivityFeedRetrieveUrl = () => {
+
+
+  
+
+  return `/api/activity-feed/`
+}
+
+export const activityFeedRetrieve = async ( options?: RequestInit): Promise<activityFeedRetrieveResponse> => {
+  
+  const res = await fetch(getActivityFeedRetrieveUrl(),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  
+  const data: activityFeedRetrieveResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as activityFeedRetrieveResponse
+}
+  
+
+
+
+
+export const getActivityFeedRetrieveQueryKey = () => {
+    return [
+    `/api/activity-feed/`
+    ] as const;
+    }
+
+    
+export const getActivityFeedRetrieveQueryOptions = <TData = Awaited<ReturnType<typeof activityFeedRetrieve>>, TError = unknown>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof activityFeedRetrieve>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getActivityFeedRetrieveQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof activityFeedRetrieve>>> = ({ signal }) => activityFeedRetrieve({ signal, ...fetchOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof activityFeedRetrieve>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ActivityFeedRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof activityFeedRetrieve>>>
+export type ActivityFeedRetrieveQueryError = unknown
+
+
+/**
+ * @summary Лента активности
+ */
+
+export function useActivityFeedRetrieve<TData = Awaited<ReturnType<typeof activityFeedRetrieve>>, TError = unknown>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof activityFeedRetrieve>>, TError, TData>, fetch?: RequestInit}
+  
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getActivityFeedRetrieveQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * Возвращает избранные новости (до 3), ближайшие мероприятия (до 5) и избранные галереи (до 2).
+ * @summary Данные для главной страницы
  */
 export type homeRetrieveResponse200 = {
   data: HomeResponse
@@ -100,6 +195,9 @@ export type HomeRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof home
 export type HomeRetrieveQueryError = unknown
 
 
+/**
+ * @summary Данные для главной страницы
+ */
 
 export function useHomeRetrieve<TData = Awaited<ReturnType<typeof homeRetrieve>>, TError = unknown>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof homeRetrieve>>, TError, TData>, fetch?: RequestInit}
