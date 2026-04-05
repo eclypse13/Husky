@@ -4,47 +4,78 @@ info:
   version: 1.0.0
   description: API для Национального клуба породы Сибирский хаски
 paths:
-  /api/auth/login/:
-    post:
-      operationId: auth_login_create
-      description: Вход в систему
+  /api/activity-feed/:
+    get:
+      operationId: activity_feed_retrieve
+      description: Возвращает последние сообщения из Telegram-канала клуба (кешируется
+        на 1 минуту).
+      summary: Лента активности
       tags:
-      - auth
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                password:
-                  type: string
+      - Home
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
           content:
             application/json:
               schema:
-                description: Login successful
+                $ref: '#/components/schemas/ActivityFeedResponse'
           description: ''
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Аутентификация пользователя по email и паролю. Устанавливает сессионный
+        cookie.
+      summary: Вход в систему
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccess'
+          description: Успешная аутентификация
+        '401':
+          description: Неверный email или пароль
   /api/auth/logout/:
     post:
       operationId: auth_logout_create
-      description: Выход из системы
+      description: Завершает текущую сессию пользователя.
+      summary: Выход из системы
       tags:
-      - auth
+      - Auth
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          description: Сессия завершена
+        '401':
+          description: Пользователь не авторизован
   /api/breed/articles/:
     get:
       operationId: breed_articles_list
-      description: API статей о породе
+      description: Возвращает список статей. Поддерживает фильтрацию по категории.
+      summary: Список статей о породе
       parameters:
       - in: query
         name: category
@@ -58,9 +89,10 @@ paths:
         schema:
           type: integer
       tags:
-      - breed
+      - Breed
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -73,6 +105,7 @@ paths:
     get:
       operationId: breed_articles_retrieve
       description: API статей о породе
+      summary: Получить статью о породе по ID
       parameters:
       - in: path
         name: id
@@ -81,9 +114,10 @@ paths:
         description: A unique integer value identifying this breed article.
         required: true
       tags:
-      - breed
+      - Breed
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -92,10 +126,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BreedArticle'
           description: ''
+        '404':
+          description: Статья не найдена
   /api/breed/standards/:
     get:
       operationId: breed_standards_list
       description: API стандартов породы
+      summary: Список стандартов породы
       parameters:
       - name: page
         required: false
@@ -104,9 +141,10 @@ paths:
         schema:
           type: integer
       tags:
-      - breed
+      - Breed
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -119,6 +157,7 @@ paths:
     get:
       operationId: breed_standards_retrieve
       description: API стандартов породы
+      summary: Получить стандарт породы по ID
       parameters:
       - in: path
         name: id
@@ -127,9 +166,10 @@ paths:
         description: A unique integer value identifying this breed standard.
         required: true
       tags:
-      - breed
+      - Breed
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -138,10 +178,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BreedStandard'
           description: ''
-  /api/club/board/:
+        '404':
+          description: Стандарт не найден
+  /api/breeders/:
     get:
-      operationId: club_board_list
-      description: API членов Президиума
+      operationId: breeders_list
+      description: ViewSet для заводчиков
+      summary: Список заводчиков
       parameters:
       - name: page
         required: false
@@ -150,9 +193,62 @@ paths:
         schema:
           type: integer
       tags:
-      - club
+      - Dog References
       security:
       - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBreederList'
+          description: ''
+  /api/breeders/{id}/:
+    get:
+      operationId: breeders_retrieve
+      description: ViewSet для заводчиков
+      summary: Получить заводчика по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заводчик.
+        required: true
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Breeder'
+          description: ''
+        '404':
+          description: Заводчик не найден
+  /api/club/board/:
+    get:
+      operationId: club_board_list
+      description: API членов Президиума
+      summary: Список членов Президиума
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Leadership
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -165,17 +261,19 @@ paths:
     get:
       operationId: club_board_retrieve
       description: API членов Президиума
+      summary: Получить члена Президиума по ID
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this board member.
+        description: A unique integer value identifying this Член клуба.
         required: true
       tags:
-      - club
+      - Leadership
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -184,10 +282,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BoardMember'
           description: ''
+        '404':
+          description: Член Президиума не найден
   /api/club/documents/:
     get:
       operationId: club_documents_list
       description: API документов клуба
+      summary: Список документов клуба
       parameters:
       - name: page
         required: false
@@ -196,9 +297,10 @@ paths:
         schema:
           type: integer
       tags:
-      - club
+      - Club Documents
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -207,26 +309,76 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedClubDocumentList'
           description: ''
-
+  /api/club/documents/{id}/:
+    get:
+      operationId: club_documents_retrieve
+      description: API документов клуба
+      summary: Получить документ клуба по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Документ клуба.
+        required: true
+      tags:
+      - Club Documents
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubDocument'
+          description: ''
+        '404':
+          description: Документ не найден
+  /api/club/stats/:
+    get:
+      operationId: club_stats_list
+      description: Возвращает последнюю запись статистики клуба. Если данных ещё нет
+        — возвращает нулевые значения.
+      summary: Статистика клуба
+      tags:
+      - Club Stats
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClubStats'
+          description: ''
   /api/dict/:
     get:
       operationId: dict_list
-      description: API для контент-справочника
+      description: Возвращает все записи контент-справочника. Поддерживает фильтрацию
+        по странице и ключу.
+      summary: Список контент-записей
       parameters:
       - in: query
         name: key
         schema:
           type: string
-        description: Поиск по ключу
+        description: Поиск по ключу (частичное совпадение)
       - in: query
         name: page
         schema:
           type: string
         description: Фильтр по странице
       tags:
-      - dict
+      - Content Dictionary
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -239,6 +391,7 @@ paths:
     get:
       operationId: dict_retrieve
       description: API для контент-справочника
+      summary: Получить запись по ID
       parameters:
       - in: path
         name: id
@@ -247,9 +400,10 @@ paths:
         description: A unique integer value identifying this content dictionary.
         required: true
       tags:
-      - dict
+      - Content Dictionary
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -258,26 +412,775 @@ paths:
               schema:
                 $ref: '#/components/schemas/ContentDictionary'
           description: ''
+        '404':
+          description: Запись не найдена
   /api/dict/by_key/:
     get:
       operationId: dict_by_key_retrieve
-      description: Получить значение по ключу
+      description: Возвращает одну запись контент-справочника по точному совпадению
+        ключа.
+      summary: Получить значение по ключу
+      parameters:
+      - in: query
+        name: key
+        schema:
+          type: string
+        description: Точный ключ записи
+        required: true
       tags:
-      - dict
+      - Content Dictionary
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ContentDictionary'
+                $ref: '#/components/schemas/ContentByKeyResponse'
+          description: Запись найдена
+        '400':
+          description: Параметр key не передан
+        '404':
+          description: Запись с указанным ключом не найдена
+  /api/dogs/:
+    get:
+      operationId: dogs_list
+      description: Возвращает пагинированный список собак. Поддерживает поиск и фильтрацию.
+      summary: Список собак
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Поиск по кличке (частичное совпадение)
+      - in: query
+        name: sex
+        schema:
+          type: integer
+        description: Фильтр по полу (1 — кобель, 2 — сука)
+      - in: query
+        name: year
+        schema:
+          type: integer
+        description: Фильтр по году рождения
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogListList'
+          description: ''
+  /api/dogs/{id}/:
+    get:
+      operationId: dogs_retrieve
+      description: Возвращает полную информацию о собаке, включая родителей, заводчиков,
+        титулы и медицинские записи.
+      summary: Детальная информация о собаке
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Собака.
+        required: true
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogDetail'
+          description: ''
+        '404':
+          description: Собака не найдена
+  /api/dogs/{id}/calculate_coi/:
+    post:
+      operationId: dogs_calculate_coi_create
+      description: Рассчитывает и сохраняет коэффициент инбридинга (COI) для указанной
+        собаки. Глубина расчёта от 1 до 10 поколений.
+      summary: Рассчитать COI для собаки
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Собака.
+        required: true
+      tags:
+      - Dogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateCoiRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CalculateCoiRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CalculateCoiRequestRequest'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateCoiResponse'
+          description: ''
+        '404':
+          description: Собака не найдена
+        '422':
+          description: Невозможно рассчитать COI (неполная родословная)
+  /api/dogs/{id}/offspring/:
+    get:
+      operationId: dogs_offspring_list
+      description: Возвращает всех потомков собаки (щенков, для которых она является
+        отцом или матерью).
+      summary: Потомки собаки
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Собака.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogListList'
+          description: ''
+        '404':
+          description: Собака не найдена
+  /api/dogs/{id}/pedigree/:
+    get:
+      operationId: dogs_pedigree_retrieve
+      description: Возвращает рекурсивное дерево предков до указанной глубины (1–10
+        поколений).
+      summary: Родословная собаки
+      parameters:
+      - in: query
+        name: generations
+        schema:
+          type: integer
+        description: Глубина дерева (1–10, по умолчанию 3)
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Собака.
+        required: true
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedigree'
+          description: ''
+        '404':
+          description: Собака не найдена
+  /api/dogs/{id}/siblings/:
+    get:
+      operationId: dogs_siblings_list
+      description: Возвращает братьев и сестёр (однопомётников) собаки.
+      summary: Сиблинги собаки
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Собака.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogListList'
+          description: ''
+        '404':
+          description: Собака не найдена
+  /api/dogs/coi/recalculate/:
+    post:
+      operationId: dogs_coi_recalculate_create
+      description: Запускает Celery-задачу для пересчёта коэффициента инбридинга (COI)
+        для всех собак в базе. Прогресс можно отслеживать через GET /api/dogs/import/status/{task_id}/.
+      summary: Массовый пересчёт COI
+      tags:
+      - Dogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecalculateAllCoiRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecalculateAllCoiRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecalculateAllCoiRequestRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+  /api/dogs/import/breedarchive/browse/:
+    post:
+      operationId: dogs_import_breedarchive_browse_create
+      description: Импорт собак, изменённых за последние N дней, через browse-страницу
+        (Playwright).
+      summary: Импорт собак через browse-страницу BreedArchive
+      tags:
+      - Import BreedArchive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveBrowseRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveBrowseRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveBrowseRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/breedarchive/dog/:
+    post:
+      operationId: dogs_import_breedarchive_dog_create
+      description: Импорт одной собаки из BreedArchive по UUID.
+      summary: Импорт одной собаки из BreedArchive
+      tags:
+      - Import BreedArchive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveDogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveDogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveDogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/breedarchive/dog/full-pedigree/:
+    post:
+      operationId: dogs_import_breedarchive_dog_full_pedigree_create
+      description: Запускает рекурсивную загрузку всех предков из BreedArchive. Каждый
+        граничный предок (sire/dam=null, но sireId/damId>0) запрашивается отдельно
+        до тех пор, пока не будут загружены все поколения. Возвращает task_id для
+        отслеживания прогресса.
+      summary: Загрузка полной родословной по UUID (все поколения)
+      tags:
+      - Import BreedArchive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveFullPedigreeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveFullPedigreeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveFullPedigreeRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/breedarchive/recent/:
+    post:
+      operationId: dogs_import_breedarchive_recent_create
+      description: Импорт последних обновлённых собак из BreedArchive (operation=all).
+      summary: Импорт последних обновлений BreedArchive
+      tags:
+      - Import BreedArchive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveRecentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveRecentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBreedarchiveRecentRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/hybrid/dog/:
+    post:
+      operationId: dogs_import_hybrid_dog_create
+      description: Zoo страница по zooportal_id → поиск в BA по имени → BA дерево
+        предков (до 5 поколений) → Zoo патч (registered_name uppercase, zooportal_id
+        всегда из Zoo).
+      summary: Гибридный импорт одной собаки Zoo→BA
+      tags:
+      - Import Hybrid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportHybridDogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportHybridDogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportHybridDogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/hybrid/full/dog/:
+    post:
+      operationId: dogs_import_hybrid_full_dog_create
+      description: 'Zoo страница по zooportal_id → поиск в BA по имени → BA полное
+        дерево всех предков → Zoo патч. Время: от нескольких минут до нескольких часов.'
+      summary: Гибридный импорт одной собаки Zoo→BA (все поколения)
+      tags:
+      - Import Hybrid Full
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullDogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullDogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullDogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/hybrid/full/page/:
+    post:
+      operationId: dogs_import_hybrid_full_page_create
+      description: 'Гибридный импорт страницы Zoo: для каждой собаки BA полное дерево
+        предков.'
+      summary: Гибридный импорт страницы Zoo→BA (все поколения)
+      tags:
+      - Import Hybrid Full
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullPageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullPageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullPageRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/hybrid/full/range/:
+    post:
+      operationId: dogs_import_hybrid_full_range_create
+      description: 'Гибридный импорт диапазона страниц Zoo: для каждой собаки BA полное
+        дерево.'
+      summary: Гибридный импорт диапазона страниц Zoo→BA (все поколения)
+      tags:
+      - Import Hybrid Full
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullRangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullRangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportHybridFullRangeRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/hybrid/page/:
+    post:
+      operationId: dogs_import_hybrid_page_create
+      description: 'Для каждой собаки на странице Zoo: Zoo страница → поиск в BA →
+        BA дерево предков (до 5 поколений) → Zoo патч.'
+      summary: Гибридный импорт страницы Zoo→BA
+      tags:
+      - Import Hybrid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportHybridPageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportHybridPageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportHybridPageRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/hybrid/range/:
+    post:
+      operationId: dogs_import_hybrid_range_create
+      description: Диспатчит гибридный импорт для каждой страницы из диапазона.
+      summary: Гибридный импорт диапазона страниц Zoo→BA
+      tags:
+      - Import Hybrid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportHybridRangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportHybridRangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportHybridRangeRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+  /api/dogs/import/status/{task_id}/:
+    get:
+      operationId: dogs_import_status_retrieve
+      description: Получить статус выполнения задачи по её ID.
+      summary: Статус задачи импорта
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+        description: UUID задачи Celery
+        required: true
+      tags:
+      - Status of Import Task
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusResponse'
+          description: ''
+        '500':
+          description: Внутренняя ошибка сервера
+  /api/dogs/import/zooportal/dog/:
+    post:
+      operationId: dogs_import_zooportal_dog_create
+      description: Запускает асинхронный импорт собаки по её ID из Zooportal.
+      summary: Импорт одной собаки
+      tags:
+      - Import Zooportal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalDogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalDogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalDogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '500':
+          description: Внутренняя ошибка сервера
+  /api/dogs/import/zooportal/page/:
+    post:
+      operationId: dogs_import_zooportal_page_create
+      description: Импортирует всех собак с указанной страницы поиска Zooportal.
+      summary: Импорт страницы поиска
+      tags:
+      - Import Zooportal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalPageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalPageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalPageRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '500':
+          description: Внутренняя ошибка сервера
+  /api/dogs/import/zooportal/range/:
+    post:
+      operationId: dogs_import_zooportal_range_create
+      description: Импортирует собак из нескольких страниц поиска Zooportal.
+      summary: Импорт диапазона страниц
+      tags:
+      - Import Zooportal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalRangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalRangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportZooportalRangeRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '500':
+          description: Внутренняя ошибка сервера
+  /api/dogs/search/:
+    get:
+      operationId: dogs_search_list
+      description: Возвращает до 20 собак, кличка которых содержит строку поиска.
+      summary: Поиск собак по кличке
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Строка поиска по кличке
+        required: true
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogListList'
+          description: ''
+        '400':
+          description: Параметр q не передан
+  /api/dogs/stats/:
+    get:
+      operationId: dogs_stats_retrieve
+      description: 'Возвращает общую статистику: количество собак, кобелей, сук, заводчиков
+        и т.д.'
+      summary: Статистика по базе собак
+      tags:
+      - Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogStatsResponse'
           description: ''
   /api/event-reports/:
     get:
       operationId: event_reports_list
       description: API отчетов о мероприятиях
+      summary: Список отчётов о мероприятиях
       parameters:
       - name: page
         required: false
@@ -286,9 +1189,10 @@ paths:
         schema:
           type: integer
       tags:
-      - event-reports
+      - Event Reports
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -301,6 +1205,7 @@ paths:
     get:
       operationId: event_reports_retrieve
       description: API отчетов о мероприятиях
+      summary: Получить отчёт о мероприятии по ID
       parameters:
       - in: path
         name: id
@@ -309,9 +1214,10 @@ paths:
         description: A unique integer value identifying this Отчёт о мероприятии.
         required: true
       tags:
-      - event-reports
+      - Event Reports
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -320,10 +1226,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/EventReport'
           description: ''
+        '404':
+          description: Отчёт не найден
   /api/events/:
     get:
       operationId: events_list
-      description: API мероприятий
+      description: Возвращает список мероприятий. Поддерживает фильтрацию по датам
+        и типу.
+      summary: Список мероприятий
       parameters:
       - in: query
         name: from_date
@@ -347,9 +1257,10 @@ paths:
           type: string
         description: Тип мероприятия
       tags:
-      - events
+      - Events
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -362,6 +1273,7 @@ paths:
     get:
       operationId: events_retrieve
       description: API мероприятий
+      summary: Получить мероприятие по ID
       parameters:
       - in: path
         name: id
@@ -370,9 +1282,10 @@ paths:
         description: A unique integer value identifying this Мероприятие.
         required: true
       tags:
-      - events
+      - Events
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -381,10 +1294,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Event'
           description: ''
+        '404':
+          description: Мероприятие не найдено
   /api/galleries/:
     get:
       operationId: galleries_list
       description: API галерей
+      summary: Список галерей
       parameters:
       - name: page
         required: false
@@ -393,9 +1309,10 @@ paths:
         schema:
           type: integer
       tags:
-      - galleries
+      - Galleries
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -408,6 +1325,7 @@ paths:
     get:
       operationId: galleries_retrieve
       description: API галерей
+      summary: Получить галерею по ID
       parameters:
       - in: path
         name: id
@@ -416,9 +1334,10 @@ paths:
         description: A unique integer value identifying this gallery.
         required: true
       tags:
-      - galleries
+      - Galleries
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -427,30 +1346,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/Gallery'
           description: ''
+        '404':
+          description: Галерея не найдена
   /api/galleries/highlights/:
     get:
-      operationId: galleries_highlights_retrieve
-      description: Избранные галереи для главной
+      operationId: galleries_highlights_list
+      description: Возвращает галереи, отмеченные как избранные (для главной страницы).
+      summary: Избранные галереи
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
       tags:
-      - galleries
+      - Galleries
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Gallery'
+                $ref: '#/components/schemas/PaginatedGalleryList'
           description: ''
   /api/home/:
     get:
       operationId: home_retrieve
-      description: API главной страницы
+      description: Возвращает избранные новости (до 3), ближайшие мероприятия (до
+        5) и избранные галереи (до 2).
+      summary: Данные для главной страницы
       tags:
-      - home
+      - Home
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -462,7 +1395,8 @@ paths:
   /api/judge-details/:
     get:
       operationId: judge_details_list
-      description: API ??????? ?????
+      description: API детальных профилей судей
+      summary: Список детальных профилей судей
       parameters:
       - name: page
         required: false
@@ -471,9 +1405,10 @@ paths:
         schema:
           type: integer
       tags:
-      - judge-details
+      - Judges
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -485,7 +1420,8 @@ paths:
   /api/judge-details/{id}/:
     get:
       operationId: judge_details_retrieve
-      description: API ??????? ?????
+      description: API детальных профилей судей
+      summary: Получить детальный профиль судьи
       parameters:
       - in: path
         name: id
@@ -494,9 +1430,10 @@ paths:
         description: A unique integer value identifying this Породный эксперт (подробно).
         required: true
       tags:
-      - judge-details
+      - Judges
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -505,10 +1442,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/JudgeDetails'
           description: ''
+        '404':
+          description: Профиль судьи не найден
   /api/judges/:
     get:
       operationId: judges_list
       description: API судей
+      summary: Список судей
       parameters:
       - name: page
         required: false
@@ -517,9 +1457,10 @@ paths:
         schema:
           type: integer
       tags:
-      - judges
+      - Judges
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -532,6 +1473,7 @@ paths:
     get:
       operationId: judges_retrieve
       description: API судей
+      summary: Получить судью по ID
       parameters:
       - in: path
         name: id
@@ -540,9 +1482,10 @@ paths:
         description: A unique integer value identifying this Породный эксперт.
         required: true
       tags:
-      - judges
+      - Judges
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -551,21 +1494,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Judge'
           description: ''
-  /api/me/:
+        '404':
+          description: Судья не найден
+  /api/litters/:
     get:
-      operationId: me_retrieve
-      description: Получить информацию о себе
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/me/achievements/:
-    get:
-      operationId: me_achievements_list
-      description: API достижений пользователя
+      operationId: litters_list
+      description: ViewSet для помётов
+      summary: Список помётов
       parameters:
       - name: page
         required: false
@@ -574,511 +1509,11 @@ paths:
         schema:
           type: integer
       tags:
-      - me
+      - Dog References
       security:
       - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedAchievementList'
-          description: ''
-  /api/me/achievements/{id}/:
-    get:
-      operationId: me_achievements_retrieve
-      description: API достижений пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Achievement'
-          description: ''
-  /api/me/applications/:
-    get:
-      operationId: me_applications_list
-      description: API заявлений пользователя
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedApplicationList'
-          description: ''
-    post:
-      operationId: me_applications_create
-      description: API заявлений пользователя
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApplicationRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ApplicationRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ApplicationRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Application'
-          description: ''
-  /api/me/applications/{id}/:
-    get:
-      operationId: me_applications_retrieve
-      description: API заявлений пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Application'
-          description: ''
-    put:
-      operationId: me_applications_update
-      description: API заявлений пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApplicationRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ApplicationRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ApplicationRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Application'
-          description: ''
-    patch:
-      operationId: me_applications_partial_update
-      description: API заявлений пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedApplicationRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedApplicationRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedApplicationRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Application'
-          description: ''
-    delete:
-      operationId: me_applications_destroy
-      description: API заявлений пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/me/dogs/:
-    get:
-      operationId: me_dogs_list
-      description: API собак пользователя
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedDogList'
-          description: ''
-    post:
-      operationId: me_dogs_create
-      description: API собак пользователя
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DogRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/DogRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/DogRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Dog'
-          description: ''
-  /api/me/dogs/{id}/:
-    get:
-      operationId: me_dogs_retrieve
-      description: API собак пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Dog'
-          description: ''
-    put:
-      operationId: me_dogs_update
-      description: API собак пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DogRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/DogRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/DogRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Dog'
-          description: ''
-    patch:
-      operationId: me_dogs_partial_update
-      description: API собак пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedDogRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedDogRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedDogRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Dog'
-          description: ''
-    delete:
-      operationId: me_dogs_destroy
-      description: API собак пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/me/dogs/champions/:
-    get:
-      operationId: me_dogs_champions_retrieve
-      description: Только чемпионы
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Dog'
-          description: ''
-  /api/me/kennels/:
-    get:
-      operationId: me_kennels_list
-      description: API питомника пользователя
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedKennelList'
-          description: ''
-    post:
-      operationId: me_kennels_create
-      description: API питомника пользователя
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/KennelRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/KennelRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/KennelRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kennel'
-          description: ''
-  /api/me/kennels/{id}/:
-    get:
-      operationId: me_kennels_retrieve
-      description: API питомника пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kennel'
-          description: ''
-    put:
-      operationId: me_kennels_update
-      description: API питомника пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/KennelRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/KennelRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/KennelRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kennel'
-          description: ''
-    patch:
-      operationId: me_kennels_partial_update
-      description: API питомника пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedKennelRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedKennelRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedKennelRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kennel'
-          description: ''
-    delete:
-      operationId: me_kennels_destroy
-      description: API питомника пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        required: true
-      tags:
-      - me
-      security:
-      - cookieAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/me/litters/:
-    get:
-      operationId: me_litters_list
-      description: API пометов пользователя
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - me
-      security:
-      - cookieAuth: []
+      - tokenAuth: []
+      - {}
       responses:
         '200':
           content:
@@ -1086,11 +1521,723 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedLitterList'
           description: ''
+  /api/litters/{id}/:
+    get:
+      operationId: litters_retrieve
+      description: ViewSet для помётов
+      summary: Получить помёт по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Помёт.
+        required: true
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Litter'
+          description: ''
+        '404':
+          description: Помёт не найден
+  /api/me/:
+    get:
+      operationId: me_retrieve
+      description: Возвращает профиль текущего авторизованного пользователя.
+      summary: Получить свой профиль
+      tags:
+      - Profile
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Профиль пользователя не найден
+  /api/me/achievements/:
+    get:
+      operationId: me_achievements_list
+      description: API достижений пользователя
+      summary: Список моих достижений
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - My Achievements
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAchievementList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+  /api/me/achievements/{id}/:
+    get:
+      operationId: me_achievements_retrieve
+      description: API достижений пользователя
+      summary: Получить моё достижение по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Achievements
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Achievement'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Достижение не найдено
+  /api/me/applications/:
+    get:
+      operationId: me_applications_list
+      description: API заявлений пользователя
+      summary: Список моих заявлений
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - My Applications
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApplicationList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+    post:
+      operationId: me_applications_create
+      description: API заявлений пользователя
+      summary: Создать заявление
+      tags:
+      - My Applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+  /api/me/applications/{id}/:
+    get:
+      operationId: me_applications_retrieve
+      description: API заявлений пользователя
+      summary: Получить моё заявление по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Applications
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заявление не найдено
+    put:
+      operationId: me_applications_update
+      description: API заявлений пользователя
+      summary: Обновить заявление
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заявление не найдено
+    patch:
+      operationId: me_applications_partial_update
+      description: API заявлений пользователя
+      summary: Частично обновить заявление
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заявление не найдено
+    delete:
+      operationId: me_applications_destroy
+      description: API заявлений пользователя
+      summary: Удалить заявление
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Applications
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: Заявление удалено
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заявление не найдено
+  /api/me/dogs/:
+    get:
+      operationId: me_dogs_list
+      description: API собак пользователя
+      summary: Список моих собак
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - My Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+    post:
+      operationId: me_dogs_create
+      description: API собак пользователя
+      summary: Добавить собаку
+      tags:
+      - My Dogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+  /api/me/dogs/{id}/:
+    get:
+      operationId: me_dogs_retrieve
+      description: API собак пользователя
+      summary: Получить мою собаку по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Собака не найдена
+    put:
+      operationId: me_dogs_update
+      description: API собак пользователя
+      summary: Обновить данные собаки
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Dogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DogRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Собака не найдена
+    patch:
+      operationId: me_dogs_partial_update
+      description: API собак пользователя
+      summary: Частично обновить данные собаки
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Dogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDogRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dog'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Собака не найдена
+    delete:
+      operationId: me_dogs_destroy
+      description: API собак пользователя
+      summary: Удалить собаку
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: Собака удалена
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Собака не найдена
+  /api/me/dogs/champions/:
+    get:
+      operationId: me_dogs_champions_list
+      description: Возвращает только собак с титулом чемпиона.
+      summary: Список моих чемпионов
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - My Dogs
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+  /api/me/kennels/:
+    get:
+      operationId: me_kennels_list
+      description: API питомника пользователя
+      summary: Список моих питомников
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - My Kennels
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedKennelList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+    post:
+      operationId: me_kennels_create
+      description: API питомника пользователя
+      summary: Создать питомник
+      tags:
+      - My Kennels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+  /api/me/kennels/{id}/:
+    get:
+      operationId: me_kennels_retrieve
+      description: API питомника пользователя
+      summary: Получить мой питомник по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Kennels
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Питомник не найден
+    put:
+      operationId: me_kennels_update
+      description: API питомника пользователя
+      summary: Обновить питомник
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Kennels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KennelRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Питомник не найден
+    patch:
+      operationId: me_kennels_partial_update
+      description: API питомника пользователя
+      summary: Частично обновить питомник
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Kennels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedKennelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedKennelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedKennelRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kennel'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Питомник не найден
+    delete:
+      operationId: me_kennels_destroy
+      description: API питомника пользователя
+      summary: Удалить питомник
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - My Kennels
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: Питомник удалён
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Питомник не найден
+  /api/me/litters/:
+    get:
+      operationId: me_litters_list
+      description: API пометов пользователя
+      summary: Список моих помётов
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - My Litters
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLitterList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
     post:
       operationId: me_litters_create
       description: API пометов пользователя
+      summary: Создать помёт
       tags:
-      - me
+      - My Litters
       requestBody:
         content:
           application/json:
@@ -1105,6 +2252,7 @@ paths:
         required: true
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '201':
           content:
@@ -1112,10 +2260,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/Litter'
           description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
   /api/me/litters/{id}/:
     get:
       operationId: me_litters_retrieve
       description: API пометов пользователя
+      summary: Получить мой помёт по ID
       parameters:
       - in: path
         name: id
@@ -1123,9 +2276,10 @@ paths:
           type: string
         required: true
       tags:
-      - me
+      - My Litters
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '200':
           content:
@@ -1133,9 +2287,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/Litter'
           description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Помёт не найден
     put:
       operationId: me_litters_update
       description: API пометов пользователя
+      summary: Обновить помёт
       parameters:
       - in: path
         name: id
@@ -1143,7 +2302,7 @@ paths:
           type: string
         required: true
       tags:
-      - me
+      - My Litters
       requestBody:
         content:
           application/json:
@@ -1158,6 +2317,7 @@ paths:
         required: true
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '200':
           content:
@@ -1165,9 +2325,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Litter'
           description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Помёт не найден
     patch:
       operationId: me_litters_partial_update
       description: API пометов пользователя
+      summary: Частично обновить помёт
       parameters:
       - in: path
         name: id
@@ -1175,7 +2342,7 @@ paths:
           type: string
         required: true
       tags:
-      - me
+      - My Litters
       requestBody:
         content:
           application/json:
@@ -1189,6 +2356,7 @@ paths:
               $ref: '#/components/schemas/PatchedLitterRequest'
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '200':
           content:
@@ -1196,9 +2364,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Litter'
           description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Помёт не найден
     delete:
       operationId: me_litters_destroy
       description: API пометов пользователя
+      summary: Удалить помёт
       parameters:
       - in: path
         name: id
@@ -1206,33 +2381,116 @@ paths:
           type: string
         required: true
       tags:
-      - me
+      - My Litters
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '204':
-          description: No response body
+          description: Помёт удалён
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Помёт не найден
   /api/me/profile/:
     put:
       operationId: me_profile_update
-      description: Обновить профиль
+      description: Частичное обновление профиля текущего пользователя.
+      summary: Обновить свой профиль
       tags:
-      - me
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserProfileRequest'
+        required: true
       security:
       - cookieAuth: []
+      - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Профиль пользователя не найден
+  /api/medical-records/:
+    get:
+      operationId: medical_records_list
+      description: ViewSet для медицинских записей
+      summary: Список медицинских записей
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMedicalRecordList'
+          description: ''
+  /api/medical-records/{id}/:
+    get:
+      operationId: medical_records_retrieve
+      description: ViewSet для медицинских записей
+      summary: Получить медицинскую запись по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Медицинская запись.
+        required: true
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+          description: ''
+        '404':
+          description: Запись не найдена
   /api/news/:
     get:
       operationId: news_list
-      description: API новостей
+      description: Возвращает пагинированный список новостей. Поддерживает фильтрацию
+        по избранному и тегам.
+      summary: Список новостей
       parameters:
       - in: query
         name: featured
         schema:
           type: boolean
-        description: Только избранные
+        description: Только избранные новости
       - name: page
         required: false
         in: query
@@ -1245,9 +2503,10 @@ paths:
           type: string
         description: Фильтр по тегу
       tags:
-      - news
+      - News
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -1260,6 +2519,7 @@ paths:
     get:
       operationId: news_retrieve
       description: API новостей
+      summary: Получить новость по ID
       parameters:
       - in: path
         name: id
@@ -1268,9 +2528,10 @@ paths:
         description: A unique integer value identifying this news.
         required: true
       tags:
-      - news
+      - News
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -1279,10 +2540,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/News'
           description: ''
-  /api/pages/:
+        '404':
+          description: Новость не найдена
+  /api/owners/:
     get:
-      operationId: pages_list
-      description: API CMS страниц
+      operationId: owners_list
+      description: ViewSet для владельцев
+      summary: Список владельцев
       parameters:
       - name: page
         required: false
@@ -1291,9 +2555,62 @@ paths:
         schema:
           type: integer
       tags:
-      - pages
+      - Dog References
       security:
       - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOwnerList'
+          description: ''
+  /api/owners/{id}/:
+    get:
+      operationId: owners_retrieve
+      description: ViewSet для владельцев
+      summary: Получить владельца по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Владелец.
+        required: true
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+          description: ''
+        '404':
+          description: Владелец не найден
+  /api/pages/:
+    get:
+      operationId: pages_list
+      description: API CMS страниц
+      summary: Список CMS-страниц
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Pages
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -1306,6 +2623,7 @@ paths:
     get:
       operationId: pages_retrieve
       description: API CMS страниц
+      summary: Получить CMS-страницу по slug
       parameters:
       - in: path
         name: slug
@@ -1313,9 +2631,10 @@ paths:
           type: string
         required: true
       tags:
-      - pages
+      - Pages
       security:
       - cookieAuth: []
+      - tokenAuth: []
       - {}
       responses:
         '200':
@@ -1324,6 +2643,111 @@ paths:
               schema:
                 $ref: '#/components/schemas/Page'
           description: ''
+        '404':
+          description: Страница не найдена
+  /api/titles/:
+    get:
+      operationId: titles_list
+      description: ViewSet для титулов
+      summary: Список титулов
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTitleList'
+          description: ''
+  /api/titles/{id}/:
+    get:
+      operationId: titles_retrieve
+      description: ViewSet для титулов
+      summary: Получить титул по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Титул.
+        required: true
+      tags:
+      - Dog References
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Title'
+          description: ''
+        '404':
+          description: Титул не найден
+  /api/working-groups/:
+    get:
+      operationId: working_groups_list
+      description: Возвращает рабочие группы вместе с вложенными участниками.
+      summary: Список рабочих групп
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Leadership
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWorkingGroupList'
+          description: ''
+  /api/working-groups/{id}/:
+    get:
+      operationId: working_groups_retrieve
+      summary: Получить рабочую группу по ID
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Рабочая группа.
+        required: true
+      tags:
+      - Leadership
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingGroup'
+          description: ''
+        '404':
+          description: Рабочая группа не найдена
 components:
   schemas:
     Achievement:
@@ -1360,6 +2784,15 @@ components:
       required:
       - id
       - user
+    ActivityFeedResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items: {}
+          description: Список последних сообщений из Telegram-канала
+      required:
+      - results
     Application:
       type: object
       properties:
@@ -1439,34 +2872,49 @@ components:
         id:
           type: integer
           readOnly: true
+        working_group_id:
+          type: integer
+          readOnly: true
         name:
           type: string
+          title: Имя
           maxLength: 200
         position:
           type: string
+          title: Должность
           maxLength: 200
         bio_key:
           type: string
+          title: Доп. информация
           maxLength: 200
         photo:
           type: string
           format: uri
           nullable: true
+          title: Фото
         email:
           type: string
           format: email
+          title: Почта
           maxLength: 254
         phone:
           type: string
+          title: Номер телефона
           maxLength: 50
         order:
           type: integer
           maximum: 9223372036854775807
           minimum: -9223372036854775808
           format: int64
+          title: Порядок
+        working_group:
+          type: integer
+          nullable: true
+          title: Рабочая группа
       required:
       - id
       - name
+      - working_group_id
     BreedArticle:
       type: object
       properties:
@@ -1513,6 +2961,75 @@ components:
       required:
       - id
       - title_key
+    Breeder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        uuid:
+          type: string
+          nullable: true
+          maxLength: 255
+        name:
+          type: string
+          maxLength: 500
+        kennel:
+          type: string
+          nullable: true
+          maxLength: 500
+        breeder_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+        kennel_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+      required:
+      - id
+      - name
+    CalculateCoiRequestRequest:
+      type: object
+      properties:
+        generations:
+          type: integer
+          default: 5
+          description: Глубина расчёта (1–10, по умолчанию 5)
+        use_ancestor_coi:
+          type: boolean
+          default: false
+          description: Учитывать COI предков (точнее, но медленнее)
+    CalculateCoiResponse:
+      type: object
+      properties:
+        coi:
+          type: number
+          format: double
+        coi_updated_on:
+          type: string
+          format: date-time
+        generations:
+          type: integer
+        common_ancestors:
+          type: integer
+        total_ancestors_sire:
+          type: integer
+        total_ancestors_dam:
+          type: integer
+        ancestor_contributions:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      required:
+      - ancestor_contributions
+      - coi
+      - coi_updated_on
+      - common_ancestors
+      - generations
+      - total_ancestors_dam
+      - total_ancestors_sire
     CategoryEnum:
       enum:
       - history
@@ -1535,24 +3052,91 @@ components:
           readOnly: true
         title_key:
           type: string
+          title: Заголовок
           maxLength: 200
         description_key:
           type: string
+          title: Описание
         file:
           type: string
           format: uri
+          title: Файл
         document_type:
-          $ref: '#/components/schemas/DocumentTypeEnum'
+          allOf:
+          - $ref: '#/components/schemas/DocumentTypeEnum'
+          title: Тип документа
         uploaded_at:
           type: string
           format: date-time
           readOnly: true
+          title: Дата
+        file_size:
+          type: string
+          readOnly: true
+        file_ext:
+          type: string
+          readOnly: true
+        mime_type:
+          type: string
+          readOnly: true
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Порядок
       required:
       - document_type
       - file
+      - file_ext
+      - file_size
       - id
+      - mime_type
       - title_key
       - uploaded_at
+    ClubStats:
+      type: object
+      properties:
+        members_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Владельцев сибирских хаски
+        kennels_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Питомников
+        dogs_in_archive_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Собак в архиве
+        regions_count:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: Регионов
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлено
+      required:
+      - updated_at
+    ContentByKeyResponse:
+      type: object
+      properties:
+        key:
+          type: string
+        value: {}
+      required:
+      - key
+      - value
     ContentDictionary:
       type: object
       properties:
@@ -1590,10 +3174,10 @@ components:
       - form
       type: string
       description: |-
-        * `charter` - charter
-        * `regulation` - regulation
-        * `standard` - standard
-        * `form` - form
+        * `charter` - устав
+        * `regulation` - регламент
+        * `standard` - стандарт
+        * `form` - форма
     Dog:
       type: object
       properties:
@@ -1608,7 +3192,7 @@ components:
           maxLength: 200
         sex:
           oneOf:
-          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/DogSexEnum'
           - $ref: '#/components/schemas/BlankEnum'
         date_of_birth:
           type: string
@@ -1644,6 +3228,335 @@ components:
       - id
       - name
       - owner
+    DogDetail:
+      type: object
+      description: Полная информация о собаке.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        uuid:
+          type: string
+          nullable: true
+          maxLength: 255
+        zoo_hash:
+          type: string
+          nullable: true
+          maxLength: 64
+        zooportal_id:
+          type: string
+          nullable: true
+          maxLength: 255
+        display_name:
+          type: string
+          readOnly: true
+        registered_name:
+          type: string
+          nullable: true
+          maxLength: 500
+        call_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        link_name:
+          type: string
+          nullable: true
+          maxLength: 500
+        sex:
+          allOf:
+          - $ref: '#/components/schemas/Sex6bbEnum'
+          minimum: -9223372036854775808
+          maximum: 9223372036854775807
+        sex_display:
+          type: string
+          readOnly: true
+        year_of_birth:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        month_of_birth:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        day_of_birth:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        date_of_birth:
+          type: string
+          format: date-time
+          nullable: true
+        year_of_death:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        date_of_death:
+          type: string
+          format: date-time
+          nullable: true
+        is_alive:
+          type: string
+          readOnly: true
+        land_of_birth:
+          type: string
+          nullable: true
+          maxLength: 255
+        land_of_birth_code:
+          type: string
+          nullable: true
+          maxLength: 10
+        land_of_standing:
+          type: string
+          nullable: true
+          maxLength: 255
+        size:
+          type: number
+          format: double
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        color:
+          type: string
+          nullable: true
+          maxLength: 255
+        color_marking:
+          type: string
+          nullable: true
+          maxLength: 255
+        eyes_color:
+          type: string
+          nullable: true
+          maxLength: 100
+        variety:
+          type: string
+          nullable: true
+          maxLength: 255
+        photo_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+        prefix_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        suffix_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        other_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        registration_number:
+          type: string
+          nullable: true
+          maxLength: 255
+        brand_chip:
+          type: string
+          nullable: true
+          maxLength: 255
+        coi:
+          type: number
+          format: double
+          nullable: true
+        incomplete_pedigree:
+          type: boolean
+          nullable: true
+        neutered:
+          type: boolean
+          nullable: true
+        approved_for_breeding:
+          type: boolean
+          nullable: true
+        kennel:
+          type: string
+          nullable: true
+          maxLength: 500
+        dam:
+          allOf:
+          - $ref: '#/components/schemas/DogParent'
+          readOnly: true
+        sire:
+          allOf:
+          - $ref: '#/components/schemas/DogParent'
+          readOnly: true
+        breeders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Breeder'
+          readOnly: true
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/Owner'
+          readOnly: true
+        titles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Title'
+          readOnly: true
+        medical_records:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicalRecord'
+          readOnly: true
+        birth_litter:
+          allOf:
+          - $ref: '#/components/schemas/Litter'
+          readOnly: true
+      required:
+      - birth_litter
+      - breeders
+      - dam
+      - display_name
+      - id
+      - is_alive
+      - medical_records
+      - owners
+      - sex
+      - sex_display
+      - sire
+      - titles
+    DogList:
+      type: object
+      description: |-
+        Краткая информация о собаке для списка/поиска.
+
+        breeder_names — список имён заводчиков (из таблицы breeder через dogbreederlink).
+        Это правильный источник данных о питомнике, а НЕ dog.kennel.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        uuid:
+          type: string
+          nullable: true
+          maxLength: 255
+        zoo_hash:
+          type: string
+          nullable: true
+          maxLength: 64
+        display_name:
+          type: string
+          readOnly: true
+        registered_name:
+          type: string
+          nullable: true
+          maxLength: 500
+        call_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        sex:
+          allOf:
+          - $ref: '#/components/schemas/Sex6bbEnum'
+          minimum: -9223372036854775808
+          maximum: 9223372036854775807
+        sex_display:
+          type: string
+          readOnly: true
+        year_of_birth:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        date_of_birth:
+          type: string
+          format: date-time
+          nullable: true
+        color:
+          type: string
+          nullable: true
+          maxLength: 255
+        photo_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+        land_of_birth:
+          type: string
+          nullable: true
+          maxLength: 255
+        prefix_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        suffix_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        breeder_names:
+          type: string
+          readOnly: true
+      required:
+      - breeder_names
+      - display_name
+      - id
+      - sex
+      - sex_display
+    DogParent:
+      type: object
+      description: Краткая информация о родителе (без вложенных).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        uuid:
+          type: string
+          nullable: true
+          maxLength: 255
+        zoo_hash:
+          type: string
+          nullable: true
+          maxLength: 64
+        display_name:
+          type: string
+          readOnly: true
+        registered_name:
+          type: string
+          nullable: true
+          maxLength: 500
+        call_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        sex:
+          allOf:
+          - $ref: '#/components/schemas/Sex6bbEnum'
+          minimum: -9223372036854775808
+          maximum: 9223372036854775807
+        sex_display:
+          type: string
+          readOnly: true
+        year_of_birth:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        color:
+          type: string
+          nullable: true
+          maxLength: 255
+        photo_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+      required:
+      - display_name
+      - id
+      - sex
+      - sex_display
     DogRequest:
       type: object
       properties:
@@ -1656,7 +3569,7 @@ components:
           maxLength: 200
         sex:
           oneOf:
-          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/DogSexEnum'
           - $ref: '#/components/schemas/BlankEnum'
         date_of_birth:
           type: string
@@ -1686,6 +3599,36 @@ components:
       required:
       - name
       - owner
+    DogSexEnum:
+      enum:
+      - male
+      - female
+      type: string
+      description: |-
+        * `male` - male
+        * `female` - female
+    DogStatsResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        males:
+          type: integer
+        females:
+          type: integer
+        breeders:
+          type: integer
+        with_zooportal_id:
+          type: integer
+        with_uuid:
+          type: integer
+      required:
+      - breeders
+      - females
+      - males
+      - total
+      - with_uuid
+      - with_zooportal_id
     Event:
       type: object
       properties:
@@ -1843,6 +3786,269 @@ components:
       - featured_news
       - highlight_galleries
       - upcoming_events
+    ImportBreedarchiveBrowseRequest:
+      type: object
+      properties:
+        recent_days:
+          type: integer
+          maximum: 30
+          minimum: 1
+          default: 1
+    ImportBreedarchiveDogRequest:
+      type: object
+      properties:
+        uuid:
+          type: string
+          minLength: 1
+          description: UUID собаки в BreedArchive
+        force_update:
+          type: boolean
+          default: false
+      required:
+      - uuid
+    ImportBreedarchiveFullPedigreeRequest:
+      type: object
+      description: Сериализатор для загрузки полной родословной по UUID.
+      properties:
+        uuid:
+          type: string
+          minLength: 1
+          description: UUID собаки в BreedArchive (из URL /animal/view/name-{uuid})
+        force_update:
+          type: boolean
+          default: false
+          description: True — сбросить кеш и загрузить заново даже если собака уже
+            есть в БД
+      required:
+      - uuid
+    ImportBreedarchiveRecentRequest:
+      type: object
+      properties:
+        pages_count:
+          type: integer
+          maximum: 10
+          minimum: 1
+          default: 1
+        start_page:
+          type: integer
+          maximum: 9
+          minimum: 0
+          default: 0
+        is_full_sync:
+          type: boolean
+          default: false
+    ImportHybridDogRequest:
+      type: object
+      properties:
+        zooportal_id:
+          type: string
+          minLength: 1
+          maxLength: 20
+        generations:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 5
+      required:
+      - zooportal_id
+    ImportHybridFullDogRequest:
+      type: object
+      properties:
+        zooportal_id:
+          type: string
+          minLength: 1
+          description: ID собаки на Zooportal
+          maxLength: 20
+        generations:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 5
+          description: Глубина парсинга Zoo страницы (для fallback родословной)
+        force_update:
+          type: boolean
+          default: false
+          description: True — сбросить BA-кеш и загрузить предков заново
+      required:
+      - zooportal_id
+    ImportHybridFullPageRequest:
+      type: object
+      properties:
+        page_num:
+          type: integer
+          minimum: 1
+          description: Номер страницы Zoo поиска
+        max_dogs:
+          type: integer
+          maximum: 11
+          minimum: 1
+          default: 11
+        generations:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 5
+        delay:
+          type: number
+          format: double
+          maximum: 10.0
+          minimum: 0.5
+          default: 2.0
+      required:
+      - page_num
+    ImportHybridFullRangeRequest:
+      type: object
+      properties:
+        start_page:
+          type: integer
+          minimum: 1
+        end_page:
+          type: integer
+          minimum: 1
+        max_dogs_per_page:
+          type: integer
+          maximum: 11
+          minimum: 1
+          default: 11
+        generations:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 5
+        delay:
+          type: number
+          format: double
+          maximum: 10.0
+          minimum: 0.5
+          default: 2.0
+        countdown_between_pages:
+          type: integer
+          maximum: 600
+          minimum: 1
+          default: 20
+          description: Пауза между страницами в секундах
+      required:
+      - end_page
+      - start_page
+    ImportHybridPageRequest:
+      type: object
+      properties:
+        page_num:
+          type: integer
+          minimum: 1
+        max_dogs:
+          type: integer
+          maximum: 11
+          minimum: 1
+          default: 11
+        delay:
+          type: number
+          format: double
+          maximum: 10.0
+          minimum: 0.5
+          default: 2.0
+        generations:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 3
+      required:
+      - page_num
+    ImportHybridRangeRequest:
+      type: object
+      properties:
+        start_page:
+          type: integer
+          minimum: 1
+        end_page:
+          type: integer
+          minimum: 1
+        max_dogs_per_page:
+          type: integer
+          maximum: 11
+          minimum: 1
+          default: 11
+        delay:
+          type: number
+          format: double
+          maximum: 10.0
+          minimum: 0.5
+          default: 2.0
+        generations:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 5
+        countdown_between_pages:
+          type: integer
+          maximum: 600
+          minimum: 1
+          default: 5
+      required:
+      - end_page
+      - start_page
+    ImportZooportalDogRequest:
+      type: object
+      description: Сериализатор для импорта одной собаки
+      properties:
+        zooportal_id:
+          type: string
+          minLength: 1
+          description: 'ID собаки на Zooportal (например: 17516431)'
+          maxLength: 20
+      required:
+      - zooportal_id
+    ImportZooportalPageRequest:
+      type: object
+      description: Сериализатор для импорта страницы поиска
+      properties:
+        page_num:
+          type: integer
+          minimum: 1
+          description: Номер страницы поиска (от 1 и выше)
+        max_dogs:
+          type: integer
+          maximum: 11
+          minimum: 1
+          default: 11
+          description: Максимальное количество собак (по умолчанию 10)
+        delay:
+          type: number
+          format: double
+          maximum: 10.0
+          minimum: 0.5
+          default: 2.0
+          description: Задержка между собаками в секундах (по умолчанию 2.0)
+      required:
+      - page_num
+    ImportZooportalRangeRequest:
+      type: object
+      description: Сериализатор для импорта диапазона страниц
+      properties:
+        start_page:
+          type: integer
+          minimum: 1
+          description: Начальная страница (включительно)
+        end_page:
+          type: integer
+          minimum: 1
+          description: Конечная страница (включительно)
+        max_dogs_per_page:
+          type: integer
+          maximum: 11
+          minimum: 1
+          default: 11
+          description: Максимум собак на странице (по умолчанию 10)
+        delay:
+          type: number
+          format: double
+          maximum: 10.0
+          minimum: 0.5
+          default: 2.0
+          description: Задержка между собаками (по умолчанию 2.0)
+      required:
+      - end_page
+      - start_page
     Judge:
       type: object
       properties:
@@ -1991,37 +4197,30 @@ components:
         id:
           type: integer
           readOnly: true
-        whelped_at:
+        date_of_birth:
           type: string
           format: date-time
           nullable: true
-        puppies_count:
+        litter_male_count:
           type: integer
           maximum: 9223372036854775807
           minimum: -9223372036854775808
           format: int64
           nullable: true
-        notes_key:
-          type: string
-          maxLength: 200
-        status:
-          $ref: '#/components/schemas/LitterStatusEnum'
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        kennel:
+        litter_female_count:
           type: integer
-        sire:
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        litter_undef_count:
           type: integer
-        dam:
-          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
       required:
-      - created_at
-      - dam
       - id
-      - kennel
-      - sire
     LitterRequest:
       type: object
       properties:
@@ -2060,6 +4259,81 @@ components:
         * `announced` - announced
         * `born` - born
         * `sold` - sold
+    LoginRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: Email пользователя
+        password:
+          type: string
+          minLength: 1
+          description: Пароль
+      required:
+      - email
+      - password
+    LoginSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/LoginUser'
+      required:
+      - success
+      - user
+    LoginUser:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        is_nkp_member:
+          type: boolean
+      required:
+      - email
+      - is_nkp_member
+      - name
+    MedicalRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        registry:
+          type: string
+          maxLength: 255
+        test_date:
+          type: string
+          format: date-time
+          nullable: true
+        conclusion:
+          type: string
+          nullable: true
+          maxLength: 1000
+        ofa_number:
+          type: string
+          nullable: true
+          maxLength: 255
+        source:
+          type: string
+          maxLength: 255
+      required:
+      - id
+      - registry
+      - source
+    MembershipTypeEnum:
+      enum:
+      - physical
+      - legal
+      type: string
+      description: |-
+        * `physical` - physical
+        * `legal` - legal
     News:
       type: object
       properties:
@@ -2102,6 +4376,37 @@ components:
       - slug
       - title_key
       - updated_at
+    NullEnum:
+      enum:
+      - null
+    Owner:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        uuid:
+          type: string
+          nullable: true
+          maxLength: 255
+        name:
+          type: string
+          maxLength: 500
+        kennel:
+          type: string
+          nullable: true
+          maxLength: 500
+        owner_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+        kennel_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+      required:
+      - id
+      - name
     Page:
       type: object
       properties:
@@ -2232,6 +4537,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BreedStandard'
+    PaginatedBreederList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Breeder'
     PaginatedClubDocumentList:
       type: object
       properties:
@@ -2292,6 +4617,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Dog'
+    PaginatedDogListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DogList'
     PaginatedEventList:
       type: object
       properties:
@@ -2432,6 +4777,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Litter'
+    PaginatedMedicalRecordList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicalRecord'
     PaginatedNewsList:
       type: object
       properties:
@@ -2452,6 +4817,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/News'
+    PaginatedOwnerList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Owner'
     PaginatedPageList:
       type: object
       properties:
@@ -2472,6 +4857,46 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Page'
+    PaginatedTitleList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Title'
+    PaginatedWorkingGroupList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkingGroup'
     PatchedApplicationRequest:
       type: object
       properties:
@@ -2495,7 +4920,7 @@ components:
           maxLength: 200
         sex:
           oneOf:
-          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/DogSexEnum'
           - $ref: '#/components/schemas/BlankEnum'
         date_of_birth:
           type: string
@@ -2573,16 +4998,270 @@ components:
           type: integer
         dam:
           type: integer
-    SexEnum:
+    Pedigree:
+      type: object
+      description: Рекурсивное дерево родословной.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        uuid:
+          type: string
+          nullable: true
+          maxLength: 255
+        display_name:
+          type: string
+          readOnly: true
+        registered_name:
+          type: string
+          nullable: true
+          maxLength: 500
+        call_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        sex:
+          allOf:
+          - $ref: '#/components/schemas/Sex6bbEnum'
+          minimum: -9223372036854775808
+          maximum: 9223372036854775807
+        year_of_birth:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        date_of_birth:
+          type: string
+          format: date-time
+          nullable: true
+        photo_url:
+          type: string
+          nullable: true
+          maxLength: 1000
+        color:
+          type: string
+          nullable: true
+          maxLength: 255
+        land_of_birth:
+          type: string
+          nullable: true
+          maxLength: 255
+        prefix_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        suffix_titles:
+          type: string
+          nullable: true
+          maxLength: 500
+        coi:
+          type: number
+          format: double
+          nullable: true
+        dam:
+          type: string
+          readOnly: true
+        sire:
+          type: string
+          readOnly: true
+      required:
+      - dam
+      - display_name
+      - id
+      - sex
+      - sire
+    RecalculateAllCoiRequestRequest:
+      type: object
+      properties:
+        generations:
+          type: integer
+          default: 5
+          description: Глубина расчёта (1–10, по умолчанию 5)
+        only_missing:
+          type: boolean
+          default: true
+          description: True — только собаки с COI IS NULL
+        use_ancestor_coi:
+          type: boolean
+          default: false
+          description: Учитывать COI предков
+        batch_size:
+          type: integer
+          default: 100
+          description: Размер батча (10–500)
+    Sex6bbEnum:
       enum:
-      - male
-      - female
-      type: string
+      - 1
+      - 2
+      type: integer
       description: |-
-        * `male` - male
-        * `female` - female
+        * `1` - Кобель
+        * `2` - Сука
+    TaskResponse:
+      type: object
+      description: Ответ с task_id
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        check_status_url:
+          type: string
+      required:
+      - check_status_url
+      - message
+      - status
+      - task_id
+    TaskStatusResponse:
+      type: object
+      description: Ответ со статусом задачи
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        progress:
+          type: object
+          additionalProperties: {}
+        result:
+          type: object
+          additionalProperties: {}
+        error:
+          type: string
+      required:
+      - status
+      - task_id
+    Title:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        short_name:
+          type: string
+          maxLength: 100
+        long_name:
+          type: string
+          nullable: true
+          maxLength: 500
+        is_prefix:
+          type: boolean
+        country:
+          type: string
+          nullable: true
+          maxLength: 100
+        winner_year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+      required:
+      - id
+      - is_prefix
+      - short_name
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 20
+        city:
+          type: string
+          maxLength: 100
+        is_nkp_member:
+          type: boolean
+        membership_type:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/MembershipTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        membership_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - email
+      - id
+    UserProfileRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 20
+        city:
+          type: string
+          maxLength: 100
+        is_nkp_member:
+          type: boolean
+        membership_type:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/MembershipTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        membership_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - email
+    WorkingGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 200
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardMember'
+          readOnly: true
+      required:
+      - id
+      - members
+      - name
   securitySchemes:
     cookieAuth:
       type: apiKey
       in: cookie
       name: sessionid
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"
