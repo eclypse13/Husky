@@ -1,46 +1,15 @@
-import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-
-type Member = {
-  id: number;
-  name: string;
-  position?: string;
-  bio_key?: string;
-  photo?: string | null;
-  email?: string;
-  phone?: string;
-  order?: number;
-};
-
-type WorkingGroup = {
-  id: number;
-  name: string;
-  members: Member[];
-};
+import { useWorkingGroupsRetrieve } from "@/generated/leadership/leadership";
 
 export default function WorkingGroup() {
   const { id } = useParams();
-  const [data, setData] = useState<WorkingGroup | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: response, isLoading, error } = useWorkingGroupsRetrieve(Number(id), {
+    query: { enabled: !!id },
+  });
+  const data = response?.data;
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setError(null);
-        const res = await fetch(`/api/working-groups/${id}/`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setData(json);
-      } catch (e) {
-        setError("Не удалось загрузить рабочую группу");
-      }
-    };
-
-    if (id) load();
-  }, [id]);
-
-  if (error) return <div>{error}</div>;
-  if (!data) return <div>Загрузка…</div>;
+  if (error) return <div>Не удалось загрузить рабочую группу</div>;
+  if (isLoading || !data) return <div>Загрузка…</div>;
 
   return (
     <div className="working-group">

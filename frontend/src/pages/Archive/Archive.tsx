@@ -1,9 +1,9 @@
 // src/pages/Archive/Archive.tsx
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { searchDogs, getDogStats } from "@/api/dogs";
-import type { DogListItem, DogStats, DogSearchParams } from "@/types/dog";
+import { useDogsList, useDogsStatsRetrieve } from "@/generated/dogs/dogs";
+import type { DogList } from "@/generated/api.schemas";
 import "./Archive.css";
 
 // Хелперы
@@ -14,7 +14,7 @@ const DEFAULT_DOG_IMG = "/no-image-dog.png";
 const dogPhoto = (url: string | null | undefined): string =>
   url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
-const titleBadges = (dog: DogListItem) => {
+const titleBadges = (dog: DogList) => {
   const badges: string[] = [];
   if (dog.prefix_titles) badges.push(...dog.prefix_titles.split(",").map((s) => s.trim()));
   if (dog.suffix_titles) badges.push(...dog.suffix_titles.split(",").map((s) => s.trim()));
@@ -26,11 +26,14 @@ export default function Archive() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [advOpen, setAdvOpen] = useState(false);
 
-  // Состояние поиска
-  const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [sexFilter, setSexFilter] = useState(searchParams.get("sex") || "");
-  const [colorFilter, setColorFilter] = useState(searchParams.get("color") || "");
-  const [currentPage, setCurrentPage] = useState(Number(searchParams.get("page")) || 1);
+  // Состояние поиска (из URL)
+  const query = searchParams.get("q") || "";
+  const sexFilter = searchParams.get("sex") || "";
+  const currentPage = Number(searchParams.get("page")) || 1;
+
+  // Локальные инпуты (синхронизируются с URL при сабмите)
+  const [queryInput, setQueryInput] = useState(query);
+  const [sexInput, setSexInput] = useState(sexFilter);
 
   // Расширенный поиск
   const [advKennel, setAdvKennel] = useState("");
@@ -38,61 +41,24 @@ export default function Archive() {
   const [advYearFrom, setAdvYearFrom] = useState("");
   const [advYearTo, setAdvYearTo] = useState("");
 
-  // Данные
-  const [dogs, setDogs] = useState<DogListItem[]>([]);
-  const [totalDogs, setTotalDogs] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<DogStats | null>(null);
+  const PER_PAGE = 20;
 
   // ============================================================
-  // Загрузка статистики (один раз)
+  // Данные через сгенерированные хуки
   // ============================================================
-  useEffect(() => {
-    getDogStats()
-      .then(setStats)
-      .catch(() => {});
-  }, []);
+  const { data: statsResponse } = useDogsStatsRetrieve();
+  const stats = statsResponse?.data;
 
-  // ============================================================
-  // Поиск собак
-  // ============================================================
-  const doSearch = useCallback(
-    async (params: DogSearchParams, page = 1) => {
-      setLoading(true);
-      setError(null);
+  const { data: dogsResponse, isLoading: loading, error: fetchError } = useDogsList({
+    page: currentPage,
+    ...(query ? { q: query } : {}),
+    ...(sexFilter ? { sex: Number(sexFilter) } : {}),
+  });
 
-      try {
-        const result = await searchDogs({ ...params, page, per_page: 20 });
-        setDogs(result.data);
-        setTotalDogs(result.meta.total);
-        setTotalPages(result.meta.total_pages);
-        setCurrentPage(result.meta.page);
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Ошибка поиска");
-        setDogs([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Начальная загрузка + реакция на URL
-  useEffect(() => {
-    const params: DogSearchParams = {};
-    const q = searchParams.get("q");
-    const sex = searchParams.get("sex");
-    const color = searchParams.get("color");
-    const page = Number(searchParams.get("page")) || 1;
-
-    if (q) params.q = q;
-    if (sex) params.sex = sex;
-    if (color) params.color = color;
-
-    doSearch(params, page);
-  }, [searchParams, doSearch]);
+  const dogs = dogsResponse?.data?.results ?? [];
+  const totalDogs = dogsResponse?.data?.count ?? 0;
+  const totalPages = Math.ceil(totalDogs / PER_PAGE);
+  const error = fetchError ? "Ошибка поиска" : null;
 
   // ============================================================
   // Обработчики
@@ -100,24 +66,19 @@ export default function Archive() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const p = new URLSearchParams();
-    if (query) p.set("q", query);
-    if (sexFilter) p.set("sex", sexFilter);
-    if (colorFilter) p.set("color", colorFilter);
+    if (queryInput) p.set("q", queryInput);
+    if (sexInput) p.set("sex", sexInput);
     p.set("page", "1");
     setSearchParams(p);
   };
 
   const handleAdvSearch = () => {
-    const params: DogSearchParams = { q: query };
-    if (sexFilter) params.sex = sexFilter;
-    if (colorFilter) params.color = colorFilter;
-    if (advKennel) params.kennel = advKennel;
-    if (advCountry) params.country = advCountry;
-    if (advYearFrom) params.year_from = advYearFrom;
-    if (advYearTo) params.year_to = advYearTo;
-
+    const p = new URLSearchParams();
+    if (queryInput) p.set("q", queryInput);
+    if (sexInput) p.set("sex", sexInput);
+    p.set("page", "1");
+    setSearchParams(p);
     setAdvOpen(false);
-    doSearch(params, 1);
   };
 
   const handlePageChange = (page: number) => {
@@ -172,8 +133,8 @@ export default function Archive() {
               <input
                 className="archive-search-input"
                 placeholder="Введите кличку, рег. номер или клеймо..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
               />
               <button className="archive-search-btn" type="submit" disabled={loading}>
                 {loading ? "⏳ Ищем..." : "🔍 Найти"}
@@ -183,23 +144,12 @@ export default function Archive() {
             <div className="archive-filters">
               <select
                 className="archive-filter"
-                value={sexFilter}
-                onChange={(e) => setSexFilter(e.target.value)}
+                value={sexInput}
+                onChange={(e) => setSexInput(e.target.value)}
               >
                 <option value="">Все полы</option>
                 <option value="1">Кобель</option>
                 <option value="2">Сука</option>
-              </select>
-              <select
-                className="archive-filter"
-                value={colorFilter}
-                onChange={(e) => setColorFilter(e.target.value)}
-              >
-                <option value="">Все окрасы</option>
-                <option value="черно-белый">Черно-белый</option>
-                <option value="серо-белый">Серо-белый</option>
-                <option value="рыже-белый">Рыже-белый</option>
-                <option value="белый">Белый</option>
               </select>
               <button
                 type="button"
@@ -283,9 +233,9 @@ export default function Archive() {
                       <div className="archive-dog-meta">
                         <span className="archive-dog-meta-item">{sexLabel(d.sex)}</span>
                         {d.color && <span className="archive-dog-meta-item capitalize-text">{d.color}</span>}
-                        {d.breeder_names.length > 0 && (
+                        {d.breeder_names && (
                           <span className="archive-dog-meta-item">
-                            🏠 {d.breeder_names.join(", ")}
+                            🏠 {d.breeder_names}
                           </span>
                         )}
                       </div>
@@ -410,7 +360,7 @@ export default function Archive() {
             <div className="archive-form-grid">
               <label className="archive-field">
                 <span>Кличка</span>
-                <input value={query} onChange={(e) => setQuery(e.target.value)} />
+                <input value={queryInput} onChange={(e) => setQueryInput(e.target.value)} />
               </label>
               <label className="archive-field">
                 <span>Питомник</span>
@@ -440,7 +390,7 @@ export default function Archive() {
               </label>
               <label className="archive-field">
                 <span>Пол</span>
-                <select value={sexFilter} onChange={(e) => setSexFilter(e.target.value)}>
+                <select value={sexInput} onChange={(e) => setSexInput(e.target.value)}>
                   <option value="">Любой</option>
                   <option value="1">Кобель</option>
                   <option value="2">Сука</option>
@@ -452,9 +402,8 @@ export default function Archive() {
               <button
                 className="archive-btn"
                 onClick={() => {
-                  setQuery("");
-                  setSexFilter("");
-                  setColorFilter("");
+                  setQueryInput("");
+                  setSexInput("");
                   setAdvKennel("");
                   setAdvCountry("");
                   setAdvYearFrom("");

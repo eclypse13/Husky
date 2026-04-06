@@ -1,10 +1,10 @@
 // src/pages/Pedigree/Pedigree.tsx
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as d3 from "d3";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { getDogPedigree } from "@/api/dogs";
+import { useDogsPedigreeRetrieve } from "@/generated/dogs/dogs";
 import type { PedigreeNode } from "@/types/dog";
 import "./Pedigree.css";
 
@@ -341,26 +341,27 @@ const PAD = { top: 12, bottom: 12, left: 8, right: 12 };
 export default function Pedigree() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const numId = Number(id);
 
-  const [depth, setDepth]     = useState(3);
-  const [rawData, setRawData] = useState<TreeNode | null>(null);
-  const [dogName, setDogName] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [depth, setDepth] = useState(3);
+
+  const { data: response, isLoading: loading, error: fetchError } = useDogsPedigreeRetrieve(
+    numId,
+    { generations: depth },
+    { query: { enabled: !!id && !isNaN(numId) } },
+  );
+
+  // Сгенерированный тип Pedigree не поддерживает рекурсию (sire/dam: string),
+  // но API реально возвращает вложенные объекты — кастуем к PedigreeNode
+  const pedigreeData = response?.data as unknown as PedigreeNode | undefined;
+  const error = fetchError ? "Ошибка загрузки" : null;
+  const dogName = pedigreeData?.display_name || pedigreeData?.registered_name || "";
+  const rawData = useMemo(() => pedigreeData ? convertNode(pedigreeData) : null, [pedigreeData]);
 
   const frameRef  = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const svgRef    = useRef<SVGSVGElement>(null);
   const gRef      = useRef<SVGGElement>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true); setError(null);
-    getDogPedigree(Number(id), depth)
-      .then(p => { setDogName(p.display_name || p.registered_name || ""); setRawData(convertNode(p)); })
-      .catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
-      .finally(() => setLoading(false));
-  }, [id, depth]);
 
   const renderTree = useCallback(() => {
     const frame = frameRef.current, scroll = scrollRef.current;

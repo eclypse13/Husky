@@ -1,12 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { getDict, pickValue } from "@/lib/dict";
+import { useDictList } from "@/generated/content-dictionary/content-dictionary";
+import { pickValue } from "@/lib/dict";
 import "./President.css";
 
 export default function President() {
     const pageRef = useRef<HTMLDivElement | null>(null);
-    const [presidentBio, setPresidentBio] = useState<string>("Президент НКП Сибирский Хаски");
+    const { data: dictResponse } = useDictList();
+    const presidentBio = useMemo(() => {
+        const items = dictResponse?.data?.results;
+        if (!items) return "Президент НКП Сибирский Хаски";
+        return pickValue(items as any[], "BOARD_1_BIO", "ru") ?? "Президент НКП Сибирский Хаски";
+    }, [dictResponse]);
 
     useEffect(() => {
         const root = pageRef.current;
@@ -52,19 +58,6 @@ export default function President() {
         });
     }, []);
 
-    useEffect(() => {
-        let ignore = false;
-        getDict()
-            .then((dict) => {
-                if (ignore) return;
-                const bio = pickValue(dict, "BOARD_1_BIO", "ru");
-                if (bio) setPresidentBio(bio);
-            })
-            .catch(() => {});
-        return () => {
-            ignore = true;
-        };
-    }, []);
 
     return (
         <div ref={pageRef} className="president-page">

@@ -1,9 +1,9 @@
 // src/pages/DogDetail/DogDetail.tsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { getDogDetail } from "@/api/dogs";
-import type {CoiCalculationResult, DogDetail} from "@/types/dog";
+import { useDogsRetrieve, useDogsCalculateCoiCreate } from "@/generated/dogs/dogs";
+import type { DogDetail as DogDetailType } from "@/generated/api.schemas";
 import "./DogDetail.css";
 
 const SEX_LABEL: Record<number, string> = { 1: "♂ Кобель", 2: "♀ Сука" };
@@ -93,72 +93,40 @@ function Skeleton() {
 
 export default function DogDetail() {
     const { id } = useParams<{ id: string }>();
-    const [dog, setDog] = useState<DogDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const numId = Number(id);
+
+    const { data: response, isLoading: loading, error: fetchError } = useDogsRetrieve(numId, {
+        query: { enabled: !!id && !isNaN(numId) },
+    });
+    const dog = response?.data as DogDetailType | undefined;
+    const error = fetchError ? "Ошибка загрузки" : null;
 
     // ── COI ───────────────────────────────────────────────────────────────────
-    const [coiLoading, setCoiLoading]   = useState(false);
-    const [coiResult,  setCoiResult]    = useState<CoiCalculationResult | null>(null);
-    const [coiError,   setCoiError]     = useState<string | null>(null);
+    const coiMutation = useDogsCalculateCoiCreate();
+    const [coiOverride, setCoiOverride] = useState<{ coi: number; coi_updated_on: string } | null>(null);
 
-    const handleCalculateCoi = async () => {
+    const handleCalculateCoi = () => {
         if (!dog) return;
-        setCoiLoading(true);
-        setCoiError(null);
-        setCoiResult(null);
-        try {
-            // CSRF token from cookie (Django)
-            const csrfToken = document.cookie
-                .split("; ")
-                .find((r) => r.startsWith("csrftoken="))
-                ?.split("=")[1] ?? "";
-
-            const res = await fetch(`/api/dogs/${dog.id}/calculate_coi/`, {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+        setCoiOverride(null);
+        coiMutation.mutate(
+            { id: dog.id, data: { generations: 10 } },
+            {
+                onSuccess: (res) => {
+                    const data = res.data;
+                    if ('coi' in data) {
+                        setCoiOverride({ coi: data.coi, coi_updated_on: data.coi_updated_on });
+                    }
                 },
-                body: JSON.stringify({ generations: 10 }),
-            });
-
-            // Handle non-JSON responses (e.g. 403 HTML page)
-            const contentType = res.headers.get("content-type") ?? "";
-            if (!contentType.includes("application/json")) {
-                setCoiError(`Сервер вернул ${res.status} (${res.statusText})`);
-                return;
-            }
-
-            const data = await res.json();
-            if (!res.ok) {
-                setCoiError(data.error ?? data.detail ?? `Ошибка ${res.status}`);
-            } else {
-                setCoiResult(data);
-                setDog((prev) => prev ? { ...prev, coi: data.coi, coi_updated_on: data.coi_updated_on } : prev);
-            }
-        } catch (e) {
-            setCoiError(e instanceof Error ? e.message : "Сетевая ошибка");
-        } finally {
-            setCoiLoading(false);
-        }
+            },
+        );
     };
 
-    useEffect(() => {
-        if (!id) return;
-        setLoading(true);
-        setError(null);
-        setCoiResult(null);
-        setCoiError(null);
-        setCoiLoading(false);
-        getDogDetail(Number(id))
-            .then(setDog)
-            .catch((e) => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
-            .finally(() => setLoading(false));
-    }, [id]);
+    const coiResult = coiMutation.data?.data;
+    const coiLoading = coiMutation.isPending;
+    const coiError = coiMutation.error ? "Ошибка расчёта COI" : null;
+    const displayCoi = coiOverride?.coi ?? (coiResult && 'coi' in coiResult ? coiResult.coi : null);
 
-    const suffixTitles = dog?.titles.filter((t) => !t.is_prefix) ?? [];
+    const suffixTitles = dog?.titles?.filter((t) => !t.is_prefix) ?? [];
 
     return (
         <div className="dd-page">
@@ -255,8 +223,8 @@ export default function DogDetail() {
                                             </button>
                                             {coiLoading ? (
                                                 <span className="dd-coi-spinner" />
-                                            ) : coiResult ? (
-                                                <span className="dd-row-value">{coiResult.coi.toFixed(2)} %</span>
+                                            ) : displayCoi != null ? (
+                                                <span className="dd-row-value">{displayCoi.toFixed(2)} %</span>
                                             ) : dog.coi != null ? (
                                                 <span className="dd-row-value">{dog.coi.toFixed(2)} %</span>
                                             ) : (

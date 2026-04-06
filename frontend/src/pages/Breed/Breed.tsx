@@ -1,17 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { getDict, pickValue } from "@/lib/dict";
+import { useEffect, useMemo, useRef } from "react";
+import { useDictList } from "@/generated/content-dictionary/content-dictionary";
+import { pickValue } from "@/lib/dict";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import ClubSidebar from "@/components/Sidebar/ClubSidebar";
 import "./Breed.css";
 
 export default function Breed() {
   const pageRef = useRef<HTMLDivElement | null>(null);
-  const [breedTitle, setBreedTitle] = useState<string | null>(null);
-  const [breedStandard, setBreedStandard] = useState<string | null>(null);
-  const [breedCharacter, setBreedCharacter] = useState<string | null>(null);
-  const [breedCareTitle, setBreedCareTitle] = useState<string | null>(null);
-  const [breedCare, setBreedCare] = useState<string | null>(null);
-  const [breedHistory, setBreedHistory] = useState<string | null>(null);
+  const { data: dictResponse } = useDictList();
+  const dict = useMemo(() => (dictResponse?.data?.results ?? []) as any[], [dictResponse]);
+  const breedTitle = useMemo(() => pickValue(dict, 'BREED_TITLE', 'ru'), [dict]);
+  const breedStandard = useMemo(() => pickValue(dict, 'BREED_STANDARD', 'ru'), [dict]);
+  const breedCharacter = useMemo(() => pickValue(dict, 'BREED_CHARACTER', 'ru'), [dict]);
+  const breedCareTitle = useMemo(() => pickValue(dict, 'BREED_CARE_TITLE', 'ru'), [dict]);
+  const breedCare = useMemo(() => pickValue(dict, 'BREED_CARE', 'ru'), [dict]);
+  const breedHistory = useMemo(() => pickValue(dict, 'BREED_HISTORY', 'ru'), [dict]);
 
   useEffect(() => {
     const root = pageRef.current;
@@ -56,28 +59,6 @@ export default function Breed() {
     });
   }, []);
 
-  // Load breed page content from dictionary API (deduped)
-  useEffect(() => {
-    let ignore = false;
-    getDict()
-      .then((dict) => {
-        if (ignore) return;
-        const t = pickValue(dict, 'BREED_TITLE', 'ru');
-        const s = pickValue(dict, 'BREED_STANDARD', 'ru');
-        const c = pickValue(dict, 'BREED_CHARACTER', 'ru');
-        const ct = pickValue(dict, 'BREED_CARE_TITLE', 'ru');
-        const cr = pickValue(dict, 'BREED_CARE', 'ru');
-        const ht = pickValue(dict, 'BREED_HISTORY', 'ru');
-        if (t) setBreedTitle(t);
-        if (s) setBreedStandard(s);
-        if (c) setBreedCharacter(c);
-        if (ct) setBreedCareTitle(ct);
-        if (cr) setBreedCare(cr);
-        if (ht) setBreedHistory(ht);
-      })
-      .catch(() => {});
-    return () => { ignore = true; };
-  }, []);
 
   return (
     <div ref={pageRef} className="breed-page">
