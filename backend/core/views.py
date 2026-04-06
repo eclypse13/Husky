@@ -486,7 +486,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         description="Возвращает профиль текущего авторизованного пользователя.",
         responses={
             200: UserProfileSerializer,
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Профиль пользователя не найден"),
         },
         tags=["Profile"],
@@ -508,7 +508,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         responses={
             200: UserProfileSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Профиль пользователя не найден"),
         },
         tags=["Profile"],
@@ -532,7 +532,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         summary="Список моих собак",
         responses={
             200: DogSerializer(many=True),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Dogs"],
     ),
@@ -540,7 +540,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         summary="Получить мою собаку по ID",
         responses={
             200: DogSerializer,
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
         tags=["My Dogs"],
@@ -550,7 +550,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         responses={
             201: DogSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Dogs"],
     ),
@@ -559,7 +559,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         responses={
             200: DogSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Нет доступа (не аутентифицирован или не владелец)"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
         tags=["My Dogs"],
@@ -569,7 +569,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         responses={
             200: DogSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Нет доступа (не аутентифицирован или не владелец)"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
         tags=["My Dogs"],
@@ -578,7 +578,7 @@ class MyProfileViewSet(viewsets.ViewSet):
         summary="Удалить собаку",
         responses={
             204: OpenApiResponse(description="Собака удалена"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Нет доступа (не аутентифицирован или не владелец)"),
             404: OpenApiResponse(description="Собака не найдена"),
         },
         tags=["My Dogs"],
@@ -598,7 +598,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         description="Возвращает только собак с титулом чемпиона.",
         responses={
             200: DogSerializer(many=True),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Dogs"],
     )
@@ -615,7 +615,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         summary="Список моих питомников",
         responses={
             200: KennelSerializer(many=True),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Kennels"],
     ),
@@ -623,7 +623,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         summary="Получить мой питомник по ID",
         responses={
             200: KennelSerializer,
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
         tags=["My Kennels"],
@@ -633,7 +633,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         responses={
             201: KennelSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Kennels"],
     ),
@@ -642,7 +642,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         responses={
             200: KennelSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Нет доступа (не аутентифицирован или не владелец)"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
         tags=["My Kennels"],
@@ -652,7 +652,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         responses={
             200: KennelSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Нет доступа (не аутентифицирован или не владелец)"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
         tags=["My Kennels"],
@@ -661,7 +661,7 @@ class MyDogViewSet(viewsets.ModelViewSet):
         summary="Удалить питомник",
         responses={
             204: OpenApiResponse(description="Питомник удалён"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Нет доступа (не аутентифицирован или не владелец)"),
             404: OpenApiResponse(description="Питомник не найден"),
         },
         tags=["My Kennels"],
@@ -682,7 +682,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
         summary="Список моих помётов",
         responses={
             200: LitterSerializer(many=True),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Litters"],
     ),
@@ -690,7 +690,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
         summary="Получить мой помёт по ID",
         responses={
             200: LitterSerializer,
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
         tags=["My Litters"],
@@ -700,7 +700,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
         responses={
             201: LitterSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Litters"],
     ),
@@ -709,7 +709,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
         responses={
             200: LitterSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
         tags=["My Litters"],
@@ -719,7 +719,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
         responses={
             200: LitterSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
         tags=["My Litters"],
@@ -728,7 +728,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
         summary="Удалить помёт",
         responses={
             204: OpenApiResponse(description="Помёт удалён"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Помёт не найден"),
         },
         tags=["My Litters"],
@@ -750,7 +750,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
         summary="Список моих заявлений",
         responses={
             200: ApplicationSerializer(many=True),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Applications"],
     ),
@@ -758,7 +758,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
         summary="Получить моё заявление по ID",
         responses={
             200: ApplicationSerializer,
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
         tags=["My Applications"],
@@ -768,7 +768,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
         responses={
             201: ApplicationSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Applications"],
     ),
@@ -777,7 +777,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
         responses={
             200: ApplicationSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
         tags=["My Applications"],
@@ -787,7 +787,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
         responses={
             200: ApplicationSerializer,
             400: OpenApiResponse(description="Ошибки валидации"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
         tags=["My Applications"],
@@ -796,7 +796,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
         summary="Удалить заявление",
         responses={
             204: OpenApiResponse(description="Заявление удалено"),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Заявление не найдено"),
         },
         tags=["My Applications"],
@@ -817,7 +817,7 @@ class MyApplicationViewSet(viewsets.ModelViewSet):
         summary="Список моих достижений",
         responses={
             200: AchievementSerializer(many=True),
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
         },
         tags=["My Achievements"],
     ),
@@ -825,7 +825,7 @@ class MyApplicationViewSet(viewsets.ModelViewSet):
         summary="Получить моё достижение по ID",
         responses={
             200: AchievementSerializer,
-            401: OpenApiResponse(description="Пользователь не авторизован"),
+            403: OpenApiResponse(description="Учётные данные не были предоставлены"),
             404: OpenApiResponse(description="Достижение не найдено"),
         },
         tags=["My Achievements"],
@@ -914,7 +914,7 @@ def login_view(request):
     request=None,
     responses={
         200: OpenApiResponse(description="Сессия завершена"),
-        401: OpenApiResponse(description="Пользователь не авторизован"),
+        403: OpenApiResponse(description="Учётные данные не были предоставлены"),
     },
     tags=["Auth"],
 )
