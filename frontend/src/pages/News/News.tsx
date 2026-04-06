@@ -240,43 +240,9 @@ export default function News() {
                 </div>
               </article>
             ))}
-            {items.length === 0 && [
-              {
-                icon: "🏆",
-                title: "«Сибирская Красота 2025» — рекордное участие",
-                meta: ["Выставки", "18 июля 2025"],
-                desc: "200+ собак, международные судьи и высокий уровень организации.",
-                cta: "Читать",
-              },
-              {
-                icon: "🧬",
-                title: "Обновлён список ДНК-тестов",
-                meta: ["Здоровье", "15 июля 2025"],
-                desc: "Добавлены панели тестов от Embark и Genomia.",
-                cta: "Подробнее",
-              },
-              {
-                icon: "❄️",
-                title: "Итоги чемпионата по драйленду",
-                meta: ["Спорт", "12 июля 2025"],
-                desc: "Поздравляем победителей! Результаты, фото и комментарии участников.",
-                cta: "Смотреть",
-              },
-            ].map((n, i) => (
-              <article className="news-card" key={i}>
-                <div className="news-avatar">{n.icon}</div>
-                <div className="news-info">
-                  <h3 className="news-card-title">{n.title}</h3>
-                  <div className="news-meta">
-                    {n.meta.map(m => <span key={m} className="news-meta-item">{m}</span>)}
-                  </div>
-                  <p className="news-desc">{n.desc}</p>
-                </div>
-                <div className="news-actions">
-                  <a className="news-action news-action--primary" href="#">{n.cta}</a>
-                </div>
-              </article>
-            ))}
+            {items.length === 0 && (
+              <div className="news-empty">Нет данных</div>
+            )}
           </section>
 
           {/* Пагинация */}
