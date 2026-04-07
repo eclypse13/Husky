@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDict, pickValue } from "@/lib/dict";
-import { useNewsList } from "@/generated";
+import { useNewsList } from "@/generated/news/news";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./News.css";
 

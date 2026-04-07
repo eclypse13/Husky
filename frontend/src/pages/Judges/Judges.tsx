@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { useJudgesList } from "@/generated";
+import { useJudgesList } from "@/generated/judges/judges";
 import "./Judges.css";
 
 type JudgeItem = {

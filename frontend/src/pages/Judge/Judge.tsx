@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { useJudgesRetrieve, useJudgeDetailsRetrieve } from "@/generated";
+import { useJudgesRetrieve, useJudgeDetailsRetrieve } from "@/generated/judges/judges";
 import "./Judge.css";
 
 type WorkDirection = {

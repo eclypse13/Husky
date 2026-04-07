@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState, MouseEvent} from "react";
 import { getDict, pickValue } from "@/lib/dict";
-import { useClubDocumentsList } from "@/generated";
+import { useClubDocumentsList } from "@/generated/club-documents/club-documents";
 import "./ClubSidebar.css";
 
 type DocumentType = 'charter' | 'standard' | 'form' | 'regulation';

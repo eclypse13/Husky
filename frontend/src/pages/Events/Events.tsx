@@ -1,7 +1,9 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import { Link } from "react-router-dom";
 import { getDict, pickValue } from "@/lib/dict";
-import { useEventsList, useJudgesList, useEventReportsList } from "@/generated";
+import { useEventsList } from "@/generated/events/events";
+import { useJudgesList } from "@/generated/judges/judges";
+import { useEventReportsList } from "@/generated/event-reports/event-reports";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./Events.css";
 

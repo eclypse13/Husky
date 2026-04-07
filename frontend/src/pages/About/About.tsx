@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getDict, pickValue } from "@/lib/dict";
 
-import { useClubBoardList } from "@/generated";
+import { useClubBoardList } from "@/generated/leadership/leadership";
 
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 

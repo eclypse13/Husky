@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDict, pickValue } from "@/lib/dict";
-import { useEventsRetrieve, useJudgesList } from "@/generated";
+import { useEventsRetrieve } from "@/generated/events/events";
+import { useJudgesList } from "@/generated/judges/judges";
 import "../Events/Events.css";
 
 type JudgeItem = {

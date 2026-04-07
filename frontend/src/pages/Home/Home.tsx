@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { getDict, pickValue } from "@/lib/dict";
-import { useNewsList } from "@/generated";
+import { useNewsList } from "@/generated/news/news";
 import "./Home.css";
 import * as d3 from "d3";
 
