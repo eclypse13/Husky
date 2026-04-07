@@ -985,6 +985,7 @@ export default function Home() {
   const { data: newsData } = useNewsList();
   const [dict, setDict] = useState<any>(null);
   const [breederCount, setBreederCount] = useState(120);
+  const [heroDog, setHeroDog] = useState<HeroDog | null | "loading">("loading");
 
   // ── Загружаем кол-во питомников (заводчиков) из БД ──────────────────────────────
   useEffect(() => {
