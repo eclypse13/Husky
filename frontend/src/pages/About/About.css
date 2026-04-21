@@ -480,6 +480,12 @@
     transform: translateY(-2px);
 }
 
+.about-contact-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .about-content-grid {
