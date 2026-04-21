@@ -62,7 +62,53 @@ export default function About() {
   const [highlightLeader, setHighlightLeader] = useState<LeaderCard>(fallbackHighlight);
   const [boardLeaders, setBoardLeaders] = useState<LeaderCard[]>(fallbackLeaders);
 
+  type ContactCard = {
+    id: string;
+    icon?: string;
+    title: string;
+    text?: string;
+    type?: "email" | "phone" | "social" | "address";
+    href?: string | null;
 
+    links?: { label: string; url: string }[];
+  };
+
+  const fallbackContacts: ContactCard[] = [
+    {
+      id: "contact-phone",
+      icon: "📱",
+      title: "Телефон",
+      text: "+7 925 272-56-57",
+      type: "phone",
+      href: "tel:+79252725657",
+    },
+    {
+      id: "contact-email",
+      icon: "📧",
+      title: "Email",
+      text: "sesnkp@mail.ru",
+      type: "email",
+      href: "mailto:sesnkp@mail.ru",
+    },
+    {
+      id: "contact-address",
+      icon: "📍",
+      title: "Адрес",
+      text: "109507, Москва, Самаркандский б-р, 137А-11-258",
+      type: "address",
+    },
+    {
+      id: "contact-social",
+      icon: "🌐",
+      title: "Социальные сети",
+      type: "social",
+      links: [
+        { label: "Telegram", url: "https://t.me/nbc_husky" },
+        { label: "VK", url: "https://vk.com/husky_nbc?ysclid=mn7cve1mnp641027105" },
+      ],
+    },
+  ];
+  const [contacts, setContacts] = useState<ContactCard[]>(fallbackContacts);
 
 
   useEffect(() => {
@@ -263,6 +309,48 @@ export default function About() {
 
     };
 
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchContacts = async () => {
+      try {
+        const res = await fetch("/api/contacts/");
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+
+        if (!results.length || ignore) return;
+
+        const mapped: ContactCard[] = results.map((item: any, index: number) => ({
+          id: String(item?.id ?? `contact-${index}`),
+          icon: item?.icon ?? "📌",
+          title: item?.title ?? "Контакт",
+          text: item?.text ?? "",
+          type: item?.type ?? undefined,
+          href: item?.href ?? null,
+
+          links: Array.isArray(item?.links)
+            ? item.links.map((l: any) => ({
+                label: l.label ?? "link",
+                url: l.url ?? "#",
+              }))
+            : undefined,
+        }));
+
+        setContacts(mapped);
+      } catch {
+        // остаются fallback-контакты
+      }
+    };
+
+    fetchContacts();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -667,31 +755,34 @@ export default function About() {
                 <h2 className="about-section-title">Контактная информация</h2>
 
                 <div className="about-contact-grid">
-
-                  {[
-
-                    { icon: "📧", title: "Email", text: "info@nkp-husky.ru" },
-
-                    { icon: "📱", title: "Телефон", text: "+7 (495) 123-45-67" },
-
-                    { icon: "🌐", title: "Социальные сети", text: "@nkp_husky" },
-
-                    { icon: "📍", title: "Адрес", text: "Москва, ул. Кинологическая, 15" },
-
-                  ].map((c) => (
-
-                    <div key={c.title} className="about-contact-method">
-
+                  {contacts.map((c) => (
+                    <div key={c.id} className="about-contact-method">
                       <div className="about-contact-icon">{c.icon}</div>
-
                       <h3 className="about-contact-title">{c.title}</h3>
 
-                      <p className="about-contact-info">{c.text}</p>
-
+                      {c.links ? (
+                        <div className="about-contact-links">
+                          {c.links.map((link) => (
+                            <a
+                              key={link.url}
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="about-contact-info"
+                            >
+                              {link.label}
+                            </a>
+                          ))}
+                        </div>
+                      ) : c.href ? (
+                        <a href={c.href} className="about-contact-info">
+                          {c.text}
+                        </a>
+                      ) : (
+                        <p className="about-contact-info">{c.text}</p>
+                      )}
                     </div>
-
                   ))}
-
                 </div>
 
 
