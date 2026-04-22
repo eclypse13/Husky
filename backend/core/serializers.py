@@ -92,6 +92,77 @@ class EventReportSerializer(serializers.ModelSerializer):
         return urls
 
 
+class RaceSerializer(serializers.ModelSerializer):
+    tabLabel = serializers.SerializerMethodField()
+    club = serializers.CharField(source="organization", default="")
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = models.Race
+        fields = [
+            "id",
+            "tabLabel",
+            "title",
+            "date",
+            "location",
+            "club",
+            "organizers",
+            "judge",
+            "distances",
+            "status",
+            "status_display",
+        ]
+
+    def get_tabLabel(self, obj):
+        return f"🏁 «{obj.title}» — {obj.date.strftime('%d %b.')}"
+
+
+class SportsSeasonSerializer(serializers.ModelSerializer):
+    badge = serializers.CharField(source="name")
+    title = serializers.SerializerMethodField()
+    meta = serializers.SerializerMethodField()
+    stats = serializers.SerializerMethodField()
+    races = RaceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.Season
+        fields = [
+            "id",
+            "badge",
+            "title",
+            "meta",
+            "stats",
+            "races",
+        ]
+
+    def get_title(self, obj):
+        return f"Сезон {obj.name.lower()}"
+
+    def get_meta(self, obj):
+        races = obj.races.all()
+        participants = sum(r.participants_count or 0 for r in races)
+        cities = [r.city for r in races if r.city]
+        cities_text = " · ".join(dict.fromkeys(cities)) if cities else "—"
+
+        return [
+            f"📅 {obj.start_date.strftime('%d.%m.%Y')}–{obj.end_date.strftime('%d.%m.%Y')}",
+            f"🐕 {participants} участников",
+            f"📍 {cities_text}",
+        ]
+
+    def get_stats(self, obj):
+        races = obj.races.all()
+        participants = sum(r.participants_count or 0 for r in races)
+        judges = len(set(r.judge for r in races if r.judge))
+
+        return {
+            "races": str(races.count()),
+            "participants": str(participants),
+            "judges": str(judges),
+            "disciplines": "—",
+            "purebred": "100%",
+        }
+
 class JudgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Judge

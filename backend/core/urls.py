@@ -30,6 +30,8 @@ router.register(r'me/kennels', MyKennelViewSet, basename='my-kennels')
 router.register(r'me/litters', MyLitterViewSet, basename='my-litters')
 router.register(r'me/applications', MyApplicationViewSet, basename='my-applications')
 router.register(r'me/achievements', MyAchievementViewSet, basename='my-achievements')
+router.register(r"sports-seasons", SeasonViewSet, basename="sports-seasons")
+router.register(r"sports-races", RaceViewSet, basename="sports-races")
 
 urlpatterns = [
 

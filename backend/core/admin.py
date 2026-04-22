@@ -15,7 +15,8 @@ from .models import (
     ContentDictionary, ContentRevision,
     User, News, Page, Gallery,
     Judge, JudgeDetails, FastLink,
-    Event, EventReport, Seminar,
+    Event, EventReport, Season,
+    Race, Seminar,
     EventReportPhoto, EventReportVideo,
     BreedStandard, BreedArticle,
     ClubDocument, ClubStats,
@@ -359,9 +360,20 @@ class EventReportAdmin(MongoModelAdmin):
     list_filter = ['created_at']
     search_fields = ['event__title_key']
     ordering = ['-created_at']
-
-    # чтобы не путались старые JSON поля (если пока оставляешь их в модели)
     exclude = ("photos", "videos")
+
+class SeasonAdmin(MongoModelAdmin):
+    list_display = ['name', 'start_date', 'end_date']
+    list_filter = ['name', 'start_date']
+    search_fields = ['name']
+    ordering = ['start_date']
+
+
+class RaceAdmin(MongoModelAdmin):
+    list_display = ['title', 'date', 'city']
+    list_filter = ['title', 'date', 'city']
+    search_fields = ['title', 'city']
+    ordering = ['date']
 
 
 class SeminarAdmin(MongoModelAdmin):
@@ -523,6 +535,8 @@ ADMIN_REGISTRY = {
     EventReport: EventReportAdmin,
     EventReportPhoto: EventReportPhotoAdmin,
     EventReportVideo: EventReportVideoAdmin,
+    Season: SeasonAdmin,
+    Race: RaceAdmin,
     Seminar: SeminarAdmin,
     BreedStandard: BreedStandardAdmin,
     BreedArticle: BreedArticleAdmin,
@@ -639,6 +653,8 @@ ADMIN_GROUPS = OrderedDict([
         'models': [
             'Event',
             'EventReport',
+            'Season',
+            'Race',
             'Seminar',
         ]
     }),
@@ -747,6 +763,8 @@ DJANGO_MODELS = [
     dj_models.EventReportPhoto,
     dj_models.EventReportVideo,
     dj_models.EventReport,
+    dj_models.Season,
+    dj_models.Race,
     dj_models.Seminar,
     dj_models.BreedStandard,
     dj_models.BreedArticle,
