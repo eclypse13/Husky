@@ -433,3 +433,132 @@ class ImportHybridFullRangeSerializer(serializers.Serializer):
 
     class Meta:
         ref_name = 'ImportHybridFullRange'
+
+
+class ImportOFADogSerializer(serializers.Serializer):
+    """Импорт OFA записей для одной собаки."""
+
+    dog_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="ID собаки в БД. Без поисковых параметров — имя и пол берутся из БД.",
+    )
+    registered_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=500,
+        help_text="Имя для поиска на OFA (с начала строки).",
+    )
+    registration_number = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        help_text="Рег. номер AKC/UKC (например WS65368202). Самый точный параметр.",
+    )
+    ofa_number = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        help_text="OFA номер (например SH-22267E48M-C-VPI).",
+    )
+
+    def validate(self, data):
+        has_search = any([
+            data.get("registered_name"),
+            data.get("registration_number"),
+            data.get("ofa_number"),
+        ])
+        if not data.get("dog_id") and not has_search:
+            raise serializers.ValidationError(
+                "Нужен хотя бы один параметр: dog_id, registered_name, "
+                "registration_number или ofa_number."
+            )
+        return data
+
+
+class ImportOFABulkByRegSerializer(serializers.Serializer):
+    """Bulk OFA-импорт по registration_number с диапазоном ID."""
+
+    id_from = serializers.IntegerField(
+        required=False,
+        default=1,
+        min_value=1,
+        help_text="Нижняя граница Dog.id (включительно). По умолчанию 1.",
+    )
+    id_to = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Верхняя граница Dog.id (включительно). None = без ограничения.",
+    )
+    limit = serializers.IntegerField(
+        required=False,
+        default=100,
+        min_value=1,
+        # max_value=1000,
+        help_text="Макс. число собак в выборке. По умолчанию 100.",
+    )
+    delay = serializers.FloatField(
+        required=False,
+        default=1.5,
+        min_value=0.5,
+        help_text="Пауза между задачами в секундах. По умолчанию 1.5.",
+    )
+    only_without_ofa = serializers.BooleanField(
+        required=False,
+        default=True,
+        help_text="True = пропустить собак с уже существующими OFA-записями.",
+    )
+
+    def validate(self, data):
+        id_from = data.get("id_from", 1)
+        id_to = data.get("id_to")
+        if id_to is not None and id_to < id_from:
+            raise serializers.ValidationError(
+                "id_to должен быть больше или равен id_from."
+            )
+        return data
+
+
+class ImportOFABulkByNameSerializer(serializers.Serializer):
+    """Bulk OFA-импорт по registered_name с диапазоном ID."""
+
+    id_from = serializers.IntegerField(
+        required=False,
+        default=1,
+        min_value=1,
+        help_text="Нижняя граница Dog.id (включительно). По умолчанию 1.",
+    )
+    id_to = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Верхняя граница Dog.id (включительно). None = без ограничения.",
+    )
+    limit = serializers.IntegerField(
+        required=False,
+        default=100,
+        min_value=1,
+        # max_value=1000,
+        help_text="Макс. число собак в выборке. По умолчанию 100.",
+    )
+    delay = serializers.FloatField(
+        required=False,
+        default=1.5,
+        min_value=0.5,
+        help_text="Пауза между задачами в секундах. По умолчанию 1.5.",
+    )
+    only_without_ofa = serializers.BooleanField(
+        required=False,
+        default=True,
+        help_text="True = пропустить собак с уже существующими OFA-записями.",
+    )
+
+    def validate(self, data):
+        id_from = data.get("id_from", 1)
+        id_to = data.get("id_to")
+        if id_to is not None and id_to < id_from:
+            raise serializers.ValidationError(
+                "id_to должен быть больше или равен id_from."
+            )
+        return data

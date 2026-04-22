@@ -34,6 +34,12 @@ from .serializers import (
     ImportHybridFullDogSerializer,
     ImportHybridFullPageSerializer,
     ImportHybridFullRangeSerializer,
+    ImportBreedarchiveDogSerializer,
+    ImportBreedarchiveRecentSerializer,
+    ImportBreedarchiveBrowseSerializer,
+    ImportOFADogSerializer,
+    ImportOFABulkByRegSerializer,
+    ImportOFABulkByNameSerializer,
 )
 from .tasks.tasks_zooportal import (
     import_zooportal_dog_task,
@@ -49,14 +55,13 @@ from .tasks.tasks_breedarchive import (
     import_hybrid_full_page_task,
     import_hybrid_full_range_task,
 )
-
-from .serializers import (
-    ImportBreedarchiveDogSerializer,
-    ImportBreedarchiveRecentSerializer,
-    ImportBreedarchiveBrowseSerializer,
+from .tasks.tasks_ofa import (
+  fetch_ofa_dog_task,
+  fetch_ofa_bulk_by_reg_task,
+  fetch_ofa_bulk_by_name_task,
 )
-from .utils.coi_calculator import calculate_coi, save_coi
 
+from .utils.coi_calculator import calculate_coi, save_coi
 logger = logging.getLogger(__name__)
 
 class DogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -793,3 +798,163 @@ class ImportHybridFullRangeView(APIView):
             ),
             'check_status_url': f'/api/dogs/import/status/{task.id}/',
         }, status=202)
+
+
+class ImportOFADogView(APIView):
+    """
+    Импорт OFA медицинских записей для одной собаки.
+
+    Если передан только dog_id — имя, рег.номер и пол берутся из БД.
+    Пол используется для фильтрации если OFA вернул несколько результатов.
+    """
+
+    @extend_schema(
+        summary="Импорт OFA записей для одной собаки",
+        description=(
+                "Ищет собаку на api.ofa.org и сохраняет медицинские записи.\n\n"
+                "Порядок поиска: registration_number → registered_name → ofa_number.\n"
+                "Если найдено несколько результатов — выбирается по полу собаки."
+        ),
+        request=ImportOFADogSerializer,
+        responses={
+            202: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT,
+        },
+        tags=["Import OFA"],
+    )
+    def post(self, request):
+        serializer = ImportOFADogSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        try:
+            task = fetch_ofa_dog_task.apply_async(
+                kwargs={
+                    "dog_id": data.get("dog_id"),
+                    "registered_name": data.get("registered_name"),
+                    "registration_number": data.get("registration_number"),
+                    "ofa_number": data.get("ofa_number"),
+                },
+                countdown=1,
+            )
+            return Response({
+                "task_id": task.id,
+                "status": "PENDING",
+                "message": (
+                    f"OFA импорт запущен: "
+                    f"dog_id={data.get('dog_id')}, "
+                    f"name={data.get('registered_name')!r}"
+                ),
+                "check_status_url": f"/api/dogs/import/status/{task.id}/",
+            }, status=status.HTTP_202_ACCEPTED)
+        except Exception as e:
+            logger.error(f"ImportOFADogView error: {e}")
+            return Response({"error": str(e)}, status=500)
+
+
+class ImportOFABulkByRegView(APIView):
+    """
+    Bulk OFA-импорт по registration_number с диапазоном Dog.id.
+    """
+
+    @extend_schema(
+        summary="Bulk OFA-импорт по рег. номеру",
+        description=(
+                "Диспатчит задачи для собак у которых есть registration_number.\n\n"
+                "id_from / id_to позволяют обрабатывать конкретный диапазон "
+                "записей в БД (например 1–200 или 800–1000)."
+        ),
+        request=ImportOFABulkByRegSerializer,
+        responses={
+            202: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT,
+        },
+        tags=["Import OFA"],
+    )
+    def post(self, request):
+        serializer = ImportOFABulkByRegSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        try:
+            task = fetch_ofa_bulk_by_reg_task.apply_async(
+                kwargs={
+                    "id_from": data.get("id_from", 1),
+                    "id_to": data.get("id_to"),
+                    "limit": data.get("limit", 100),
+                    "delay": data.get("delay", 1.5),
+                    "only_without_ofa": data.get("only_without_ofa", True),
+                },
+                countdown=1,
+            )
+            return Response({
+                "task_id": task.id,
+                "status": "PENDING",
+                "message": (
+                    f"OFA bulk (рег. номер) запущен: "
+                    f"id={data.get('id_from')}–{data.get('id_to')}, "
+                    f"limit={data.get('limit')}"
+                ),
+                "check_status_url": f"/api/dogs/import/status/{task.id}/",
+            }, status=status.HTTP_202_ACCEPTED)
+        except Exception as e:
+            logger.error(f"ImportOFABulkByRegView error: {e}")
+            return Response({"error": str(e)}, status=500)
+
+
+class ImportOFABulkByNameView(APIView):
+    """
+    Bulk OFA-импорт по registered_name с диапазоном Dog.id.
+    """
+
+    @extend_schema(
+        summary="Bulk OFA-импорт по имени",
+        description=(
+                "Диспатчит задачи для собак у которых есть registered_name.\n\n"
+                "Охватывает больше собак чем импорт по рег. номеру, но поиск "
+                "по имени менее точный — возможны ложные совпадения.\n\n"
+                "Защита от ложных совпадений: если OFA вернул несколько результатов, "
+                "выбирается тот у которого совпадает пол с нашей БД."
+        ),
+        request=ImportOFABulkByNameSerializer,
+        responses={
+            202: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT,
+        },
+        tags=["Import OFA"],
+    )
+    def post(self, request):
+        serializer = ImportOFABulkByNameSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        try:
+            task = fetch_ofa_bulk_by_name_task.apply_async(
+                kwargs={
+                    "id_from": data.get("id_from", 1),
+                    "id_to": data.get("id_to"),
+                    "limit": data.get("limit", 100),
+                    "delay": data.get("delay", 1.5),
+                    "only_without_ofa": data.get("only_without_ofa", True),
+                },
+                countdown=1,
+            )
+            return Response({
+                "task_id": task.id,
+                "status": "PENDING",
+                "message": (
+                    f"OFA bulk (имя) запущен: "
+                    f"id={data.get('id_from')}–{data.get('id_to')}, "
+                    f"limit={data.get('limit')}"
+                ),
+                "check_status_url": f"/api/dogs/import/status/{task.id}/",
+            }, status=status.HTTP_202_ACCEPTED)
+        except Exception as e:
+            logger.error(f"ImportOFABulkByNameView error: {e}")
+            return Response({"error": str(e)}, status=500)

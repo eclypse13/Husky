@@ -48,6 +48,10 @@ from .views import (
     ImportHybridFullDogView,
     ImportHybridFullPageView,
     ImportHybridFullRangeView,
+
+    ImportOFADogView,
+    ImportOFABulkByRegView,
+    ImportOFABulkByNameView,
 )
 
 
@@ -136,6 +140,23 @@ urlpatterns = [
         'dogs/import/hybrid/full/range/',
         ImportHybridFullRangeView.as_view(),
         name='import-hybrid-full-range',
+    ),
+
+    # OFA
+    path(
+        'dogs/import/ofa/dog/',
+         ImportOFADogView.as_view(),
+         name='import-ofa-dog'
+    ),
+    path(
+        'dogs/import/ofa/bulk/reg/',
+        ImportOFABulkByRegView.as_view(),
+        name='import-ofa-bulk-reg'
+    ),
+    path(
+        'dogs/import/ofa/bulk/name/',
+         ImportOFABulkByNameView.as_view(),
+        name='import-ofa-bulk-name'
     ),
 
     # COI
