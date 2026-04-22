@@ -18,6 +18,7 @@ from .models_django import (
     Achievement, MembershipPayment,
     MemberBenefit, ProtectedMaterial,
     SiteMonitor, AuditLog,
+    SiteBannerSettings,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     'Achievement', 'MembershipPayment',
     'MemberBenefit', 'ProtectedMaterial',
     'SiteMonitor', 'AuditLog',
+    'SiteBannerSettings',
 ]
