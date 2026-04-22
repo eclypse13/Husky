@@ -11,6 +11,12 @@ class ContentDictionarySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SiteBannerSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteBannerSettings
+        fields = ("is_enabled", "message", "updated_at")
+
+
 class NewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.News

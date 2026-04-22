@@ -650,3 +650,16 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f'{self.action} by {self.user}'
+
+
+class SiteBannerSettings(models.Model):
+    is_enabled = models.BooleanField(default=True)
+    message = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройки баннера сайта"
+        verbose_name_plural = "Настройки баннера сайта"
+
+    def __str__(self):
+        return "Баннер сайта"
