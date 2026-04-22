@@ -726,6 +726,13 @@ class DefaultModelAdmin(admin.ModelAdmin):
     list_display = ['__str__']
 
 
+@admin.register(dj_models.SiteBannerSettings)
+class SiteBannerSettingsAdmin(admin.ModelAdmin):
+    list_display = ["id", "is_enabled", "updated_at"]
+    fields = ["is_enabled", "message"]
+    search_fields = ["message"]
+
+
 DJANGO_MODELS = [
     dj_models.ContentDictionary,
     dj_models.ContentRevision,

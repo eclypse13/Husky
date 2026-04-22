@@ -39,6 +39,9 @@ urlpatterns = [
     
     # Home
     path('home/', home_api, name='home'),
+
+    # Site banner
+    path("site-banner/", site_banner, name="site-banner"),
     
     # Profile
     path('me/', MyProfileViewSet.as_view({'get': 'me'}), name='profile'),

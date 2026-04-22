@@ -3,6 +3,7 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
+import SiteBanner from "@/components/SiteBanner";
 import { useEffect } from "react";
 
 export default function RootLayout() {
@@ -26,6 +27,7 @@ export default function RootLayout() {
                 <Outlet />
             </main>
             <Footer />
+            <SiteBanner />
         </>
     );
 }

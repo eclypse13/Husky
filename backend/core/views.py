@@ -56,6 +56,15 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'Key not found'}, status=404)
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def site_banner(request):
+    obj = models.SiteBannerSettings.objects.order_by("-updated_at").first()
+    if not obj:
+        return Response({"is_enabled": False, "message": "", "updated_at": None})
+    return Response(SiteBannerSettingsSerializer(obj).data)
+
+
 # ============================================
 # ПУБЛИЧНЫЕ API
 # ============================================
