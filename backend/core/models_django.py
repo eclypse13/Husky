@@ -342,6 +342,44 @@ class EventReportVideo(models.Model):
         verbose_name_plural = "Видео отчёта"
 
 
+class Season(models.Model):
+    name = models.CharField(max_length=100, verbose_name='Название сезона')  # Зима 2026
+    start_date = models.DateField(verbose_name='Начало')
+    end_date = models.DateField(verbose_name='Конец')
+
+    class Meta:
+        ordering = ["start_date"]
+        verbose_name = "Сезон"
+        verbose_name_plural = "Сезоны"
+
+    def __str__(self):
+        return self.name
+
+
+class Race(models.Model):
+    title = models.CharField(max_length=255, verbose_name="Название гонки")
+    date = models.DateField(verbose_name="Дата проведения")
+    location = models.CharField(max_length=255, verbose_name="Место проведения")
+    organization = models.CharField(max_length=255, blank=True, verbose_name="Организация")
+    organizers = models.CharField(max_length=255, blank=True, verbose_name="Организаторы")
+    judge = models.CharField(max_length=255, blank=True, verbose_name="Судья")
+    distances = models.CharField(max_length=255, blank=True, verbose_name="Дистанции (например: 4,2 км · 8,3 км)")
+    is_qualifying = models.BooleanField(default=True, verbose_name="Квалификационная гонка")
+    season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name="races", verbose_name="Сезон")
+    city = models.CharField(max_length=100, blank=True, verbose_name="Город")
+    participants_count = models.PositiveIntegerField(default=0, verbose_name="Количество участников")
+    results_file = models.FileField(upload_to="data/race_results/",blank=True,null=True,verbose_name="JSON-файл с результатами")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = "Гонка"
+        verbose_name_plural = "Гонки"
+
+    def __str__(self):
+        return f"{self.title} ({self.date})"
+
+
 class Seminar(models.Model):
     title_key = models.CharField(max_length=200)
     description_key = models.TextField(blank=True)
@@ -459,7 +497,8 @@ class BoardMember(models.Model):
     email = models.EmailField(blank=True, verbose_name='Почта')
     phone = models.CharField(max_length=50, blank=True, verbose_name='Номер телефона')
     order = models.IntegerField(default=0, verbose_name='Порядок')
-    working_group = models.ForeignKey(WorkingGroup, on_delete=models.CASCADE, null=True, related_name='members', verbose_name="Рабочая группа")
+    working_group = models.ForeignKey(WorkingGroup, on_delete=models.CASCADE, null=True, related_name='members',
+                                      verbose_name="Рабочая группа")
 
     class Meta:
         ordering = ['order', 'name']

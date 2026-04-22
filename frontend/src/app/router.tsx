@@ -76,6 +76,7 @@ import PublicWinner from "@/pages/PublicWinner/PublicWinner";
 import Judge from "@/pages/Judge/Judge";
 import Judges from "@/pages/Judges/Judges";
 import DogDetail from "@/pages/DogDetail/DogDetail";
+import Sports from "@pages/Sports/Sports.tsx";
 
 
 export const router = createBrowserRouter([
@@ -106,6 +107,7 @@ export const router = createBrowserRouter([
             { path: "judges", element: <Judges /> },
             { path: "judges/:id", element: <Judge /> },
             { path: "archive/dog/:id", element: <DogDetail /> },
+            { path: "sports", element: <Sports/> },
         ],
     },
 ]);
