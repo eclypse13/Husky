@@ -685,6 +685,21 @@
   white-space: normal;
 }
 
+.status-plan {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-open {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-closed {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 @media (max-width: 1100px) {
   .sports-content-grid {
     grid-template-columns: 1fr;

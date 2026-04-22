@@ -162,6 +162,41 @@ class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
 
+class SeasonViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.Season.objects.all().prefetch_related("races").order_by("start_date")
+    serializer_class = SportsSeasonSerializer
+    permission_classes = [AllowAny]
+
+
+class RaceViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.Race.objects.select_related("season").all().order_by("date")
+    serializer_class = RaceSerializer
+    permission_classes = [AllowAny]
+
+    @action(detail=True, methods=["get"], url_path="results")
+    def results(self, request, pk=None):
+        race = self.get_object()
+
+        if not race.results_file:
+            return Response({"race": {"rows": []}})
+
+        file_path = Path(race.results_file.path)
+
+        if not file_path.exists():
+            return Response(
+                {"error": "Results file not found", "race": {"rows": []}},
+                status=404,
+            )
+
+        try:
+            data = json.loads(file_path.read_text(encoding="utf-8"))
+            return Response(data)
+        except Exception as e:
+            return Response(
+                {"error": f"Invalid JSON: {str(e)}", "race": {"rows": []}},
+                status=500,
+            )
+
 class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     """API судей"""
     queryset = models.Judge.objects.all()

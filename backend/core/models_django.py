@@ -48,6 +48,12 @@ APPLICATION_STATUSES = [
     ('rejected', 'Отклонена'),
 ]
 
+RACE_STATUSES = [
+        ('planned', "Планируется"),
+        ('open', "Открыта регистрация"),
+        ('done', "Завершена"),
+    ]
+
 LITTER_STATUSES = [
     ('announced', 'announced'),
     ('born', 'born'),
@@ -368,6 +374,7 @@ class Race(models.Model):
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name="races", verbose_name="Сезон")
     city = models.CharField(max_length=100, blank=True, verbose_name="Город")
     participants_count = models.PositiveIntegerField(default=0, verbose_name="Количество участников")
+    status = models.CharField(max_length=20, choices=RACE_STATUSES, default='planned', verbose_name="Статус гонки")
     results_file = models.FileField(upload_to="data/race_results/",blank=True,null=True,verbose_name="JSON-файл с результатами")
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1,0 +1,42 @@
+{
+  "race": {
+    "title": "Сила Сибири",
+    "date": "2026-02-21",
+    "location": "п. Степной, Новосибирская область",
+    "distances": "4.2 км · 7.1 км · 30 км",
+    "judge": "Серов И.В.",
+    "organizers": "Милых Галина Валерьевна",
+    "rows": [
+      {"number":1,"discipline":"SC1","dog":"Ветер Гор Деман","chip":"643078250031963","pedigree":"6479225","owner":"Милых Г.В.","athlete":"Баландина А.Е.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":2,"discipline":"SC1","dog":"Ветер Гор Дори","chip":"900233001242354","pedigree":"6479228","owner":"Милых Г.В.","athlete":"Баландина А.Е.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":3,"discipline":"SC1","dog":"Ветер Гор Емми","chip":"900241000016994","pedigree":"6812543","owner":"Милых Г.В.","athlete":"Баландина А.Е.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":4,"discipline":"SC1","dog":"Ветер Гор Елка","chip":"900241000016991","pedigree":"6812545","owner":"Милых Г.В.","athlete":"Баландина А.Е.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":5,"discipline":"SC1","dog":"Ветер Гор Жак","chip":"900263004694875","pedigree":"7253214","owner":"Ермошина Е.Д.","athlete":"Ермошина Е.Д.","cact":"CACT","qualified":true},
+      {"number":6,"discipline":"SC1","dog":"Ветер Гор Жорик","chip":"900263004694870","pedigree":"7253215","owner":"Ермошина Е.Д.","athlete":"Ермошина Е.Д.","cact":"CACT","qualified":true},
+      {"number":7,"discipline":"SC1","dog":"Ветер Гор Жасмин","chip":"900263004694861","pedigree":"7253217","owner":"Ермошина Е.Д.","athlete":"Ермошина Е.Д.","cact":"CACT","qualified":true},
+      {"number":8,"discipline":"SC1","dog":"Ветер Гор Жаклин","chip":"900263004694868","pedigree":"7253216","owner":"Ермошина Е.Д.","athlete":"Ермошина Е.Д.","cact":"CACT","qualified":true},
+      {"number":9,"discipline":"SC1","dog":"OBIPPO ESCAPE","chip":"643094100507550","pedigree":"4839293","owner":"Костаустов К.С.","athlete":"Костаустов К.С.","qualified":true},
+      {"number":10,"discipline":"SC1","dog":"ALWAYS WINS ATLANTIC STORM","chip":"643093300093191","pedigree":"5062041","owner":"Гончаренко П.Е.","athlete":"Костаустов К.С.","qualified":true},
+      {"number":11,"discipline":"SC1","dog":"DEBY DRIVE","chip":"900113001216505","pedigree":"обмен","owner":"Костаустов К.С.","athlete":"Костаустов К.С.","qualified":true},
+      {"number":12,"discipline":"SC1","dog":"DOCTOR DIZEL","chip":"643099000051135","pedigree":"обмен","owner":"Костаустов К.С.","athlete":"Костаустов К.С.","qualified":true},
+      {"number":13,"discipline":"1SJM1","dog":"MOGUCHIY VOIN IZ SNEZHNOI SIBIRI","chip":"643148000393201","pedigree":"4837294","owner":"Рудик А.И.","athlete":"Сердюк А.В.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":14,"discipline":"1SJM1","dog":"ЧИО РИО-ДЕ-ЖАНЕЙРО","chip":"643099001758095","pedigree":"6815982 R","owner":"Суханова Т.","athlete":"Панченко И.","cact":"CACT","qualified":true},
+      {"number":15,"discipline":"1SJM1","dog":"ДЕРЖЕНА","chip":"643100014489750","pedigree":"6143375","owner":"Алехина Е.С.","athlete":"Буслаев И.В.","qualified":true},
+      {"number":16,"discipline":"1SJMJ1","dog":"Ветер Гор Еста","chip":"900185000136532","pedigree":"6812544","owner":"Кощеева Г.М.","athlete":"Кощеев Г.С.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":17,"discipline":"1SJMJ1","dog":"Ветер Гор Гром","chip":"640999001538477","pedigree":"6374660","owner":"Милых Г.В.","athlete":"Чернов Д.Н.","cact":"CACT","qualified":true},
+      {"number":18,"discipline":"1SJMJ1","dog":"Ветер Гор Веста","chip":"643100000422741","pedigree":"5513987","owner":"Милых Г.В.","athlete":"Павлов А.","qualified":false},
+      {"number":19,"discipline":"2SJW1","dog":"ТЕЙП ДОГС ЮРАША","chip":"643099011115609","pedigree":"6568616","owner":"Дмитриева А.","athlete":"Суворкина Е.В.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":20,"discipline":"2SJW1","dog":"ТЕЙП ДОГС ЮЖАНКА","chip":"900021000826502","pedigree":"6568617","owner":"Суворкина Е.В.","athlete":"Суворкина Е.В.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":21,"discipline":"2SJW1","dog":"KARA BLACK ROSE","chip":"643099001756228","pedigree":"6217986","owner":"Микитина Е.В.","athlete":"Микитина Е.В.","cact":"CACT","qualified":true},
+      {"number":22,"discipline":"2SJW1","dog":"KLEYA VE STAR OF SAYBERIA","chip":"900241000049698","pedigree":"обмен","owner":"Озерова А.А.","athlete":"Микитина Е.В.","cact":"CACT","qualified":true},
+      {"number":23,"discipline":"2SJW1","dog":"KITTY THE WHITE SPOT","chip":"900217000119235","pedigree":"6217987","owner":"Радыгина Т.К.","athlete":"Радыгина Т.К.","qualified":true},
+      {"number":24,"discipline":"2SJW1","dog":"ТРЕЙСИ ЛИНД","chip":"643093300077618","pedigree":"5062770","owner":"Радыгина Т.К.","athlete":"Радыгина Т.К.","qualified":true},
+      {"number":25,"discipline":"SD1","dog":"Ветер Гор Альф","chip":"643094100597073","pedigree":"4623315","owner":"Милых Г.В.","athlete":"Беседина А.Р.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":26,"discipline":"SD1","dog":"УРАЛСТАН КЕННЕЛ КЕНАЙ","chip":"900115002030625","pedigree":"6807345","owner":"Милых Г.В.","athlete":"Беседина А.Р.","cact":"ЧРКФ RegCACT","qualified":true},
+      {"number":27,"discipline":"SD1","dog":"Ветер Гор Букер","chip":"643094100597074","pedigree":"4830386","owner":"Милых Г.В","athlete":"Нагирняк И.М.","cact":"CACT","qualified":true},
+      {"number":28,"discipline":"SD1","dog":"Ветер Гор Бухтай","chip":"643094100558076","pedigree":"обмен","owner":"Милых Г.В","athlete":"Нагирняк И.М.","cact":"CACT","qualified":true},
+      {"number":29,"discipline":"SD1","dog":"ЗЛАТОГОРЬЕ ЭЙВЫ ИГРА СВЕТА","chip":"900217000183586","pedigree":"6214600","owner":"Гаевская А.В.","athlete":"Гаевская А.В.","qualified":false},
+      {"number":30,"discipline":"SD1","dog":"ЕГО ПРЕВОСХОДИТЕЛЬСТВО АЙС ШТОРМ","chip":"643099200026803","pedigree":"5629262","owner":"Гаевская А.В.","athlete":"Гаевская А.В.","qualified":false}
+    ]
+  }
+}
