@@ -224,67 +224,65 @@ export default function Sports() {
   }, []);
 
   useEffect(() => {
-  if (!activeRace?.id) return;
+    if (!activeRace?.id) return;
 
-  if (activeRace.id in raceResultsMap) return;
+    const raceKey = String(activeRace.id);
 
-  let ignore = false;
+    if (raceKey in raceResultsMap) return;
 
-  const loadRaceResults = async () => {
-    try {
-      const raceKey = String(activeRace.id);
+    let ignore = false;
 
-      if (raceKey in raceResultsMap) return;
-      // setLoadingRaceId(activeRace.id);
-      setLoadingRaceId(raceKey);
+    const loadRaceResults = async () => {
+      try {
+        setLoadingRaceId(raceKey);
 
-      const res = await fetch(`/api/sports-races/${activeRace.id}/results/`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+        const res = await fetch(`/api/sports-races/${activeRace.id}/results/`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
 
-      const data: RaceResultsResponse = await res.json();
+        const data: RaceResultsResponse = await res.json();
 
-      const mappedRows: RaceRow[] = (data.race?.rows ?? []).map((row) => ({
-        no: row.number,
-        discipline: row.discipline,
-        dog: row.dog,
-        chip: row.chip,
-        pedigree: row.pedigree,
-        owner: row.owner,
-        athlete: row.athlete,
-        cact: row.cact,
-        qualified: row.qualified,
-      }));
-
-      if (!ignore) {
-        setRaceResultsMap((prev) => ({
-          ...prev,
-          [raceKey]: mappedRows,
+        const mappedRows: RaceRow[] = (data.race?.rows ?? []).map((row) => ({
+          no: row.number,
+          discipline: row.discipline,
+          dog: row.dog,
+          chip: row.chip,
+          pedigree: row.pedigree,
+          owner: row.owner,
+          athlete: row.athlete,
+          cact: row.cact,
+          qualified: row.qualified,
         }));
-      }
-    } catch (error) {
-      console.error(`Не удалось загрузить результаты для ${activeRace.id}:`, error);
 
-      if (!ignore) {
-        setRaceResultsMap((prev) => ({
-          ...prev,
-          [raceKey]: [],
-        }));
-      }
-    } finally {
-      if (!ignore) {
-        setLoadingRaceId(null);
-      }
-    }
-  };
+        if (!ignore) {
+          setRaceResultsMap((prev) => ({
+            ...prev,
+            [raceKey]: mappedRows,
+          }));
+        }
+      } catch (error) {
+        console.error(`Не удалось загрузить результаты для ${activeRace.id}:`, error);
 
-  loadRaceResults();
+        if (!ignore) {
+          setRaceResultsMap((prev) => ({
+            ...prev,
+            [raceKey]: [],
+          }));
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingRaceId(null);
+        }
+      }
+    };
 
-  return () => {
-    ignore = true;
-  };
-}, [activeRace, raceResultsMap]);
+    loadRaceResults();
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeRace, raceResultsMap]);
 
 
   useEffect(() => {
@@ -313,7 +311,7 @@ export default function Sports() {
     return () => obs.disconnect();
   }, []);
 
-  const handleSeasonClick = (seasonId: string) => {
+  const handleSeasonClick = (seasonId: string | number) => {
     if (String(seasonId) === String(activeSeasonId)) return;
 
     const nextSeason = seasons.find(
@@ -357,7 +355,7 @@ export default function Sports() {
                 ) : (
                   <div className="sports-season-grid">
                     {seasons.map((season) => {
-                      const isActive = season.id === activeSeasonId;
+                      const isActive = String(season.id) === String(activeSeasonId);
 
                       return (
                         <button
@@ -470,7 +468,7 @@ export default function Sports() {
                               </tr>
                             </thead>
                             <tbody>
-                              {loadingRaceId === activeRace?.id ? (
+                              {loadingRaceId === String(activeRace?.id) ? (
                                 <tr>
                                   <td colSpan={8}>Загрузка результатов...</td>
                                 </tr>
