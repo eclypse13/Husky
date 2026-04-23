@@ -101,6 +101,7 @@ export default function DogDetail() {
     const [coiLoading, setCoiLoading]   = useState(false);
     const [coiResult,  setCoiResult]    = useState<CoiCalculationResult | null>(null);
     const [coiError,   setCoiError]     = useState<string | null>(null);
+    const [photoOpen, setPhotoOpen] = useState(false);
 
     const handleCalculateCoi = async () => {
         if (!dog) return;
@@ -158,6 +159,15 @@ export default function DogDetail() {
             .finally(() => setLoading(false));
     }, [id]);
 
+    useEffect(() => {
+        if (!photoOpen) return;
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setPhotoOpen(false);
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [photoOpen]);
+
     const suffixTitles = dog?.titles.filter((t) => !t.is_prefix) ?? [];
 
     return (
@@ -184,15 +194,34 @@ export default function DogDetail() {
 
                 {!loading && !error && dog && (
                     <>
+                        {photoOpen && (
+                            <div className="dd-lightbox" onClick={() => setPhotoOpen(false)}>
+                                <button
+                                    className="dd-lightbox-close"
+                                    onClick={() => setPhotoOpen(false)}
+                                    aria-label="Закрыть"
+                                >
+                                    ✕
+                                </button>
+                                <img
+                                    src={dog.photo_url!}
+                                    alt={dog.display_name}
+                                    className="dd-lightbox-img"
+                                    onClick={(e) => e.stopPropagation()} // клик по фото не закрывает
+                                />
+                            </div>
+                        )}
                         {/* ══ ШАПКА ══════════════════════════════════════════ */}
                         <div className="dd-header">
-                            <div className="dd-header-bar" />
-
                             <div className="dd-photo-wrap">
                                 <img
                                     src={dogPhoto(dog.photo_url)}
                                     alt={dog.display_name}
-                                    className="dd-photo"
+                                    className={`dd-photo${dog.photo_url && !PLACEHOLDER_URLS.includes(dog.photo_url) ? " dd-photo--clickable" : ""}`}
+                                    onClick={() => {
+                                        if (dog.photo_url && !PLACEHOLDER_URLS.includes(dog.photo_url))
+                                            setPhotoOpen(true);
+                                    }}
                                 />
                             </div>
 

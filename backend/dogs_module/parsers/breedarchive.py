@@ -31,6 +31,7 @@ from ..utils.text import (
     remove_titles_from_name,
     transliterate_ru_to_en,
     transliterate_en_to_ru,
+    build_photo_url
 )
 
 logger = logging.getLogger(__name__)
@@ -41,9 +42,9 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════════════
 
 _NOT_FOUND       = "__NOT_FOUND__"  # маркер «спрашивали — не нашли»
-_TTL_NAME_SEARCH = 2 * 24 * 3600       # 24ч  — UUID по имени
-_TTL_DOG_DATA    = 7 * 24 * 3600   # 7д   — полные данные собаки
-_TTL_BASIC_DATA  = 2 * 24 * 3600    # 24ч  — базовые данные
+_TTL_NAME_SEARCH = 1 * 24 * 3600       # 1 дня — UUID по имени
+_TTL_DOG_DATA    = 1 * 24 * 3600   # 1д   — полные данные собаки
+_TTL_BASIC_DATA  = 1 * 24 * 3600    # 1дня  — базовые данные
 
 
 def _cache():
@@ -98,12 +99,6 @@ def _create_ba_client() -> httpx.Client:
         follow_redirects=True,
     )
 
-
-def _build_photo_url(photo_path: Optional[str]) -> Optional[str]:
-    """Строит полный URL фото из относительного пути BreedArchive."""
-    if not photo_path:
-        return None
-    return f"https://siberianhusky.breedarchive.com/resource/{photo_path}"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -261,10 +256,6 @@ def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
     """
     Получает полные данные собаки из BA: предки, владельцы, заводчики, титулы.
     Endpoint: GET /animal/get_ancestors/{uuid}?generations=5
-
-    ВСЕГДА запрашиваем generations=5 (максимум) — кешируем полный результат.
-
-    КЕШ: ba:dog:{uuid}, TTL=7д
     """
     c = _cache()
     key = _key_dog(uuid)
@@ -352,7 +343,6 @@ def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
     Получает базовые данные собаки без дерева предков.
     Endpoint: GET /animal/get_animal/{uuid}?include_ancestors=false&generations=1
 
-    КЕШ: ba:basic:{uuid}, TTL=24ч
     """
     c = _cache()
     key = _key_basic(uuid)
@@ -406,7 +396,7 @@ def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
             'coi':                animal_data.get('coi'),
             'incomplete_pedigree': animal_data.get('incomplete_pedigree'),
             'primary_photo_path': photo_path,
-            'photo_url':          _build_photo_url(photo_path),
+            'photo_url':          build_photo_url(photo_path),
             'neutered':           animal_data.get('neutered', False),
             'source':             'breedarchive.com',
         }
