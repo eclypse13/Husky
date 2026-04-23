@@ -1,0 +1,50 @@
+*.py[cod]
+__pycache__/
+*.so
+.Python
+venv/
+.env
+db.sqlite3
+media/
+staticfiles/
+.pytest_cache
+.coverage
+*.log
+.DS_Store
+
+# build artifacts
+build/
+dist/
+*.egg-info/
+
+# venv variants
+.venv/
+env/
+ENV/
+
+# env variants
+.env.*
+*.env
+
+# ml
+data/
+datasets/
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.onnx
+runs/
+mlruns/
+wandb/
+checkpoints/
+
+# ide
+.vscode/
+.idea/
+
+# jupyter
+.ipynb_checkpoints/
+
+# macOS
+**/.DS_Store

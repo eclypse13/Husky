@@ -225,11 +225,20 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  ml_service:
+    build: ../ml_service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ml_models:/app/data/models
+    restart: unless-stopped
+
 volumes:
   mongo_data:
   static_volume:
   media_volume:
   postgres_data:
+  ml_models:
   certs:
   vhost:
   html:
