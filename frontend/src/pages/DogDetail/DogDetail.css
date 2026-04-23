@@ -579,3 +579,66 @@
     font-weight: 500;
     text-align: right;
 }
+
+/* ЛАЙТБОКС */
+
+.dd-photo--clickable {
+    cursor: zoom-in;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.dd-photo--clickable:hover {
+    transform: scale(1.02);
+    box-shadow: var(--shadow-hover);
+}
+
+.dd-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, .85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    cursor: zoom-out;
+    animation: dd-lb-in .18s ease;
+}
+
+@keyframes dd-lb-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.dd-lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, .5);
+    cursor: default;
+}
+
+.dd-lightbox-close {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, .15);
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background .15s, transform .15s;
+    backdrop-filter: blur(4px);
+    z-index: 1001;
+}
+
+.dd-lightbox-close:hover {
+    background: rgba(255, 255, 255, .3);
+    transform: scale(1.1);
+}
