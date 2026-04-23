@@ -20,7 +20,7 @@ from ..parsers.breedarchive import (
     search_breedarchive_by_name,
     fetch_breedarchive_dog, _collect_leaf_uuids, invalidate_dog_cache,
 )
-from ..utils.text import parse_sex, normalize_dog_name
+from ..utils.text import parse_sex, normalize_dog_name, build_photo_url
 from ..utils.parser_utils import parse_date, parse_color
 from ..utils.dog_matcher import detect_dict_conflicts
 from ..utils.titles import save_dog_titles
@@ -32,10 +32,10 @@ logger = logging.getLogger(__name__)
 # КЕШ
 # ══════════════════════════════════════════════════════════════════════════════
 
-_TTL_PARSE_RESULT   = 1 * 24 * 3600 * 3600 # 24 часа — результат парсинга Zoo страницы
-_TTL_RECURSIVE_DONE = 2 * 24 * 3600 # 2 дня  — Zoo собака уже обработана рекурсивно
+_TTL_PARSE_RESULT   = 1 * 24 * 3600 # 1 д — результат парсинга Zoo страницы
+_TTL_RECURSIVE_DONE = 1 * 24 * 3600 # 1 д  — Zoo собака уже обработана рекурсивно
 
-_TTL_BA_FULLY_PARSED = 3 * 24 * 3600  # 3 дня - собака обработана полностью
+_TTL_BA_FULLY_PARSED = 1 * 24 * 3600  # 1 д - собака обработана полностью
 _KEY_BA_FULLY_PARSED = "ba:fully_parsed:{uuid}"
 
 def _cache():
@@ -507,8 +507,7 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     if not photo_url or not str(photo_url).startswith('http'):
         path = data.get('primary_photo_path') or data.get('primaryPhotoPath')
         if path:
-            base = 'https://siberianhusky.breedarchive.com/resource'
-            photo_url = f"{base}/{path.lstrip('/')}"
+            photo_url = build_photo_url(path)
 
     coi = data.get('coi')
     try:

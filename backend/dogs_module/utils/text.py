@@ -1,20 +1,10 @@
 # dogs_module/utils/text.py
 """
 Утилиты для работы с текстом
-
-ФУНКЦИИ:
-- normalize_dog_name()        - Нормализация имени собаки (UPPERCASE)
-- normalize_name_title_case() - Title Case для поиска ("LODGEPOLES LIFE" → "Lodgepoles Life")
-- remove_titles_from_name()   - Удаление титульных приставок из имени
-- parse_sex()                 - Парсинг пола из текста
-- clean_text()                - Очистка текста от лишних символов
-- extract_registration_number() - Извлечение номера родословной
-- transliterate_ru_to_en()    - Транслитерация RU → EN
-- transliterate_en_to_ru()    - Транслитерация EN → RU
 """
 
 import re
-from typing import List
+from typing import List, Optional
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -214,3 +204,13 @@ def transliterate_en_to_ru(text: str) -> str:
     for en, ru in _EN_TO_RU:
         result = result.replace(en, ru)
     return result
+
+
+def build_photo_url(photo_path: Optional[str]) -> Optional[str]:
+    """Строит полный URL фото из относительного пути BreedArchive."""
+    if not photo_path:
+        return None
+    # Убираем суффикс маленького превью _s
+    # "photo.b123ca419507eff9_s.jpg" → "photo.b123ca419507eff9.jpg"
+    clean_path = re.sub(r'_s(\.[^.]+)$', r'\1', photo_path)
+    return f"https://siberianhusky.breedarchive.com/resource/{clean_path}"
