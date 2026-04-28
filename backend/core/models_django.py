@@ -496,6 +496,71 @@ class WorkingGroup(models.Model):
         return self.name
 
 
+class President(models.Model):
+    full_name = models.CharField(verbose_name="ФИО", max_length=255)
+    position = models.CharField(verbose_name="Должность", max_length=255, default="Президент НКП")
+    subtitle = models.TextField(verbose_name="Краткое описание", blank=True)
+
+    main_text = models.TextField(verbose_name="Основной текст")
+    highlight_text = models.TextField(verbose_name="Текст выделенного блока", blank=True)
+
+    quote = models.TextField(verbose_name="Цитата", blank=True)
+
+    email = models.EmailField(verbose_name="Email", blank=True)
+    phone = models.CharField(verbose_name="Телефон", max_length=50, blank=True)
+    reception_days = models.CharField(verbose_name="Приёмные дни", max_length=255, blank=True)
+    socials = models.CharField(verbose_name="Соцсети", max_length=255, blank=True)
+
+    is_active = models.BooleanField(verbose_name="Активный президент", default=True)
+
+    class Meta:
+        verbose_name = "Президент"
+        verbose_name_plural = "Президент"
+
+    def __str__(self):
+        return self.full_name
+
+
+class PresidentBadge(models.Model):
+    president = models.ForeignKey(
+        President,
+        on_delete=models.CASCADE,
+        related_name="badges"
+    )
+    icon = models.CharField("Иконка", max_length=20, blank=True)
+    text = models.CharField("Текст", max_length=100)
+    is_primary = models.BooleanField("Основной бейдж", default=False)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Бейдж президента"
+        verbose_name_plural = "Бейджи президента"
+        ordering = ["sort_order"]
+
+    def __str__(self):
+        return f"{self.text}"
+
+
+class PresidentAchievement(models.Model):
+    president = models.ForeignKey(
+        President,
+        on_delete=models.CASCADE,
+        related_name="achievements"
+    )
+    year = models.CharField("Год", max_length=20)
+    title = models.CharField("Заголовок", max_length=255)
+    text = models.TextField("Описание", blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Достижение президента"
+        verbose_name_plural = "Достижения президента"
+        ordering = ["sort_order", "year"]
+
+    def __str__(self):
+        return f"{self.year} — {self.title}"
+
+
 class BoardMember(models.Model):
     name = models.CharField(max_length=200, verbose_name='Имя')
     position = models.CharField(max_length=200, blank=True, verbose_name='Должность')

@@ -477,3 +477,22 @@ def activity_feed(request):
         return Response({"results": []})
 
     return Response({"results": data})
+
+
+@api_view(["GET"])
+def active_president(request):
+    president = (
+        models.President.objects
+        .filter(is_active=True)
+        .prefetch_related("badges", "achievements")
+        .first()
+    )
+
+    if not president:
+        return Response(
+            {"detail": "Активный президент не найден"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    serializer = PresidentSerializer(president)
+    return Response(serializer.data)

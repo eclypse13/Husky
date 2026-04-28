@@ -58,6 +58,9 @@ urlpatterns = [
     # сообщения из тг-группы
     path("activity-feed/", activity_feed, name="activity-feed"),
 
+    # президент
+    path("president/active/", active_president, name="active_president"),
+
 ]
 
 if settings.DEBUG:

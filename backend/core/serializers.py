@@ -42,13 +42,6 @@ class EventSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# class EventReportSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = models.EventReport
-#         fields = '__all__'
-
-# serializers.py
-
 
 class EventReportSerializer(serializers.ModelSerializer):
     event_title_key = serializers.CharField(source="event.title_key", read_only=True)
@@ -228,6 +221,41 @@ class BoardMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.BoardMember
         fields = '__all__'
+
+
+class PresidentBadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PresidentBadge
+        fields = ("icon", "text", "is_primary", "sort_order")
+
+
+class PresidentAchievementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PresidentAchievement
+        fields = ("year", "title", "text", "sort_order")
+
+
+class PresidentSerializer(serializers.ModelSerializer):
+    badges = PresidentBadgeSerializer(many=True, read_only=True)
+    achievements = PresidentAchievementSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.President
+        fields = (
+            "id",
+            "full_name",
+            "position",
+            "subtitle",
+            "main_text",
+            "highlight_text",
+            "quote",
+            "email",
+            "phone",
+            "reception_days",
+            "socials",
+            "badges",
+            "achievements",
+        )
 
 
 class WorkingGroupSerializer(serializers.ModelSerializer):

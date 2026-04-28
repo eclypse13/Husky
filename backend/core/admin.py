@@ -20,8 +20,9 @@ from .models import (
     EventReportPhoto, EventReportVideo,
     BreedStandard, BreedArticle,
     ClubDocument, ClubStats,
-    BoardMember, WorkingGroup,
-    MembershipPlan,
+    BoardMember, President,
+    PresidentBadge, PresidentAchievement,
+    WorkingGroup, MembershipPlan,
     Kennel, Dog, Litter,
     Application,
     Achievement, MembershipPayment,
@@ -429,6 +430,39 @@ class BoardMemberAdmin(MongoModelAdmin):
     search_fields = ['name', 'position', 'email']
     ordering = ['order', 'name']
 
+class PresidentAdmin(MongoModelAdmin):
+    list_display = ["full_name","position","email","phone","is_active",]
+    list_filter = ["is_active"]
+    search_fields = ["full_name","position","subtitle","email","phone","socials",]
+    ordering = ["full_name"]
+
+    fieldsets = (
+        ("Основная информация", {"fields": ("full_name","position","subtitle","is_active",)}),
+        ("Основной текст", {"fields": ("main_text","highlight_text",)}),
+        ("Цитата", {"fields": ("quote",)}),
+        ("Контакты", {"fields": ("email","phone","reception_days","socials",)}),
+    )
+
+
+class PresidentBadgeAdmin(MongoModelAdmin):
+    list_display = ["text", "president", "is_primary", "sort_order"]
+    list_filter = ["is_primary"]
+    search_fields = ["text"]
+    ordering = ["sort_order"]
+
+    fieldsets = (
+        ("Бейдж", {"fields": ("president","icon","text","is_primary","sort_order",)}),
+    )
+
+
+class PresidentAchievementAdmin(MongoModelAdmin):
+    list_display = ["year", "title", "president", "sort_order"]
+    search_fields = ["year", "title", "text"]
+    ordering = ["sort_order", "year"]
+
+    fieldsets = (
+        ("Достижение", {"fields": ("president","year","title","text","sort_order",)}),
+    )
 
 class WorkingGroupAdmin(MongoModelAdmin):
     list_display = ['name']
@@ -543,6 +577,9 @@ ADMIN_REGISTRY = {
     ClubDocument: ClubDocumentAdmin,
     ClubStats: ClubStatsAdmin,
     BoardMember: BoardMemberAdmin,
+    President: PresidentAdmin,
+    PresidentBadge: PresidentBadgeAdmin,
+    PresidentAchievement: PresidentAchievementAdmin,
     WorkingGroup: WorkingGroupAdmin,
     MembershipPlan: MembershipPlanAdmin,
     Kennel: KennelAdmin,
@@ -626,6 +663,7 @@ ADMIN_GROUPS = OrderedDict([
             'User',
             'Judge',
             'JudgeDetails',
+            'President',
             'BoardMember',
             'WorkingGroup',
         ]
@@ -772,6 +810,9 @@ DJANGO_MODELS = [
     dj_models.ClubStats,
     dj_models.WorkingGroup,
     dj_models.BoardMember,
+    dj_models.President,
+    dj_models.PresidentBadge,
+    dj_models.PresidentAchievement,
     dj_models.MembershipPlan,
     dj_models.Kennel,
     dj_models.Dog,
