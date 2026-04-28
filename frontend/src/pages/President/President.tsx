@@ -1,12 +1,56 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { getDict, pickValue } from "@/lib/dict";
 import "./President.css";
 
+
+
+    type PresidentBadge = {
+        icon: string;
+        text: string;
+        is_primary: boolean;
+        sort_order: number;
+    };
+
+    type PresidentAchievement = {
+        year: string;
+        title: string;
+        text: string;
+        sort_order: number;
+    };
+
+    type PresidentData = {
+        id: number;
+        full_name: string;
+        position: string;
+        subtitle: string;
+        main_text: string;
+        highlight_text: string;
+        quote: string;
+        email: string;
+        phone: string;
+        reception_days: string;
+        socials: string;
+        badges: PresidentBadge[];
+        achievements: PresidentAchievement[];
+    };
+
+
 export default function President() {
+    const renderTextParagraphs = (text?: string) => {
+        if (!text) return null;
+
+        return text
+            .split(/\n\s*\n/)
+            .filter(Boolean)
+            .map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+            ));
+    };
+
     const pageRef = useRef<HTMLDivElement | null>(null);
-    const [presidentBio, setPresidentBio] = useState<string>("Президент НКП Сибирский Хаски");
+    const [president, setPresident] = useState<PresidentData | null>(null);
+    // const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const root = pageRef.current;
@@ -30,7 +74,7 @@ export default function President() {
         });
 
         return () => io.disconnect();
-    }, []);
+    }, [president]);
 
     useEffect(() => {
         const nums = pageRef.current?.querySelectorAll<HTMLElement>(".president-stat-number");
@@ -54,13 +98,22 @@ export default function President() {
 
     useEffect(() => {
         let ignore = false;
-        getDict()
-            .then((dict) => {
-                if (ignore) return;
-                const bio = pickValue(dict, "BOARD_1_BIO", "ru");
-                if (bio) setPresidentBio(bio);
+
+        fetch("/api/president/active/")
+            .then((res) => {
+                if (!res.ok) throw new Error("President not found");
+                return res.json();
             })
-            .catch(() => {});
+            .then((data: PresidentData) => {
+                if (!ignore) setPresident(data);
+            })
+            .catch(() => {
+                if (!ignore) setPresident(null);
+            })
+            .finally(() => {
+                if (!ignore) setIsLoading(false);
+            });
+
         return () => {
             ignore = true;
         };
@@ -89,15 +142,33 @@ export default function President() {
                             </div>
 
                             <div className="president-profile-info">
-                                <h1 className="president-name">Татьяна Евграфова</h1>
-                                <div className="president-title">{presidentBio}</div>
+                                <h1 className="president-name">
+                                    {president?.full_name || "Татьяна Евграфова"}
+                                </h1>
+
+                                <div className="president-title">
+                                    {president?.position || "Президент НКП Сибирский Хаски"}
+                                </div>
+
                                 <p className="president-subtitle">
-                                    Ведущий эксперт по породе сибирский хаски, организатор международных выставок,
-                                    автор стандарта породы. Более 15 лет посвятила развитию и популяризации породы в России.
+                                    {president?.subtitle || "Ведущий эксперт по породе сибирский хаски..."}
                                 </p>
                                 <div className="president-badges">
-                                    <span className="president-badge president-badge--primary">👑 Президент НКП</span>
-                                    <span className="president-badge president-badge--light">📅 15+ лет опыта</span>
+                                    {(president?.badges || [
+                                        { icon: "👑", text: "Президент НКП", is_primary: true, sort_order: 0 },
+                                        { icon: "📅", text: "15+ лет опыта", is_primary: false, sort_order: 1 },
+                                    ]).map((badge) => (
+                                        <span
+                                            key={`${badge.icon}-${badge.text}`}
+                                            className={
+                                                badge.is_primary
+                                                    ? "president-badge president-badge--primary"
+                                                    : "president-badge president-badge--light"
+                                            }
+                                        >
+                                            {badge.icon} {badge.text}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
 
@@ -116,24 +187,18 @@ export default function President() {
                             <section className="president-section president-bio">
                                 <h2 className="president-section-title">О президенте</h2>
                                 <div className="president-bio-content">
-                                    <p>
-                                        Татьяна Евграфова — признанный эксперт в области разведения сибирских хаски, которая посвятила свою жизнь сохранению и развитию этой уникальной породы. Её путь в кинологии начался более двух десятилетий назад с глубокой любви к северным собакам.
-                                    </p>
+                                    {renderTextParagraphs(
+                                        president?.main_text || "Татьяна Евграфова — признанный эксперт..."
+                                    )}
 
-                                    <div className="president-highlight-box">
-                                        <h4 className="president-highlight-title">Профессиональные достижения</h4>
-                                        <p>
-                                            За годы работы Татьяна стала одним из ведущих специалистов по породе в России, получила международное признание как эксперт и судья, активно участвует в работе FCI по совершенствованию стандарта породы.
-                                        </p>
-                                    </div>
-
-                                    <p>
-                                        Под руководством Татьяны НКП Сибирский Хаски превратился в современную высокотехнологичную организацию, объединяющую более 1250 членов по всей России. Клуб стал пионером в области применения генетических технологий в разведении, создания цифровых архивов и международного сотрудничества.
-                                    </p>
-
-                                    <p>
-                                        Особое внимание Татьяна уделяет образовательной деятельности — под её руководством проводятся семинары для заводчиков, курсы повышения квалификации для судей, создаются методические материалы. Её вклад в развитие породы признан не только в России, но и на международном уровне.
-                                    </p>
+                                    {president?.highlight_text && (
+                                        <div className="president-highlight-box">
+                                            <h4 className="president-highlight-title">
+                                                Профессиональные достижения
+                                            </h4>
+                                            <p>{president.highlight_text}</p>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
@@ -205,34 +270,35 @@ export default function President() {
                             </section>
 
                             {/* Достижения */}
-                            <section className="president-section president-achievements">
-                                <h2 className="president-section-title">Основные достижения</h2>
-                                <div className="president-timeline">
-                                    <div className="president-timeline-line" />
-                                    {[
-                                        { year: "2008", title: "Основание НКП Сибирский Хаски", text: "Инициировала создание национального клуба породы, объединив ведущих заводчиков и экспертов России" },
-                                        { year: "2012", title: "Получение статуса международного эксперта", text: "Признание FCI компетенции в области экспертизы породы сибирский хаски" },
-                                        { year: "2016", title: "Запуск программы генетического тестирования", text: "Внедрение комплексной системы ДНК-тестирования для улучшения здоровья породы" },
-                                        { year: "2020", title: "Интеграция с breedarchive.com", text: "Подключение российской базы данных к международной системе родословных" },
-                                        { year: "2023", title: "Цифровизация архива породы", text: "Создание современной цифровой экосистемы с AI-инструментами для анализа и планирования разведения" },
-                                    ].map((t) => (
-                                        <div key={t.title} className="president-timeline-item">
-                                            <div className="president-timeline-dot" />
-                                            <div className="president-timeline-year">{t.year}</div>
-                                            <div className="president-timeline-title">{t.title}</div>
-                                            <div className="president-timeline-text">{t.text}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
+                            {(president?.achievements?.length ?? 0) > 0 && (
+                                <section className="president-section president-achievements">
+                                    <h2 className="president-section-title">Основные достижения</h2>
+                                    <div className="president-timeline">
+                                        <div className="president-timeline-line" />
+
+                                        {president!.achievements.map((t) => (
+                                            <div key={`${t.year}-${t.title}`} className="president-timeline-item">
+                                                <div className="president-timeline-dot" />
+                                                <div className="president-timeline-year">{t.year}</div>
+                                                <div className="president-timeline-title">{t.title}</div>
+                                                <div className="president-timeline-text">{t.text}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Цитата */}
-                            <section className="president-quote president-section">
-                                <div className="president-quote-text">
-                                    "Наша миссия — не просто сохранить породу, а развить её потенциал, объединив лучшие традиции с современными технологиями. Каждая собака — это часть живой истории, которую мы должны бережно передать будущим поколениям."
-                                </div>
-                                <div className="president-quote-author">— Татьяна Евграфова</div>
-                            </section>
+                            {president?.quote && (
+                                <section className="president-quote president-section">
+                                    <div className="president-quote-text">
+                                        "{president.quote}"
+                                    </div>
+                                    <div className="president-quote-author">
+                                        — {president.full_name}
+                                    </div>
+                                </section>
+                            )}
                         </div>
 
                         {/* Сайдбар */}
@@ -241,19 +307,21 @@ export default function President() {
                                 <h3 className="president-sidebar-title">📞 Контактная информация</h3>
                                 <div className="president-contact-list">
                                     {[
-                                        { icon: "📧", label: "Email", value: "president@nkp-husky.ru" },
-                                        { icon: "📱", label: "Телефон", value: "+7 (495) 123-45-67" },
-                                        { icon: "🏢", label: "Приёмные дни", value: "Чт, Пт 14:00–18:00" },
-                                        { icon: "🌐", label: "Соцсети", value: "@te_husky_expert" },
-                                    ].map((c) => (
-                                        <div key={c.label} className="president-contact-item">
-                                            <div className="president-contact-icon">{c.icon}</div>
-                                            <div className="president-contact-details">
-                                                <div className="president-contact-label">{c.label}</div>
-                                                <div className="president-contact-value">{c.value}</div>
+                                        { icon: "📧", label: "Email", value: president?.email },
+                                        { icon: "📱", label: "Телефон", value: president?.phone },
+                                        { icon: "🏢", label: "Приёмные дни", value: president?.reception_days },
+                                        { icon: "🌐", label: "Соцсети", value: president?.socials },
+                                    ]
+                                        .filter((c) => c.value)
+                                        .map((c) => (
+                                            <div key={c.label} className="president-contact-item">
+                                                <div className="president-contact-icon">{c.icon}</div>
+                                                <div className="president-contact-details">
+                                                    <div className="president-contact-label">{c.label}</div>
+                                                    <div className="president-contact-value">{c.value}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             </div>
 
