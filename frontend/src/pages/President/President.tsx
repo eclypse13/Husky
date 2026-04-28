@@ -109,9 +109,6 @@ export default function President() {
             })
             .catch(() => {
                 if (!ignore) setPresident(null);
-            })
-            .finally(() => {
-                if (!ignore) setIsLoading(false);
             });
 
         return () => {
