@@ -958,3 +958,51 @@ class ImportOFABulkByNameView(APIView):
         except Exception as e:
             logger.error(f"ImportOFABulkByNameView error: {e}")
             return Response({"error": str(e)}, status=500)
+
+
+class BreedingPredictView(APIView):
+    """GET /api/dogs/breeding/predict/?sire_id=123&dam_id=456"""
+
+    def get(self, request):
+        sire_id = request.query_params.get("sire_id")
+        dam_id = request.query_params.get("dam_id")
+
+        if not sire_id or not dam_id:
+            return Response({"error": "Нужны sire_id и dam_id"}, status=400)
+        try:
+            sire_id, dam_id = int(sire_id), int(dam_id)
+        except ValueError:
+            return Response({"error": "sire_id и dam_id должны быть числами"}, status=400)
+
+        from .services.ml_dog_service import (
+            get_dog_health_data, get_pair_data, get_breeding_recommendation
+        )
+        from .services.ml_client import predict_breeding
+        from .services.pedigree_service import calc_offspring_coi
+
+        result = predict_breeding(
+            get_dog_health_data(sire_id),
+            get_dog_health_data(dam_id),
+            get_pair_data(sire_id, dam_id),
+        )
+        if "error" in result:
+            return Response(result, status=503)
+
+        offspring_coi = calc_offspring_coi(sire_id, dam_id)
+        result["offspring_coi"] = offspring_coi
+        result = get_breeding_recommendation(result, offspring_coi)
+
+        return Response(result)
+
+class OFABreedingStatsSHView(APIView):
+    def get(self, request):
+        try:
+            from .services.ofa_service import get_breed_ofa_stats
+            stats = get_breed_ofa_stats()
+            return Response(stats)
+        except Exception as e:
+            logger.error(f"BreedingStatsView: {e}")
+            return Response(
+                {"error": "Не удалось получить статистику"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )

@@ -1,25 +1,6 @@
 # dogs_module/urls.py
 """
 URL маршруты для модуля собак
-
-МАРШРУТЫ:
-- /api/dogs/ - DogViewSet (CRUD)
-- /api/breeders/ - BreederViewSet
-- /api/owners/ - OwnerViewSet
-- /api/titles/ - TitleViewSet
-- /api/litters/ - LitterViewSet
-- /api/medical-records/ - MedicalRecordViewSet
-
-МАРШРУТЫ (Zooportal):
-- /api/dogs/import/zooportal/dog/ - Импорт одной собаки
-- /api/dogs/import/zooportal/page/ - Импорт страницы поиска
-- /api/dogs/import/zooportal/range/ - Импорт диапазона страниц
-- /api/dogs/import/status/<task_id>/ - Статус задачи
-
-МАРШРУТЫ (BreedArchive):
-- POST /api/dogs/import/breedarchive/dog/ - Импорт одной собаки по UUID
-- POST /api/dogs/import/breedarchive/recent/ - Импорт последних обновлений (API)
-- POST /api/dogs/import/breedarchive/browse/ - Импорт через browse-страницу (Playwright)
 """
 
 from django.urls import path, include
@@ -52,6 +33,8 @@ from .views import (
     ImportOFADogView,
     ImportOFABulkByRegView,
     ImportOFABulkByNameView,
+    OFABreedingStatsSHView,
+    BreedingPredictView,
 )
 
 
@@ -158,6 +141,11 @@ urlpatterns = [
          ImportOFABulkByNameView.as_view(),
         name='import-ofa-bulk-name'
     ),
+    path(
+        'dogs/import/ofa/stats/siberian-husky/',
+        OFABreedingStatsSHView.as_view(),
+        name='breeding-stats'
+    ),
 
     # COI
    path(
@@ -165,5 +153,13 @@ urlpatterns = [
        RecalculateAllCoiView.as_view(),
        name='coi-recalculate-all'
    ),
+   path(
+       'dogs/breeding/predict/',
+       BreedingPredictView.as_view(),
+       name='breeding-predict'
+   ),
+
+
+
 
 ]

@@ -1,14 +1,7 @@
 # dogs_module/tasks/tasks_coi.py
 """
 Celery-задача для массового пересчёта COI.
-
-ИСПОЛЬЗОВАНИЕ:
-  Вызывается из RecalculateAllCoiView (POST /api/dogs/coi/recalculate/).
-  Выполняется асинхронно в фоне — не блокирует HTTP-запрос.
-
-ПРОГРЕСС:
-  Обновляет meta задачи в каждом батче → можно отслеживать через
-  GET /api/dogs/import/status/{task_id}/
+Только оркестрация — вся логика в coi_calculator.py.
 """
 
 import logging
@@ -21,7 +14,7 @@ logger = logging.getLogger(__name__)
     bind=True,
     name='dogs_module.recalculate_all_coi',
     max_retries=0,
-    time_limit=3600,   # 1 час максимум
+    time_limit=3600,
     soft_time_limit=3500,
 )
 def recalculate_all_coi_task(
@@ -33,19 +26,7 @@ def recalculate_all_coi_task(
 ) -> dict:
     """
     Массовый пересчёт COI для всех собак в БД.
-
-    Передаёт прогресс через self.update_state() — виден в
-    GET /api/dogs/import/status/{task_id}/
-
-    ВОЗВРАЩАЕТ:
-    {
-      'status': 'success',
-      'total': 1500,
-      'updated': 1423,
-      'skipped': 72,
-      'errors': 5,
-      'duration_sec': 38.2
-    }
+    Прогресс виден через GET /api/dogs/import/status/{task_id}/
     """
     from ..utils.coi_calculator import calculate_coi, save_coi
     from ..models import Dog
@@ -66,10 +47,7 @@ def recalculate_all_coi_task(
     updated = skipped = errors = 0
     offset  = 0
 
-    logger.info(
-        f"🔄 [task] COI пересчёт: {total} собак | "
-        f"gen={generations} | only_missing={only_missing}"
-    )
+    logger.info(f"🔄 COI пересчёт: {total} собак | gen={generations}")
 
     self.update_state(state='PROGRESS', meta={
         'total': total, 'processed': 0,
@@ -92,7 +70,6 @@ def recalculate_all_coi_task(
                     continue
                 save_coi(dog, result)
                 updated += 1
-
             except Exception as exc:
                 errors += 1
                 logger.error(f"❌ COI ошибка dog.id={dog.id}: {exc}")
@@ -108,10 +85,7 @@ def recalculate_all_coi_task(
         })
 
     duration = round(time.time() - start, 2)
-    logger.info(
-        f"✅ [task] COI готово: обновлено={updated}, "
-        f"пропущено={skipped}, ошибок={errors}, время={duration}с"
-    )
+    logger.info(f"✅ COI готово: обновлено={updated}, пропущено={skipped}, ошибок={errors}")
 
     return {
         'status':       'success',

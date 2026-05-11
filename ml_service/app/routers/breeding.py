@@ -1,10 +1,12 @@
+# ml_service/app/routers/breeding.py
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from pathlib import Path
 
 from ..schemas.breeding import BreedingPredictRequest, BreedingPredictResponse
 from ..services.predictor import predict
 from ..services.trainer import train
+from ..services.model_store import list_trained_models, invalidate_cache
 
 router = APIRouter(prefix="/breeding", tags=["breeding"])
 
@@ -24,7 +26,10 @@ def predict_breeding(req: BreedingPredictRequest):
 
 @router.post("/train")
 def train_model(req: TrainRequest):
-    """Обучает модели на датасете."""
+    """
+    Обучает модели на датасете.
+    Вызывается из Django Celery задачи.
+    """
     if not req.dataset:
         raise HTTPException(status_code=400, detail="Пустой датасет")
     result = train(req.dataset)
@@ -35,13 +40,8 @@ def train_model(req: TrainRequest):
 
 @router.get("/health")
 def health():
-    """Проверка что сервис работает и модели загружены."""
-    rf = Path("/app/data/models/random_forest.joblib").exists()
-    lr = Path("/app/data/models/logistic_regression.joblib").exists()
+    """Статус сервиса и список обученных моделей."""
     return {
         "status": "ok",
-        "models": {
-            "random_forest": "ready" if rf else "not trained yet",
-            "logistic_regression": "ready" if lr else "not trained yet",
-        }
+        "models": list_trained_models(),
     }

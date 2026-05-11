@@ -2,44 +2,17 @@
 """
 Расчёт коэффициента инбридинга (COI) по методу Райта.
 
-═══════════════════════════════════════════════════════════════════════════════
 ФОРМУЛА РАЙТА:
-═══════════════════════════════════════════════════════════════════════════════
-
-  F(I) = Σ_A  Σ_путей  (0.5)^(n1 + n2 + 1) × (1 + F_A)
-
+  F(I) = Σ_A Σ_путей (0.5)^(n1 + n2 + 1) × (1 + F_A)
   Где:
     A   — общий предок отца и матери
     n1  — шагов от отца до A
     n2  — шагов от матери до A
     F_A — COI самого предка A (по умолчанию 0)
 
-  Пример: предок через отца (2 шага) и через мать (3 шага):
-    вклад = (0.5)^(2+3+1) = (0.5)^6 ≈ 1.5625%
-
-═══════════════════════════════════════════════════════════════════════════════
-ОПТИМИЗАЦИИ:
-═══════════════════════════════════════════════════════════════════════════════
-
-  1. БАТЧ-ЗАПРОСЫ — каждое поколение загружается одним SQL:
-       Dog.objects.filter(id__in=[...]).values('id', 'sire_id', 'dam_id')
-     Итого: max_depth+1 запросов вместо 2^depth.
-
-  2. ДЕДУПЛИКАЦИЯ — предок в нескольких ветках хранится как
-     {id: [depth1, depth2, ...]}, не перезагружается.
-
-  3. ГЛУБИНА 1–10 — стандарт FCI = 5 поколений. Глубже 10 вклад < 0.001%.
-
-  4. use_ancestor_coi — учёт F_A. Даёт +0.1–2% точности при сильном
-     инбридинге. Берёт сохранённые Dog.coi из БД, не рекурсивен.
-
-═══════════════════════════════════════════════════════════════════════════════
 ПУБЛИЧНОЕ API:
-═══════════════════════════════════════════════════════════════════════════════
-
-  calculate_coi(dog, generations, use_ancestor_coi) → CoiResult
-  save_coi(dog, result)                              → Dog
-  recalculate_all_coi(...)                           → dict (статистика)
+  calculate_coi(dog, generations, use_ancestor_coi, check_completeness) → CoiResult
+  save_coi(dog, result) → Dog
 """
 
 import logging
@@ -54,14 +27,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CoiResult:
     """
-    Результат расчёта COI с диагностикой.
-
+    Результат расчёта COI.
       coi                    — COI в процентах (например 6.25)
       generations            — сколько поколений использовано
       common_ancestors       — найдено общих предков
       total_ancestors_sire   — уникальных предков по отцу
       total_ancestors_dam    — уникальных предков по матери
-      ancestor_contributions — {ancestor_id: вклад_%} для дебага
+      ancestor_contributions — {ancestor_id: вклад_%}
       error                  — текст ошибки если расчёт невозможен
     """
     coi: float
@@ -86,27 +58,26 @@ class CoiResult:
         )
 
 
-
-# ОСНОВНОЙ РАСЧЁТ
+# ── ОСНОВНОЙ РАСЧЁТ ───────────────────────────────────────────────────────────
 
 def calculate_coi(
     dog,
-    generations: int = 5,
+    generations: int = 10,
     use_ancestor_coi: bool = False,
+    check_completeness: bool = False,
 ) -> CoiResult:
     """
     Рассчитывает COI для одной собаки по формуле Райта.
 
-    Только читает БД — не сохраняет. Для сохранения вызвать save_coi().
-
     ПАРАМЕТРЫ:
-      dog              — объект Dog (нужны .id, .sire_id, .dam_id)
-      generations      — глубина поиска предков (1–10, стандарт = 5)
-      use_ancestor_coi — учитывать COI самих предков (1 + F_A) в формуле
+      dog              — объект Dog (нужны .sire_id, .dam_id)
+      generations      — глубина поиска предков (1–10, стандарт FCI = 5)
+      use_ancestor_coi — учитывать COI самих предков (1 + F_A)
+      check_completeness — параметр оставлен для совместимости, не используется
     """
     generations = max(1, min(generations, 10))
 
-    # ── Граничные случаи
+    # Граничные случаи
     if not dog.sire_id or not dog.dam_id:
         return CoiResult(
             coi=0.0,
@@ -126,46 +97,12 @@ def calculate_coi(
             total_ancestors_dam=0,
         )
 
-    # ── Сбор путей
-    # {ancestor_id: [depth1, depth2, ...]}  — все глубины на которых встречается предок
-    # paths_sire = _collect_ancestor_paths(dog.sire_id, generations)
-    # paths_dam  = _collect_ancestor_paths(dog.dam_id,  generations)
-    paths_sire = _collect_ancestor_paths(dog.sire_id, generations - 1)
-    paths_dam = _collect_ancestor_paths(dog.dam_id, generations - 1)
-
-    # # ── Общие предки
-    # common_ids: Set[int] = set(paths_sire.keys()) & set(paths_dam.keys())
-    #
-    # if not common_ids:
-    #     return CoiResult(
-    #         coi=0.0,
-    #         generations=generations,
-    #         common_ancestors=0,
-    #         total_ancestors_sire=len(paths_sire),
-    #         total_ancestors_dam=len(paths_dam),
-    #     )
+    # Собираем пути предков за generations-1 уровней
     depth = generations - 1
-    expected_per_side = max(2 ** depth - 2, 2)
-    sire_completeness = len(paths_sire) / expected_per_side if expected_per_side else 0
-    dam_completeness = len(paths_dam) / expected_per_side if expected_per_side else 0
+    paths_sire = _collect_ancestor_paths(dog.sire_id, depth)
+    paths_dam  = _collect_ancestor_paths(dog.dam_id,  depth)
 
-    # Если с любой стороны найдено меньше 30% предков — данных недостаточно
-    MIN_COMPLETENESS = 0.3
-    if sire_completeness < MIN_COMPLETENESS or dam_completeness < MIN_COMPLETENESS:
-        return CoiResult(
-            coi=0.0,
-            generations=generations,
-            common_ancestors=0,
-            total_ancestors_sire=len(paths_sire),
-            total_ancestors_dam=len(paths_dam),
-            error=(
-                f"Недостаточно данных"
-                # f"отец {len(paths_sire)}/{expected_per_side} предков, "
-                # f"мать {len(paths_dam)}/{expected_per_side} предков"
-            ),
-        )
-
-    # ── Общие предки ─────────────────────────────────────────────────────────
+    # Общие предки — если нет, COI = 0
     common_ids: Set[int] = set(paths_sire.keys()) & set(paths_dam.keys())
 
     if not common_ids:
@@ -177,17 +114,17 @@ def calculate_coi(
             total_ancestors_dam=len(paths_dam),
         )
 
-    # ── COI предков (опционально) ─────────────────────────────────────────────
+    # COI предков (опционально)
     ancestor_fa: Dict[int, float] = {}
     if use_ancestor_coi:
         ancestor_fa = _fetch_ancestor_coi(common_ids)
 
-    # ── Формула Райта ─────────────────────────────────────────────────────────
+    # Формула Райта
     total_coi = 0.0
     contributions: Dict[int, float] = {}
 
     for ancestor_id in common_ids:
-        fa = ancestor_fa.get(ancestor_id, 0.0) / 100.0  # % → доли
+        fa = ancestor_fa.get(ancestor_id, 0.0) / 100.0
         ancestor_contrib = 0.0
 
         for n1 in paths_sire[ancestor_id]:
@@ -207,24 +144,18 @@ def calculate_coi(
     )
 
 
-# BFS + БАТЧ-ЗАГРУЗКА ПРЕДКОВ
+# ── BFS + БАТЧ-ЗАГРУЗКА ──────────────────────────────────────────────────────
 
 def _collect_ancestor_paths(
     root_id: int,
     max_depth: int,
 ) -> Dict[int, List[int]]:
     """
-    BFS по дереву предков. Каждое поколение — один SQL-запрос.
-
-    Возвращает {ancestor_id: [depth1, depth2, ...]} — все глубины
-    на которых встречается каждый предок (один предок может быть
-    в нескольких ветках при инбридинге).
-
-    Итого SQL: max_depth запросов.
+    BFS по дереву предков. Один SQL на поколение.
+    Возвращает {ancestor_id: [depth1, depth2, ...]}
     """
     paths: Dict[int, List[int]] = defaultdict(list)
     paths[root_id].append(0)
-
     current_front: Dict[int, List[int]] = {root_id: [0]}
 
     for _depth in range(1, max_depth + 1):
@@ -236,7 +167,7 @@ def _collect_ancestor_paths(
 
         for dog_id, (sire_id, dam_id) in parent_rows.items():
             for parent_id in filter(None, (sire_id, dam_id)):
-                for d in current_front[dog_id]:
+                for d in current_front.get(dog_id, []):
                     new_depth = d + 1
                     paths[parent_id].append(new_depth)
                     next_front[parent_id].append(new_depth)
@@ -249,12 +180,10 @@ def _collect_ancestor_paths(
 def _fetch_parents_batch(
     dog_ids: Set[int],
 ) -> Dict[int, Tuple[Optional[int], Optional[int]]]:
-    """Загружает (sire_id, dam_id) для набора ids одним SQL-запросом."""
+    """Загружает (sire_id, dam_id) для набора ids одним SQL."""
     from ..models import Dog
-
     rows = (
-        Dog.objects
-        .using('dogs_db')
+        Dog.objects.using('dogs_db')
         .filter(id__in=dog_ids)
         .values('id', 'sire_id', 'dam_id')
     )
@@ -262,30 +191,20 @@ def _fetch_parents_batch(
 
 
 def _fetch_ancestor_coi(ancestor_ids: Set[int]) -> Dict[int, float]:
-    """
-    Читает уже сохранённые Dog.coi для предков.
-    Используется только при use_ancestor_coi=True.
-    """
+    """Читает сохранённые Dog.coi для предков."""
     from ..models import Dog
-
     rows = (
-        Dog.objects
-        .using('dogs_db')
+        Dog.objects.using('dogs_db')
         .filter(id__in=ancestor_ids, coi__isnull=False)
         .values('id', 'coi')
     )
     return {row['id']: row['coi'] for row in rows}
 
 
-# СОХРАНЕНИЕ
+# ── СОХРАНЕНИЕ ────────────────────────────────────────────────────────────────
 
 def save_coi(dog, result: CoiResult):
-    """
-    Сохраняет COI в Dog. Обновляет ТОЛЬКО coi + coi_updated_on.
-
-    Если result.is_valid == False → сохраняет coi=None
-    (означает: расчёт пытался выполниться, но данных недостаточно).
-    """
+    """Сохраняет COI в Dog. Обновляет только coi + coi_updated_on."""
     from django.utils import timezone
 
     dog.coi = result.coi if result.is_valid else None
@@ -297,34 +216,21 @@ def save_coi(dog, result: CoiResult):
     return dog
 
 
-# МАССОВЫЙ ПЕРЕСЧЁТ
+# ── МАССОВЫЙ ПЕРЕСЧЁТ ─────────────────────────────────────────────────────────
 
 def recalculate_all_coi(
-    generations: int = 5,
+    generations: int = 10,
     batch_size: int = 100,
     only_missing: bool = True,
     use_ancestor_coi: bool = False,
 ) -> Dict:
-    """
-    Массовый пересчёт COI. Вызывается из tasks_coi.py.
-
-    ПАРАМЕТРЫ:
-      generations      — глубина расчёта
-      batch_size       — размер батча для загрузки в память
-      only_missing     — True = только Dog.coi IS NULL
-                         False = пересчитать всех (полный refresh)
-      use_ancestor_coi — учитывать F_A предков
-
-    ВОЗВРАЩАЕТ:
-      {total, updated, skipped, errors, duration_sec}
-    """
+    """Массовый пересчёт COI. Вызывается из tasks_coi.py."""
     from ..models import Dog
 
     start = time.time()
 
     qs = (
-        Dog.objects
-        .using('dogs_db')
+        Dog.objects.using('dogs_db')
         .filter(sire_id__isnull=False, dam_id__isnull=False)
         .only('id', 'registered_name', 'sire_id', 'dam_id', 'coi')
     )
@@ -346,15 +252,16 @@ def recalculate_all_coi(
 
         for dog in batch:
             try:
+                # check_completeness=True — сохраняем только надёжные значения
                 result = calculate_coi(
                     dog,
                     generations=generations,
                     use_ancestor_coi=use_ancestor_coi,
+                    check_completeness=True,
                 )
                 if not result.is_valid:
                     skipped += 1
                     continue
-
                 save_coi(dog, result)
                 updated += 1
 
@@ -369,11 +276,8 @@ def recalculate_all_coi(
         f"✅ Готово: обновлено={updated}, пропущено={skipped}, "
         f"ошибок={errors}, время={duration}с"
     )
-
     return {
-        'total':        total,
-        'updated':      updated,
-        'skipped':      skipped,
-        'errors':       errors,
+        'total': total, 'updated': updated,
+        'skipped': skipped, 'errors': errors,
         'duration_sec': duration,
     }

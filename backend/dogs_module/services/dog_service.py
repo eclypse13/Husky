@@ -23,32 +23,63 @@ def get_dog_by_id(dog_id: int):
         return None
 
 
-def get_dog_search_params(dog_id: int) -> Optional[dict]:
-    """
-    Возвращает параметры для поиска собаки на внешних сайтах.
+# def get_dog_search_params(dog_id: int) -> Optional[dict]:
+#     """
+#     Возвращает параметры для поиска собаки на внешних сайтах.
+#
+#     Возвращает:
+#       {
+#         'registered_name': '...',
+#         'registration_number': '...',
+#         'sex': 1,  # 1=кобель, 2=сука
+#       }
+#     или None если собака не найдена.
+#     """
+#     from ..models import Dog
+#
+#     try:
+#         dog = Dog.objects.using("dogs_db").only(
+#             "id", "registered_name", "registration_number", "sex"
+#         ).get(pk=dog_id)
+#     except Dog.DoesNotExist:
+#         logger.error(f"dog_service: dog_id={dog_id} не найдена")
+#         return None
+#
+#     return {
+#         "registered_name":     dog.registered_name,
+#         "registration_number": dog.registration_number,
+#         "sex":                 dog.sex,
+#     }
 
-    Возвращает:
-      {
-        'registered_name': '...',
-        'registration_number': '...',
-        'sex': 1,  # 1=кобель, 2=сука
-      }
-    или None если собака не найдена.
-    """
+# ofa search
+def get_dog_search_params(dog_id: int):
     from ..models import Dog
-
     try:
         dog = Dog.objects.using("dogs_db").only(
-            "id", "registered_name", "registration_number", "sex"
+            "id", "registered_name", "registration_number",
+            "sex", "year_of_birth", "date_of_birth",
         ).get(pk=dog_id)
     except Dog.DoesNotExist:
         logger.error(f"dog_service: dog_id={dog_id} не найдена")
         return None
 
+    # Вычисляем год для сравнения с OFA
+    # year_of_birth=0 считаем пустым — это мусорное значение из BreedArchive
+    year = dog.year_of_birth if (dog.year_of_birth and dog.year_of_birth > 0) else None
+    if not year and dog.date_of_birth:
+        year = dog.date_of_birth.year
+
+    name = dog.registered_name or ""
+    for apostrophe in ["'", "\u2019", "\u2018"]:
+        if apostrophe in name:
+            name = name.split(apostrophe)[0].strip()
+            break
+
     return {
-        "registered_name":     dog.registered_name,
+        "registered_name": name,
         "registration_number": dog.registration_number,
-        "sex":                 dog.sex,
+        "sex": dog.sex,
+        "expected_year": year,  # None если нет ни года ни даты
     }
 
 
@@ -75,6 +106,11 @@ def get_dogs_by_reg_number(
         registration_number__isnull=False,
         id__gte=id_from,
     ).exclude(registration_number="")
+
+    # Фильтр мусорных рег.номеров — не AKC номера
+    qs = qs.exclude(registration_number__regex=r'^[а-яёА-ЯЁ]')
+    qs = qs.exclude(registration_number__icontains='метрик')
+    qs = qs.exclude(registration_number__icontains='РКФ')
 
     if id_to is not None:
         qs = qs.filter(id__lte=id_to)
@@ -172,3 +208,21 @@ def update_dog_fields(dog_id: int, updates: dict) -> bool:
     Dog.objects.using("dogs_db").filter(pk=dog_id).update(**actual_updates)
     logger.info(f"dog_service: dog_id={dog_id} — обновлено {list(actual_updates.keys())}")
     return True
+
+def update_dog_from_ofa(dog_id: int, dog_info: dict) -> bool:
+    """
+    Обновляет поля собаки данными из OFA.
+    Обновляет только пустые поля.
+    date_of_birth сохраняет только если сейчас пустое.
+    """
+    updates = {}
+
+    reg_num = (dog_info.get("registration_number") or "").strip()
+    if reg_num:
+        updates["registration_number"] = reg_num
+
+    dob = dog_info.get("date_of_birth")
+    if dob:
+        updates["date_of_birth"] = dob  # update_dog_fields уже проверяет на пустоту
+
+    return update_dog_fields(dog_id, updates)

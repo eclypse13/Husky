@@ -112,7 +112,6 @@ DATABASES = {
         'NAME': config('DOGS_DB_NAME'),
         'USER': config('DOGS_DB_USER'),
         'PASSWORD': config('DOGS_DB_PASSWORD'),
-        # 'HOST': config('DOGS_DB_HOST', default='localhost'),
         'HOST': config('DOGS_DB_HOST', default='postgres'),
         'PORT': config('DOGS_DB_PORT', default='5432'),
     }

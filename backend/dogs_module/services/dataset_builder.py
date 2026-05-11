@@ -2,219 +2,260 @@
 """
 Сборщик датасета для обучения ML модели.
 
-Достаёт из БД исторические данные о парах и их потомках.
-Результат — список записей готовых для отправки в ML сервис.
-
-Можно запустить в любой момент:
-  from dogs_module.services.dataset_builder import build_dataset
-  dataset = build_dataset()
-  print(f"Собрано {len(dataset)} записей")
+Реальные данные берутся из БД.
+Синтетические данные генерируются в памяти и НЕ сохраняются в БД.
 """
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Маппинг OFA результатов в числа
-HIP_SCORE_MAP = {
-    "EXCELLENT":  0,
-    "GOOD":       1,
-    "FAIR":       2,
-    "BORDERLINE": 3,
-    "MILD":       4,
-    "MODERATE":   5,
-    "SEVERE":     6,
+HIP_MAP = {
+    "EXCELLENT": 0, "GOOD": 1, "FAIR": 2,
+    "BORDERLINE": 3, "MILD": 4, "MODERATE": 5, "SEVERE": 6,
+}
+ELBOW_MAP = {
+    "NORMAL": 0, "GRADE I": 1, "GRADE II": 2, "GRADE III": 3,
+    "GRADE1": 1, "GRADE2": 2, "GRADE3": 3,
+}
+EYE_MAP     = {"NORMAL": 0, "NORMAL W/BO": 0, "AFFECTED": 1}
+GENETIC_MAP = {
+    "CLEAR/NORMAL": 0, "CLEAR": 0, "NORMAL/CLEAR": 0,
+    "CARRIER": 1, "CARRIER-PROBABLE": 1,
+    "AFFECTED": 2,
 }
 
-EYE_SCORE_MAP = {
-    "NORMAL":   0,
-    "AFFECTED": 1,
+REGISTRY_GROUPS = {
+    "HIPS": "hips",
+    "ELBOW": "elbows",
+    "EYES": "eyes",
+    "CERF": "eyes",
+    "SIBERIAN HUSKY OPTH. REGISTRY": "eyes",
+    "PRIMARY LENS LUXATION": "pll",
+    "PROGRESSIVE RETINAL ATROPHY": "pra",
+    "PRA - CONE ROD DYSTROPHY 3": "pra",
+    "EARLY ONSET PRA": "pra",
+    "DEGENERATIVE MYELOPATHY": "dm",
+    "JUVENILE LARYNGEAL PARALYSIS & POLYNEUROPATHY (LPP)": "lpp",
+    "BASIC CARDIAC": "cardiac",
+    "ADVANCED CARDIAC": "cardiac",
+    "CONGENITAL CARDIAC": "cardiac",
+    "THYROID": "thyroid",
+    "PATELLA": "patella",
 }
 
-# Дисплазия = Borderline и хуже
-DYSPLASIA_THRESHOLD = 3
+GROUP_MAPS = {
+    "hips":    HIP_MAP,
+    "elbows":  ELBOW_MAP,
+    "eyes":    EYE_MAP,
+    "pll":     GENETIC_MAP,
+    "pra":     GENETIC_MAP,
+    "dm":      GENETIC_MAP,
+    "lpp":     GENETIC_MAP,
+    "cardiac": {
+        "NORMAL": 0, "NORMAL-PRACTITIONER": 0,
+        "NORMAL-CARDIOLOGIST": 0, "NORMAL AUSC+ECHO": 0,
+        "ABNORMAL": 1,
+    },
+    "thyroid": {"NORMAL": 0, "ABNORMAL": 1},
+    "patella": {"NORMAL": 0, "ABNORMAL": 1},
+}
+
+HIP_PROBLEM_THRESHOLD   = 2
+ELBOW_PROBLEM_THRESHOLD = 1
+EYE_PROBLEM_THRESHOLD   = 1
 
 
-def _get_hip_score(dog_id: int, records_by_dog: dict) -> Optional[int]:
-    """Берёт последний результат теста бёдер для собаки."""
-    records = records_by_dog.get(dog_id, [])
-    hip_records = [r for r in records if r["registry"] == "HIPS"]
-    if not hip_records:
-        return None
-    # Берём последний по дате
-    latest = max(hip_records, key=lambda r: r["test_date"] or "")
-    conclusion = (latest["conclusion"] or "").upper().strip()
-    return HIP_SCORE_MAP.get(conclusion)
+def _extract_scores(records: list) -> dict:
+    by_group = {}
+    for rec in records:
+        registry = rec["registry"].upper().strip()
+        group = REGISTRY_GROUPS.get(registry)
+        if not group:
+            continue
+        if group not in by_group:
+            by_group[group] = []
+        by_group[group].append(rec)
+
+    scores = {}
+    for group, recs in by_group.items():
+        latest = max(recs, key=lambda r: r["test_date"] or "")
+        conclusion = (latest["conclusion"] or "").upper().strip()
+        score = GROUP_MAPS[group].get(conclusion)
+        if score is None and "CLEAR" in conclusion:
+            score = 0
+        if score is None and "NORMAL" in conclusion:
+            score = 0
+        if score is None and "CARRIER" in conclusion:
+            score = 1
+        if score is not None:
+            scores[group] = score
+    return scores
 
 
-def _get_eye_score(dog_id: int, records_by_dog: dict) -> Optional[int]:
-    """Берёт результат теста глаз."""
-    records = records_by_dog.get(dog_id, [])
-    eye_records = [
-        r for r in records
-        if "EYE" in r["registry"].upper() or "OPTH" in r["registry"].upper()
-    ]
-    if not eye_records:
-        return None
-    latest = max(eye_records, key=lambda r: r["test_date"] or "")
-    conclusion = (latest["conclusion"] or "").upper().strip()
-    return EYE_SCORE_MAP.get(conclusion)
-
-
-def build_dataset() -> list[dict]:
-    """
-    Собирает датасет из БД.
-
-    Алгоритм:
-    1. Берём всех потомков у которых есть тест бёдер
-    2. Для каждого достаём родителей (sire, dam)
-    3. Берём данные здоровья родителей
-    4. Формируем запись: признаки пары → результат потомка
-
-    Возвращает список dict готовых для отправки в /breeding/train
-    """
+def _build_real_dataset() -> list[dict]:
+    """Собирает реальные данные из БД."""
     from ..models import Dog, MedicalRecord
 
-    logger.info("Сборка датасета...")
-
-    # Шаг 1: все потомки у которых есть тест бёдер И известны оба родителя
-    offspring_qs = (
-        Dog.objects
-        .using("dogs_db")
-        .filter(
-            sire_id__isnull=False,
-            dam_id__isnull=False,
-        )
+    offspring_list = list(
+        Dog.objects.using("dogs_db")
+        .filter(sire_id__isnull=False, dam_id__isnull=False)
         .values("id", "sire_id", "dam_id", "coi")
     )
-    offspring_list = list(offspring_qs)
-    logger.info(f"Потомков с известными родителями: {len(offspring_list)}")
 
     if not offspring_list:
-        logger.warning("Нет потомков с известными родителями")
         return []
 
-    # Собираем все ID которые нам нужны
-    all_dog_ids = set()
+    all_ids = set()
     for dog in offspring_list:
-        all_dog_ids.add(dog["id"])
-        all_dog_ids.add(dog["sire_id"])
-        all_dog_ids.add(dog["dam_id"])
+        all_ids.add(dog["id"])
+        all_ids.add(dog["sire_id"])
+        all_ids.add(dog["dam_id"])
 
-    # Шаг 2: все медицинские записи OFA для этих собак одним запросом
-    records_qs = (
-        MedicalRecord.objects
-        .using("dogs_db")
-        .filter(
-            dog_id__in=all_dog_ids,
-            source="ofa",
-        )
+    records_raw = list(
+        MedicalRecord.objects.using("dogs_db")
+        .filter(dog_id__in=all_ids, source="ofa")
         .values("dog_id", "registry", "conclusion", "test_date")
     )
 
-    # Группируем по dog_id для быстрого доступа
-    records_by_dog: dict = {}
-    for rec in records_qs:
-        dog_id = rec["dog_id"]
-        if dog_id not in records_by_dog:
-            records_by_dog[dog_id] = []
-        records_by_dog[dog_id].append(rec)
+    records_by_dog = {}
+    for rec in records_raw:
+        did = rec["dog_id"]
+        if did not in records_by_dog:
+            records_by_dog[did] = []
+        records_by_dog[did].append(rec)
 
-    logger.info(f"Загружено OFA записей для {len(records_by_dog)} собак")
-
-    # Шаг 3: берём COI для родителей
-    parent_ids = {d["sire_id"] for d in offspring_list} | {d["dam_id"] for d in offspring_list}
-    parents_coi = dict(
-        Dog.objects
-        .using("dogs_db")
+    parent_ids = (
+        {d["sire_id"] for d in offspring_list} |
+        {d["dam_id"]  for d in offspring_list}
+    )
+    parent_coi = dict(
+        Dog.objects.using("dogs_db")
         .filter(id__in=parent_ids)
         .values_list("id", "coi")
     )
 
-    # Шаг 4: формируем датасет
     dataset = []
     skipped = 0
 
     for dog in offspring_list:
-        dog_id = dog["id"]
+        dog_id  = dog["id"]
         sire_id = dog["sire_id"]
-        dam_id = dog["dam_id"]
+        dam_id  = dog["dam_id"]
 
-        # Результат потомка — тест бёдер
-        offspring_hip = _get_hip_score(dog_id, records_by_dog)
-        if offspring_hip is None:
+        offspring_scores = _extract_scores(records_by_dog.get(dog_id, []))
+        if "hips" not in offspring_scores:
             skipped += 1
-            continue  # нет теста у потомка — не можем обучить
+            continue
 
-        # Целевая переменная: 1 = дисплазия, 0 = здоров
-        has_dysplasia = 1 if offspring_hip >= DYSPLASIA_THRESHOLD else 0
+        sire_scores = _extract_scores(records_by_dog.get(sire_id, []))
+        dam_scores  = _extract_scores(records_by_dog.get(dam_id, []))
+        sire_coi    = parent_coi.get(sire_id)
+        dam_coi     = parent_coi.get(dam_id)
+        pair_coi    = dog.get("coi")
 
-        # Признаки родителей
-        sire_hips = _get_hip_score(sire_id, records_by_dog)
-        sire_eyes = _get_eye_score(sire_id, records_by_dog)
-        sire_coi = parents_coi.get(sire_id)
-
-        dam_hips = _get_hip_score(dam_id, records_by_dog)
-        dam_eyes = _get_eye_score(dam_id, records_by_dog)
-        dam_coi = parents_coi.get(dam_id)
-
-        # COI потомства (уже есть в БД)
-        pair_coi = dog.get("coi")
-
-        # Средний балл бёдер родителей
-        scores = [s for s in [sire_hips, dam_hips] if s is not None]
-        avg_hip = sum(scores) / len(scores) if scores else None
+        avg_hip = None
+        if sire_scores.get("hips") is not None and dam_scores.get("hips") is not None:
+            avg_hip = (sire_scores["hips"] + dam_scores["hips"]) / 2
 
         dataset.append({
-            # Признаки
-            "sire_hips":         sire_hips,
-            "sire_eyes":         sire_eyes,
-            "sire_coi":          float(sire_coi) if sire_coi else None,
-            "dam_hips":          dam_hips,
-            "dam_eyes":          dam_eyes,
-            "dam_coi":           float(dam_coi) if dam_coi else None,
-            "pair_coi":          float(pair_coi) if pair_coi else None,
-            "hip_ratio_4gen":    None,  # TODO: считать из родословной
-            "avg_hip_score":     avg_hip,
-
-            # Целевая переменная
-            "offspring_has_dysplasia": has_dysplasia,
-
-            # Мета (не используется в обучении, для анализа)
+            "sire_hips":    sire_scores.get("hips"),
+            "sire_eyes":    sire_scores.get("eyes"),
+            "sire_elbows":  sire_scores.get("elbows"),
+            "sire_dm":      sire_scores.get("dm"),
+            "sire_pra":     sire_scores.get("pra"),
+            "sire_coi":     float(sire_coi) if sire_coi else None,
+            "dam_hips":     dam_scores.get("hips"),
+            "dam_eyes":     dam_scores.get("eyes"),
+            "dam_elbows":   dam_scores.get("elbows"),
+            "dam_dm":       dam_scores.get("dm"),
+            "dam_pra":      dam_scores.get("pra"),
+            "dam_coi":      float(dam_coi) if dam_coi else None,
+            "pair_coi":     float(pair_coi) if pair_coi else None,
+            "hip_ratio_4gen": None,
+            "avg_hip_score":  avg_hip,
+            "offspring_has_hip_problem":   int(offspring_scores["hips"] >= HIP_PROBLEM_THRESHOLD),
+            "offspring_has_eye_problem":   int(offspring_scores.get("eyes", 0) >= EYE_PROBLEM_THRESHOLD),
+            "offspring_has_elbow_problem": int(offspring_scores.get("elbows", 0) >= ELBOW_PROBLEM_THRESHOLD),
+            "_synthetic":    False,
             "_offspring_id": dog_id,
             "_sire_id":      sire_id,
             "_dam_id":       dam_id,
-            "_hip_raw":      offspring_hip,
         })
 
+    return dataset, skipped
+
+
+def build_dataset(augment: bool = False, n_synthetic: int = 3000) -> list[dict]:
+    """
+    Собирает датасет для обучения ML.
+
+    Параметры:
+      augment     — добавить синтетические данные
+      n_synthetic — сколько синтетических записей добавить
+
+    Синтетические данные НЕ сохраняются в БД.
+    Они существуют только в памяти во время обучения.
+    """
+    logger.info("Сборка датасета...")
+
+    from ..models import Dog
+    offspring_count = Dog.objects.using("dogs_db").filter(
+        sire_id__isnull=False, dam_id__isnull=False
+    ).count()
+    logger.info(f"Потомков с известными родителями: {offspring_count}")
+
+    real_data, skipped = _build_real_dataset()
+    logger.info(f"OFA записей для реальных собак: {len(real_data)}")
+
+    if not real_data:
+        logger.warning("Нет реальных данных")
+        return []
+
+    hip_pos   = sum(d["offspring_has_hip_problem"]   for d in real_data)
+    eye_pos   = sum(d["offspring_has_eye_problem"]   for d in real_data)
+    elbow_pos = sum(d["offspring_has_elbow_problem"] for d in real_data)
+    total     = len(real_data)
+
     logger.info(
-        f"Датасет: {len(dataset)} записей, "
-        f"пропущено (нет теста): {skipped}, "
-        f"дисплазия: {sum(d['offspring_has_dysplasia'] for d in dataset)} "
-        f"({sum(d['offspring_has_dysplasia'] for d in dataset)/len(dataset):.1%})"
-        if dataset else "датасет пустой"
+        f"Реальный датасет: {total} записей, пропущено: {skipped}\n"
+        f"  бёдра (FAIR+): {hip_pos} ({hip_pos/total:.1%})\n"
+        f"  глаза: {eye_pos} ({eye_pos/total:.1%})\n"
+        f"  локти: {elbow_pos} ({elbow_pos/total:.1%})"
     )
 
-    return dataset
+    if not augment:
+        return real_data
+
+    # Добавляем синтетические данные
+    from .synthetic_generator import generate_synthetic_dataset
+    synthetic = generate_synthetic_dataset(n_samples=n_synthetic)
+
+    combined = real_data + synthetic
+    total_c  = len(combined)
+    hip_c    = sum(d["offspring_has_hip_problem"]   for d in combined)
+    eye_c    = sum(d["offspring_has_eye_problem"]   for d in combined)
+    elbow_c  = sum(d["offspring_has_elbow_problem"] for d in combined)
+
+    logger.info(
+        f"Итоговый датасет (реальные + синтетика): {total_c} записей\n"
+        f"  бёдра (FAIR+): {hip_c} ({hip_c/total_c:.1%})\n"
+        f"  глаза: {eye_c} ({eye_c/total_c:.1%})\n"
+        f"  локти: {elbow_c} ({elbow_c/total_c:.1%})"
+    )
+
+    return combined
 
 
-def save_dataset_csv(path: str = "/tmp/ofa_dataset.csv") -> str:
-    """
-    Сохраняет датасет в CSV файл.
-    Удобно для анализа и отладки перед обучением.
-    """
+def save_dataset_csv(path: str = "/tmp/ofa_dataset.csv", augment: bool = False) -> str:
+    """Сохраняет датасет в CSV для анализа."""
     import csv
-
-    dataset = build_dataset()
+    dataset = build_dataset(augment=augment)
     if not dataset:
-        logger.warning("Датасет пустой, CSV не создан")
         return ""
-
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=dataset[0].keys())
         writer.writeheader()
         writer.writerows(dataset)
-
-    logger.info(f"Датасет сохранён: {path} ({len(dataset)} строк)")
+    logger.info(f"Сохранено: {path} ({len(dataset)} строк)")
     return path

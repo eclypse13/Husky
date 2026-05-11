@@ -1,89 +1,130 @@
+# ml_service/app/services/trainer.py
+"""
+Обучение CatBoost моделей — по одной на каждую болезнь.
+
+Не знает про файловую систему — использует model_store.
+"""
+
 import logging
-import joblib
+import numpy as np
 import pandas as pd
-from pathlib import Path
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold
+
+from .model_store import save_model, invalidate_cache
+from ..config import settings, FEATURE_COLS, TARGETS
 
 logger = logging.getLogger(__name__)
 
-MODELS_DIR = Path("/app/data/models")
-MODELS_DIR.mkdir(parents=True, exist_ok=True)
+def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
+    """Обучает CatBoost для одной болезни."""
+    from catboost import CatBoostClassifier, Pool
 
-FEATURE_COLS = [
-    "sire_hips", "sire_eyes", "sire_coi",
-    "dam_hips", "dam_eyes", "dam_coi",
-    "pair_coi", "hip_ratio_4gen", "avg_hip_score",
-]
+    positive = int(y.sum())
+    total    = len(y)
+    rate     = positive / total if total else 0
+
+    if positive < settings.min_positive_samples:
+        msg = f"мало позитивных случаев: {positive} (нужно {settings.min_positive_samples})"
+        logger.warning(f"trainer {name}: {msg}")
+        return {"skipped": True, "reason": msg, "positive": positive}
+
+    logger.info(f"trainer {name}: {total} записей, позитивных: {positive} ({rate:.1%})")
+
+    # Кросс-валидация
+    n_splits  = min(5, positive)
+    cv        = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    auc_scores = []
+
+    for train_idx, val_idx in cv.split(X, y):
+        X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
+        y_tr, y_val = y.iloc[train_idx], y.iloc[val_idx]
+
+        fold_model = CatBoostClassifier(
+            iterations=settings.catboost_iterations,
+            learning_rate=settings.catboost_learning_rate,
+            depth=settings.catboost_depth,
+            auto_class_weights="Balanced",
+            eval_metric="AUC",
+            random_seed=42,
+            verbose=False,
+            allow_writing_files=False,
+        )
+        fold_model.fit(
+            Pool(X_tr, y_tr),
+            eval_set=Pool(X_val, y_val),
+            early_stopping_rounds=50,
+        )
+        proba = fold_model.predict_proba(X_val)[:, 1]
+        auc_scores.append(roc_auc_score(y_val, proba))
+
+    # Финальная модель на всех данных
+    final_model = CatBoostClassifier(
+        iterations=settings.catboost_iterations,
+        learning_rate=settings.catboost_learning_rate,
+        depth=settings.catboost_depth,
+        auto_class_weights="Balanced",
+        eval_metric="AUC",
+        random_seed=42,
+        verbose=False,
+        allow_writing_files=False,
+    )
+    final_model.fit(Pool(X, y))
+
+    # Сохраняем через model_store (не напрямую)
+    save_model(final_model, name)
+
+    auc_mean = round(float(np.mean(auc_scores)), 3)
+    auc_std  = round(float(np.std(auc_scores)), 3)
+
+    importances = dict(zip(
+        FEATURE_COLS,
+        [round(v, 3) for v in final_model.get_feature_importance()]
+    ))
+
+    logger.info(f"trainer {name}: ROC-AUC={auc_mean}±{auc_std}")
+    return {
+        "skipped":             False,
+        "positive":            positive,
+        "positive_rate":       round(rate, 3),
+        "roc_auc":             auc_mean,
+        "roc_auc_std":         auc_std,
+        "feature_importances": importances,
+        "best_model":          "catboost",
+    }
 
 
 def train(dataset: list[dict]) -> dict:
-    """
-    Обучает Random Forest и Logistic Regression.
-
-    Каждая запись датасета:
-    {
-        "sire_hips": 1, "sire_eyes": 0, "sire_coi": 0.03,
-        "dam_hips": 0, "dam_eyes": 0, "dam_coi": 0.02,
-        "pair_coi": 0.04, "hip_ratio_4gen": 0.10, "avg_hip_score": 0.5,
-        "offspring_has_dysplasia": 0   ← целевая переменная (0 или 1)
-    }
-    """
+    """Обучает модели для всех болезней."""
     if len(dataset) < 30:
         return {"error": f"Мало данных: {len(dataset)} (нужно минимум 30)"}
 
-    df = pd.DataFrame(dataset)
-    X = df[FEATURE_COLS].fillna(df[FEATURE_COLS].median())
-    y = df["offspring_has_dysplasia"]
+    clean = [{k: v for k, v in row.items() if not k.startswith("_")} for row in dataset]
+    df    = pd.DataFrame(clean)
+    X     = df[FEATURE_COLS]  # NaN передаём напрямую — CatBoost умеет
 
-    logger.info(f"Обучение: {len(df)} записей, позитивных: {y.sum()} ({y.mean():.1%})")
+    results = {"dataset_size": len(df), "models": {}}
 
-    results = {}
+    for short_name, col in TARGETS.items():
+        if col not in df.columns:
+            results["models"][short_name] = {
+                "skipped": True,
+                "reason":  f"колонка {col} отсутствует",
+            }
+            continue
 
-    # Random Forest
-    rf = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=5,
-        min_samples_leaf=3,
-        class_weight="balanced",
-        random_state=42,
-    )
-    rf_scores = cross_val_score(rf, X, y, cv=5, scoring="roc_auc")
-    rf.fit(X, y)
-    joblib.dump(rf, MODELS_DIR / "random_forest.joblib")
+        y = df[col].fillna(0).astype(int)
+        result = _train_one(X, y, short_name)
+        results["models"][short_name] = result
 
-    results["random_forest"] = {
-        "roc_auc": round(float(rf_scores.mean()), 3),
-        "roc_auc_std": round(float(rf_scores.std()), 3),
-        "feature_importances": dict(zip(
-            FEATURE_COLS,
-            rf.feature_importances_.round(3).tolist()
-        )),
-    }
+        # Сбрасываем кэш чтобы predictor подхватил новую модель
+        if not result.get("skipped"):
+            invalidate_cache(short_name)
 
-    # Logistic Regression
-    lr = Pipeline([
-        ("scaler", StandardScaler()),
-        ("lr", LogisticRegression(class_weight="balanced", max_iter=500, random_state=42)),
-    ])
-    lr_scores = cross_val_score(lr, X, y, cv=5, scoring="roc_auc")
-    lr.fit(X, y)
-    joblib.dump(lr, MODELS_DIR / "logistic_regression.joblib")
+    trained = [k for k, v in results["models"].items() if not v.get("skipped")]
+    skipped = [k for k, v in results["models"].items() if v.get("skipped")]
+    results["trained"] = trained
+    results["skipped"] = skipped
 
-    results["logistic_regression"] = {
-        "roc_auc": round(float(lr_scores.mean()), 3),
-        "roc_auc_std": round(float(lr_scores.std()), 3),
-    }
-
-    results["dataset_size"] = len(df)
-    results["positive_rate"] = round(float(y.mean()), 3)
-    results["best_model"] = (
-        "random_forest"
-        if results["random_forest"]["roc_auc"] >= results["logistic_regression"]["roc_auc"]
-        else "logistic_regression"
-    )
-
+    logger.info(f"trainer: обучено={trained}, пропущено={skipped}")
     return results

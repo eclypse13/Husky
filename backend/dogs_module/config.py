@@ -76,11 +76,6 @@ BREEDARCHIVE_COOKIES = {
 }
 BREEDARCHIVE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    # 'User-Agent': (
-    #     'Mozilla/5.0 (X11; Linux x86_64) '
-    #     'AppleWebKit/537.36 (KHTML, like Gecko) '
-    #     'Chrome/120.0.0.0 Safari/537.36'
-    # ),
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'ru',
     'X-REQUESTED-WITH': 'XMLHttpRequest',
@@ -113,3 +108,20 @@ USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.
 
 DELAY_BETWEEN_REQUESTS = (1.5, 3.0)
 MAX_RETRIES = 3
+
+OFA_API_URL = "https://api.ofa.org/api/as.php"
+OFA_BB_URL = "https://api.ofa.org/api/bb.php"
+OFA_BROWSE_BY_BREED_CHOOSE_BREED_PATH = "https://ofa.org/chic-programs/browse-by-breed/?breed="
+
+BREED_CODE = "SH"  # Siberian Husky
+OFA_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://ofa.org",
+    "Referer": "https://ofa.org/advanced-search/",
+}

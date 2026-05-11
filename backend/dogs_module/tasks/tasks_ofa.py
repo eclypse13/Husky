@@ -1,15 +1,9 @@
 # dogs_module/tasks/tasks_ofa.py
 """
-OFA таски — только оркестрация.
-
-Никакой работы с БД напрямую. Никакого парсинга.
-
-Парсинг → parsers/ofa.py
-БД      → services/dog_service.py + services/ofa_service.py
+OFA таски.
 """
 
 import logging
-
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
@@ -23,29 +17,26 @@ def fetch_ofa_dog_task(
     registration_number: str = None,
     ofa_number: str = None,
 ) -> dict:
-    """
-    Загружает OFA-данные для одной собаки.
-
-    Если передан только dog_id — параметры поиска и пол берутся из БД.
-    Пол используется для фильтрации при нескольких результатах поиска.
-
-    Возвращает:
-      {'dog_id', 'appnum', 'saved', 'failed', 'dog_info', 'medical_records'}
-    """
     from ..parsers.ofa import fetch_ofa_data
-    from ..services.dog_service import get_dog_search_params, update_dog_fields
-    from ..services.ofa_service import save_ofa_records
+    from ..services.dog_service import get_dog_search_params, update_dog_from_ofa
+    from ..services.ofa_service import save_ofa_records, verify_dog_identity
 
-    expected_sex = None
+    expected_sex  = None
+    expected_year = None
 
-    # Если поисковые параметры не переданы — берём из БД
-    if dog_id and not any([registered_name, registration_number, ofa_number]):
+    if dog_id:
         params = get_dog_search_params(dog_id)
         if params is None:
             return {"error": f"Dog {dog_id} not found"}
-        registered_name     = params["registered_name"]
-        registration_number = params["registration_number"]
-        expected_sex        = params["sex"]
+
+        expected_sex  = params["sex"]
+        expected_year = params["expected_year"]
+
+        # Имя всегда берём из сервиса — там уже обрезан апостроф
+        # Рег.номер берём из переданного если есть, иначе из БД
+        registered_name = params["registered_name"]
+        if not registration_number and not ofa_number:
+            registration_number = params["registration_number"]
 
     if not any([registered_name, registration_number, ofa_number]):
         return {"error": "Нужен хотя бы один параметр поиска"}
@@ -53,7 +44,7 @@ def fetch_ofa_dog_task(
     logger.info(
         f"🔬 OFA: dog_id={dog_id} | "
         f"name={registered_name!r} | reg={registration_number!r} | "
-        f"sex={expected_sex}"
+        f"sex={expected_sex} | year={expected_year}"
     )
 
     result = fetch_ofa_data(
@@ -61,6 +52,7 @@ def fetch_ofa_dog_task(
         registration_number=registration_number,
         ofa_number=ofa_number,
         expected_sex=expected_sex,
+        expected_year=expected_year,
     )
 
     if not result:
@@ -75,10 +67,21 @@ def fetch_ofa_dog_task(
 
     saved = failed = 0
     if dog_id:
-        update_dog_fields(dog_id, {
-            "registration_number": result["dog_info"].get("registration_number"),
-            "date_of_birth":       result["dog_info"].get("date_of_birth"),
-        })
+        is_match, reason = verify_dog_identity(dog_id, result["dog_info"])
+
+        if not is_match:
+            logger.warning(
+                f"OFA: найдена не та собака для dog_id={dog_id} — {reason}"
+            )
+            return {
+                "dog_id":  dog_id,
+                "appnum":  result["appnum"],
+                "saved":   0,
+                "failed":  0,
+                "message": f"Найдена не та собака: {reason}",
+            }
+
+        update_dog_from_ofa(dog_id, result["dog_info"])
         saved, failed = save_ofa_records(dog_id, result["medical_records"])
 
     return {
@@ -100,34 +103,16 @@ def fetch_ofa_bulk_by_reg_task(
     delay: float = 1.5,
     only_without_ofa: bool = True,
 ) -> dict:
-    """
-    Bulk OFA-импорт по registration_number.
-
-    Параметры:
-      id_from          — нижняя граница Dog.id
-      id_to            — верхняя граница Dog.id (None = без ограничения)
-      limit            — макс. число собак
-      delay            — пауза между задачами (секунды)
-      only_without_ofa — пропустить собак с уже существующими OFA-записями
-
-    Возвращает: {'dispatched', 'task_ids'}
-    """
     from ..services.dog_service import get_dogs_by_reg_number
 
-    logger.info(
-        f"🔬 OFA bulk (reg): id={id_from}–{id_to}, "
-        f"limit={limit}, delay={delay}"
-    )
+    logger.info(f"🔬 OFA bulk (reg): id={id_from}–{id_to}, limit={limit}")
 
     dogs = get_dogs_by_reg_number(
-        id_from=id_from,
-        id_to=id_to,
-        limit=limit,
-        only_without_ofa=only_without_ofa,
+        id_from=id_from, id_to=id_to,
+        limit=limit, only_without_ofa=only_without_ofa,
     )
 
     if not dogs:
-        logger.info("OFA bulk (reg): нет собак для обработки")
         return {"dispatched": 0, "task_ids": []}
 
     task_ids = []
@@ -135,7 +120,6 @@ def fetch_ofa_bulk_by_reg_task(
         task = fetch_ofa_dog_task.apply_async(
             kwargs={
                 "dog_id":              dog["id"],
-                "registered_name":     dog["registered_name"],
                 "registration_number": dog["registration_number"],
             },
             countdown=int(i * delay),
@@ -155,43 +139,23 @@ def fetch_ofa_bulk_by_name_task(
     delay: float = 1.5,
     only_without_ofa: bool = True,
 ) -> dict:
-    """
-    Bulk OFA-импорт по registered_name.
-
-    Параметры:
-      id_from          — нижняя граница Dog.id
-      id_to            — верхняя граница Dog.id (None = без ограничения)
-      limit            — макс. число собак
-      delay            — пауза между задачами (секунды)
-      only_without_ofa — пропустить собак с уже существующими OFA-записями
-
-    Возвращает: {'dispatched', 'task_ids'}
-    """
     from ..services.dog_service import get_dogs_by_name
 
-    logger.info(
-        f"🔬 OFA bulk (name): id={id_from}–{id_to}, "
-        f"limit={limit}, delay={delay}"
-    )
+    logger.info(f"🔬 OFA bulk (name): id={id_from}–{id_to}, limit={limit}")
 
     dogs = get_dogs_by_name(
-        id_from=id_from,
-        id_to=id_to,
-        limit=limit,
-        only_without_ofa=only_without_ofa,
+        id_from=id_from, id_to=id_to,
+        limit=limit, only_without_ofa=only_without_ofa,
     )
 
     if not dogs:
-        logger.info("OFA bulk (name): нет собак для обработки")
         return {"dispatched": 0, "task_ids": []}
 
     task_ids = []
     for i, dog in enumerate(dogs):
         task = fetch_ofa_dog_task.apply_async(
             kwargs={
-                "dog_id":              dog["id"],
-                "registered_name":     dog["registered_name"],
-                "registration_number": dog["registration_number"],
+                "dog_id": dog["id"],
             },
             countdown=int(i * delay),
         )
@@ -199,3 +163,13 @@ def fetch_ofa_bulk_by_name_task(
 
     logger.info(f"OFA bulk (name): диспатчено={len(task_ids)}")
     return {"dispatched": len(task_ids), "task_ids": task_ids}
+
+@shared_task(bind=True, name="dogs_module.refresh_ofa_sh_breed_stats")
+def refresh_ofa_sh_breed_stats(self) -> dict:
+    """
+    Обновляет кэш статистики OFA в Redis.
+    """
+    from ..services.ofa_service import get_breed_ofa_stats, invalidate_stats_cache
+    invalidate_stats_cache()
+    stats = get_breed_ofa_stats()
+    return {"updated": bool(stats), "tests": len(stats) if stats else 0}
