@@ -5,14 +5,10 @@ import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { searchDogs, getDogStats } from "@/api/dogs";
 import type { DogListItem, DogStats, DogSearchParams } from "@/types/dog";
 import "./Archive.css";
+import {dogPhoto, DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
 
 // Хелперы
 const sexLabel = (sex: number) => (sex === 1 ? "♂ Кобель" : sex === 2 ? "♀ Сука" : "—");
-
-const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
-const DEFAULT_DOG_IMG = "/no-image-dog.png";
-const dogPhoto = (url: string | null | undefined): string =>
-  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
 const titleBadges = (dog: DogListItem) => {
   const badges: string[] = [];
@@ -272,14 +268,15 @@ export default function Archive() {
                   <article key={d.id} className="archive-dog-card">
                     <div className="archive-dog-avatar">
                       <img
-                        src={dogPhoto(d.photo_url)}
-                        alt={d.display_name}
+                        src={dogPhoto(d.dog_photo, d.photo_url)}
+                        alt={d.registered_name}
                         loading="lazy"
                         decoding="async"
+                        onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
                       />
                     </div>
                     <div className="archive-dog-info">
-                      <h4 className="archive-dog-name">{d.display_name}</h4>
+                      <h4 className="archive-dog-name">{d.registered_name}</h4>
                       <div className="archive-dog-meta">
                         <span className="archive-dog-meta-item">{sexLabel(d.sex)}</span>
                         {d.color && <span className="archive-dog-meta-item capitalize-text">{d.color}</span>}
@@ -365,9 +362,9 @@ export default function Archive() {
                 <h3 className="archive-sidebar-title">🚀 Быстрые ссылки</h3>
                 <nav className="archive-ql">
                   {[
-                    { icon: "📊", t: "Породный рейтинг", s: "Топ собаки породы", to: "#" },
-                    { icon: "🏆", t: "Чемпионы", s: "Новые титулы", to: "#" },
-                    { icon: "📈", t: "Статистика породы", s: "Аналитика", to: "#" },
+                    { icon: "📊", t: "Породный рейтинг", s: "Топ собаки породы", to: "/rating" },
+                    { icon: "🩺", t: "Здоровье породы", s: "Медицинские тесты", to: "/health" },
+                    { icon: "📈", t: "Статистика породы", s: "Аналитика", to: "/stats" },
                   ].map((i) => (
                     <Link to={i.to} key={i.t} className="archive-ql-item">
                       <div className="archive-ql-icon">{i.icon}</div>

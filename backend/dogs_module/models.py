@@ -87,11 +87,23 @@ class Dog(models.Model):
     variety = models.CharField(max_length=255, blank=True, null=True)
     distinguishing_features = models.CharField(max_length=1000, blank=True, null=True)
     photo_url = models.CharField(max_length=1000, blank=True, null=True)
+    photo_yadisk_path = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name='Путь фото на Яндекс.Диске',
+    )
+    photo_yadisk_url = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='Публичная ссылка фото на Яндекс.Диске'
+    )
 
     # --- Титулы ---
     prefix_titles = models.CharField(max_length=500, blank=True, null=True)
     suffix_titles = models.CharField(max_length=500, blank=True, null=True)
     other_titles = models.CharField(max_length=500, blank=True, null=True)
+    rating = models.IntegerField(default=0, blank=True, null=True)
+    rating_updated_at = models.DateTimeField(blank=True, null=True)
 
     # --- Регистрация ---
     registration_status = models.IntegerField(blank=True, null=True)
@@ -357,6 +369,14 @@ class MedicalRecord(models.Model):
         app_label = 'dogs_module'
         verbose_name = 'Медицинская запись'
         verbose_name_plural = 'Медицинские записи'
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dog", "ofa_number"],
+                name="unique_dog_ofa_number",
+                condition=models.Q(ofa_number__isnull=False),  # только если ofa_number не null
+            )
+        ]
+        ordering = ["-test_date"]
 
     def __str__(self):
         dog_name = self.dog.display_name if self.dog else '?'
@@ -381,6 +401,104 @@ class Mergelog(models.Model):
 
     def __str__(self):
         return f'Merge #{self.id} — {self.dog.display_name}'
+
+
+class ShowEvent(models.Model):
+    """Выставочное мероприятие с Zooportal."""
+
+    zooportal_show_id = models.CharField(max_length=50, unique=True, db_index=True)
+
+    title = models.CharField(max_length=1000)
+    event_date = models.DateField(blank=True, null=True)
+    show_type = models.CharField(
+        max_length=20, default='other',
+        choices=[
+            ('pk', 'Монопородная ПК'),
+            ('kchk', 'Монопородная КЧК'),
+            ('speciality', 'Специализированная'),
+            ('sport', 'Спортивные соревнования'),
+            ('world', 'World/Euro Dog Show'),
+            ('other', 'Не учитывается'),
+        ]
+    )
+    multiplier = models.FloatField(default=0.0)
+    date_end = models.DateField(blank=True, null=True)  # если многодневная
+
+    organizer = models.CharField(max_length=500, blank=True, null=True)
+    rank = models.CharField(max_length=255, blank=True, null=True)  # CAC, CACIB...
+    city = models.CharField(max_length=255, blank=True, null=True)
+    country = models.CharField(max_length=255, blank=True, null=True)
+    address = models.CharField(max_length=1000, blank=True, null=True)
+
+    judges = models.CharField(max_length=2000, blank=True, null=True)
+    status = models.CharField(max_length=100, blank=True, null=True)  # "Результаты"
+
+    results_parsed_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'show_event'
+        app_label = 'dogs_module'
+        verbose_name = 'Выставка'
+        verbose_name_plural = 'Выставки'
+        indexes = [
+            models.Index(fields=['event_date']),
+            models.Index(fields=['zooportal_show_id']),
+        ]
+
+    def __str__(self):
+        return f'{self.title} ({self.event_date})'
+
+
+class ShowResult(models.Model):
+    """Результат собаки на выставке."""
+
+    event = models.ForeignKey(
+        ShowEvent, on_delete=models.CASCADE, related_name='results'
+    )
+    dog = models.ForeignKey(
+        'Dog', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='show_results'
+    )
+
+    catalog_number = models.IntegerField(blank=True, null=True)
+    request_id = models.CharField(max_length=50, blank=True, null=True)
+
+    show_class = models.CharField(max_length=100, blank=True, null=True)  # "Юниоров", "Открытый"
+
+    # Результат: "ОТЛ, 1"
+    grade = models.CharField(max_length=50, blank=True, null=True)  # "ОТЛ"
+    place = models.IntegerField(blank=True, null=True)  # 1
+
+    # Полученные титулы: "CW, CAC, ЧФ, СС"
+    titles_won = models.CharField(max_length=500, blank=True, null=True)
+
+    # Рейтинговые очки за это выступление
+    rating_points = models.IntegerField(default=0)
+
+    # Количество собак в каталоге — бонус к BOB/ЛПП
+    catalog_count = models.IntegerField(default=0)
+
+    # Доп. баллы без коэффициента
+    bonus_points = models.IntegerField(default=0)
+
+    # Номинация: main / junior / veteran / working
+    nomination = models.CharField(max_length=20, default='main')
+
+    class Meta:
+        managed = True
+        db_table = 'show_result'
+        app_label = 'dogs_module'
+        verbose_name = 'Результат выставки'
+        verbose_name_plural = 'Результаты выставок'
+        unique_together = [('event', 'dog')]
+        indexes = [
+            models.Index(fields=['dog', 'event']),
+        ]
+
+    def __str__(self):
+        return f'{self.dog_name} @ {self.event} → {self.grade} {self.place}'
 
 class ImportTaskProxy(models.Model):
     """Прокси-модель только для отображения пункта в Django Admin sidebar."""

@@ -23,6 +23,7 @@ import Judge from "@/pages/Judge/Judge";
 import Judges from "@/pages/Judges/Judges";
 import DogDetail from "@/pages/DogDetail/DogDetail";
 import BreedingPage from "@/pages/Breeding/Breeding";
+import Stats from "@/pages/Stats/Stats";
 
 
 export const router = createBrowserRouter([
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
             { path: "judges/:id", element: <Judge /> },
             { path: "archive/dog/:id", element: <DogDetail /> },
             { path: "breeding", element: <BreedingPage /> },
+            { path: "stats", element: <Stats /> },
         ],
     },
 ]);

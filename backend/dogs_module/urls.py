@@ -35,6 +35,26 @@ from .views import (
     ImportOFABulkByNameView,
     OFABreedingStatsSHView,
     BreedingPredictView,
+
+    ShowEventViewSet,
+    ImportShowListView,
+    ImportShowResultsView,
+    ImportShowDateRangeView,
+    RecalculateRatingsView,
+    LinkShowResultsView,
+    ImportShowsFullView,
+    ImportResultsForDateRangeView,
+    HealthSearchView,
+    HealthRegistriesView,
+    HealthStatsView,
+    DogHealthRecordsView,
+
+    PhotoStatsView,
+    PhotoUploadBulkView,
+    PhotoUploadSingleView,
+    PhotoSyncFromYaDiskView,
+    PhotoFetchZooSingleView,
+    PhotoFetchZooBulkView, PopulationStatsView,
 )
 
 
@@ -45,7 +65,7 @@ router.register(r'owners', OwnerViewSet, basename='owner')
 router.register(r'titles', TitleViewSet, basename='title')
 router.register(r'litters', LitterViewSet, basename='litter')
 router.register(r'medical-records', MedicalRecordViewSet, basename='medical-record')
-
+router.register(r'shows', ShowEventViewSet, basename='show-event')
 
 urlpatterns = [
     # Существующие маршруты (ViewSets)
@@ -148,18 +168,66 @@ urlpatterns = [
     ),
 
     # COI
-   path(
+    path(
      'dogs/coi/recalculate/',
        RecalculateAllCoiView.as_view(),
        name='coi-recalculate-all'
-   ),
-   path(
+    ),
+    path(
        'dogs/breeding/predict/',
        BreedingPredictView.as_view(),
        name='breeding-predict'
-   ),
+    ),
 
+    # ZOOPORTAL Shows (мероприятия)
+    path('dogs/import/shows/list/', ImportShowListView.as_view(), name='import-show-list'),
+    path('dogs/import/shows/results/', ImportShowResultsView.as_view(), name='import-show-results'),
+    path('dogs/import/shows/range/', ImportShowDateRangeView.as_view(), name='import-show-range'),
+    path('dogs/shows/recalculate-ratings/', RecalculateRatingsView.as_view(), name='recalculate-ratings'),
+    path('dogs/shows/link-results/', LinkShowResultsView.as_view(), name='link-show-results'),
+    path('dogs/import/shows/full/', ImportShowsFullView.as_view(), name='import-shows-full'),
+    path(
+        'dogs/import/shows/results/range/',
+        ImportResultsForDateRangeView.as_view(),
+        name='import-show-results-range',
+    ),
 
+    # Health поиск тестов
+    path('dogs/health/search/', HealthSearchView.as_view(), name='health-search'),
+    path('dogs/health/registries/', HealthRegistriesView.as_view(), name='health-registries'),
+    path('dogs/health/stats/', HealthStatsView.as_view(), name='health-stats'),
+    path('dogs/health/records/', DogHealthRecordsView.as_view(), name='dog-health-records'),
+
+    # Yandex Disk Photo
+    path('dogs/photos/stats/',
+         PhotoStatsView.as_view(),
+         name='photos-stats'),
+
+    path('dogs/photos/upload/bulk/',
+         PhotoUploadBulkView.as_view(),
+         name='photos-upload-bulk'),
+
+    path('dogs/photos/upload/<int:dog_id>/',
+         PhotoUploadSingleView.as_view(),
+         name='photos-upload-single'),
+
+    path('dogs/photos/sync-from-yadisk/',
+         PhotoSyncFromYaDiskView.as_view(),
+         name='photos-sync-from-yadisk'),
+    # Yandex Disk Photo Zoo фото через Playwright
+    path(
+        'dogs/photos/fetch-zoo/<int:dog_id>/',
+        PhotoFetchZooSingleView.as_view(),
+        name='photos-fetch-zoo-single',
+    ),
+    path(
+        'dogs/photos/fetch-zoo/bulk/',
+        PhotoFetchZooBulkView.as_view(),
+        name='photos-fetch-zoo-bulk',
+    ),
+
+    # dog breed stats
+    path('dogs/stats/population/', PopulationStatsView.as_view(), name='population-stats'),
 
 
 ]

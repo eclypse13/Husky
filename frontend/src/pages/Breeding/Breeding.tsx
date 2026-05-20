@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import "./Breeding.css";
 import type { DogListItem } from "@/types/dog";
+import {dogPhoto, DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,11 +42,6 @@ const VERDICT = {
 
 const CONFIDENCE_LABELS = { low: "Низкая", medium: "Средняя", high: "Высокая" };
 const BASIS_LABELS = { ml: "ML модель", rules: "Правила OFA", genetics: "Генетика" };
-
-const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
-const DEFAULT_DOG_IMG  = "/no-image-dog.png";
-const dogPhoto = (url: string | null | undefined): string =>
-    url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
 const ML_DISEASES: Record<string, string> = {
     hip_dysplasia: "Дисплазия бёдер",
@@ -108,7 +104,7 @@ function DogSelector({ sex, selected, onSelect, onClear }: SelectorProps) {
                 <div className="breeding-selected">
                    <div className="breeding-selected-photo">
                         <img
-                            src={dogPhoto(selected.photo_url)}
+                            src={dogPhoto(selected.dog_photo, selected.photo_url)}
                             alt={selected.display_name}
                             onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
                         />
@@ -145,7 +141,7 @@ function DogSelector({ sex, selected, onSelect, onClear }: SelectorProps) {
                                 <div key={dog.id} className="breeding-dropdown-item" onMouseDown={() => pick(dog)}>
                                     <div className="breeding-dropdown-avatar">
                                         <img
-                                            src={dogPhoto(dog.photo_url)}
+                                            src={dogPhoto(dog.dog_photo, dog.photo_url)}
                                             alt={dog.display_name}
                                             onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
                                         />

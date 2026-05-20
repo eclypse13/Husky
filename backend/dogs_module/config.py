@@ -1,6 +1,6 @@
 # dogs_module/config.py
 """
-Конфигурация для парсеров Zooportal и BreedArchive.
+Конфигурация для парсеров.
 Куки загружаются из переменных окружения (settings → .env).
 """
 
@@ -14,6 +14,9 @@ from decouple import config
 ZOOPORTAL_BASE_URL  = "https://zooportal.pro"
 ZOOPORTAL_DOG_PATH  = "/pedigree/view"
 ZOOPORTAL_SEARCH_URL = f"{ZOOPORTAL_BASE_URL}/pedigree/"
+# авторизация
+ZOOPORTAL_AUTH_PAGE_URL = f"{ZOOPORTAL_BASE_URL}/auth/?auth=yes"
+ZOOPORTAL_AUTH_POST_URL = f"{ZOOPORTAL_BASE_URL}/auth/?login=yes&auth=yes"
 
 # Логин для автообновления куков (+)
 # Если ZOOPORTAL_PASSWORD задан → куки автоматически обновляются через Playwright
@@ -125,3 +128,70 @@ OFA_HEADERS = {
     "Origin": "https://ofa.org",
     "Referer": "https://ofa.org/advanced-search/",
 }
+
+ZOOPORTAL_SHOW_LIST_URL = f"{ZOOPORTAL_BASE_URL}/show/"
+ZOOPORTAL_SHOW_RESULTS_URL = f"{ZOOPORTAL_BASE_URL}/show/results/{{show_id}}/"
+
+# Фильтры для породы Сибирский Хаски
+ZOOPORTAL_SHOW_THEMES = 1209   # выставки
+ZOOPORTAL_SHOW_FCI_5_GROUP_ID = 32499  # FCI Группа 5
+ZOOPORTAL_SHOW_SH_BREED_ID = 6551   # Сибирский Хаски
+
+
+# Таблица рейтинговых очков за титулы
+TITLE_POINTS = {
+    # Международные
+    'BIS':   20,
+    'BOB':   10,
+    'CACIB': 8,
+    'RCACIB': 5,
+    # Национальные
+    'CAC':   5,
+    'RCAC':  3,
+    'CW':    3,
+    'ЧФ':    5,   # Чемпион ФЦИ
+    'СС':    3,   # Сертификат соответствия
+    'БОП':   10,  # Лучший из породы (русск.)
+    # Юниорские
+    'JCAC':  4,
+    'R.JCAC': 2,
+    'ЮКЧК':  3,
+    'ЮЧРКФ': 5,
+    'ЮСС':   2,
+    'BOB JUNIOR': 8,
+    'ЛЮ':    5,   # Лучший юниор
+    # Ветеранские
+    'BOV':   8,   # Лучший ветеран
+    # Классные
+    'ОТЛ':   1,   # Отлично (без места)
+}
+
+SHOW_MULTIPLIERS = {
+    'pk': 2.0, 'kchk': 1.0, 'speciality': 0.5,
+    'sport': 1.0, 'world': 1.0, 'other': 0.0,
+}
+SHOW_TYPE_OTHER = 'other'
+BOB_TITLES = {'ЛПП', 'BOB', 'ВОВ'}
+
+# Список только релевантных тестов для сибирского хаски
+HUSKY_REGISTRIES = [
+    "HIPS",
+    "ELBOW",
+    "EYES",
+    "CERF",
+    "SIBERIAN HUSKY OPTH. REGISTRY",
+    "DEGENERATIVE MYELOPATHY",
+    "PROGRESSIVE RETINAL ATROPHY",
+    "PRA - CONE ROD DYSTROPHY 3",
+    "EARLY ONSET PRA",
+    "PRIMARY LENS LUXATION",
+    "JUVENILE LARYNGEAL PARALYSIS & POLYNEUROPATHY (LPP)",
+    "BASIC CARDIAC",
+    "ADVANCED CARDIAC",
+    "CONGENITAL CARDIAC",
+    "THYROID",
+    "PATELLA",
+    "CANINE HEALTH",
+    "SIBERIAN HUSKY POLYNEUROPATHY",
+    "SIBERIAN HUSKY SHAKING PUPPY SYNDROME",
+]

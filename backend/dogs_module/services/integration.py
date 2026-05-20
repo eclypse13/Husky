@@ -635,6 +635,7 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
         f"  {'✅ Создана' if created else '🔄 Обновлена'}: "
         f"{dog.registered_name} (uuid={uuid})"
     )
+    _schedule_photo_upload(dog)
     return dog
 
 
@@ -1050,12 +1051,13 @@ def _save_dog(dog_data: Dict) -> Dog:
             setattr(existing, k, v)
         existing.save(using='dogs_db')
         logger.info(f"  🔄 Обновлена: {existing.registered_name}")
+        _schedule_photo_upload(existing, photo_bytes=dog_data.get("photo_bytes"))
         return existing
 
     # ── Поиск 2: по zoo_hash — ДО создания ───────────────────────────────────
     # Ищем любую запись с тем же именем и полом — BA или Zoo с другим zoo_id
-    name     = update_fields.get('registered_name', '')
-    sex      = update_fields.get('sex', 0)
+    name = update_fields.get('registered_name', '')
+    sex = update_fields.get('sex', 0)
     zoo_hash = _compute_zoo_hash(name, sex)
 
     if zoo_hash:
@@ -1093,6 +1095,7 @@ def _save_dog(dog_data: Dict) -> Dog:
                     for k, v in merge.items():
                         setattr(hash_match, k, v)
                     logger.info(f"  🔄 Обновлена через zoo_hash: {hash_match.registered_name}")
+                    _schedule_photo_upload(hash_match, photo_bytes=dog_data.get("photo_bytes"))
                     return hash_match
 
         except Exception as e:
@@ -1102,6 +1105,7 @@ def _save_dog(dog_data: Dict) -> Dog:
     try:
         dog = Dog.objects.using('dogs_db').create(**update_fields)
         logger.info(f"  ✅ Создана: {dog.registered_name}")
+        _schedule_photo_upload(dog)
         return dog
     except Exception as e:
         # Последний шанс — гонка данных, кто-то создал пока мы проверяли
@@ -1110,6 +1114,7 @@ def _save_dog(dog_data: Dict) -> Dog:
             zooportal_id=zooportal_id
         ).first()
         if dog:
+            _schedule_photo_upload(dog, photo_bytes=dog_data.get("photo_bytes"))
             return dog
         raise
 
@@ -1624,3 +1629,46 @@ def collect_hybrid_page_data(
             time.sleep(delay)
 
     return results
+
+
+def _schedule_photo_upload(dog, photo_bytes: bytes = None) -> None:
+    """
+    Загружает фото собаки на Яндекс.Диск.
+
+    Если photo_bytes переданы (скачаны при парсинге Zoo через Playwright) —
+    загружаем сразу синхронно, без повторного запроса к источнику.
+
+    Если байт нет — ставим Celery-таску которая скачает сама
+    (для BA и других источников где нет защиты hotlink).
+    """
+    if not dog or not dog.photo_url:
+        return
+
+    # Если байты уже есть — загружаем на ЯД прямо сейчас
+    if photo_bytes:
+        try:
+            from ..services.photo_service import upload_photo_bytes_to_yadisk
+            from ..models import Dog
+            result = upload_photo_bytes_to_yadisk(dog.id, dog.photo_url, photo_bytes)
+            if result["status"] == "uploaded":
+                update = {"photo_yadisk_path": result["path"]}
+                if result.get("yadisk_url"):
+                    update["photo_yadisk_url"] = result["yadisk_url"]
+                Dog.objects.using("dogs_db").filter(pk=dog.id).update(**update)
+                logger.info(f"📷 Фото залито на ЯД синхронно dog_id={dog.id}")
+            else:
+                logger.warning(f"📷 Ошибка синхронной загрузки dog_id={dog.id}: {result}")
+        except Exception as e:
+            logger.warning(f"📷 Синхронная загрузка не удалась dog_id={dog.id}: {e}")
+        return
+
+    # Байт нет — ставим таску (BA и другие источники)
+    try:
+        from ..tasks.tasks_photos import photo_upload_one
+        photo_upload_one.apply_async(
+            kwargs={"dog_id": dog.id},
+            countdown=2,
+        )
+        logger.debug(f"📷 Запланирована загрузка фото dog_id={dog.id}")
+    except Exception as e:
+        logger.warning(f"📷 Не удалось запланировать фото dog_id={dog.id}: {e}")

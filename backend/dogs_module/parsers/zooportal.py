@@ -188,6 +188,36 @@ class BrowserManager:
 
         raise RuntimeError(f"Не удалось загрузить {url} после {retries} попыток")
 
+    def download_photo_bytes(self, photo_url: str) -> Optional[bytes]:
+        """
+        Скачивает фото Zoo через Playwright контекст (уже авторизован).
+        Вызывается сразу после fetch_page — контекст с куками открыт.
+        Возвращает bytes или None при ошибке.
+        """
+        if not photo_url:
+            return None
+        try:
+            response = self.context.request.get(
+                photo_url,
+                headers={
+                    "Referer": f"{ZOOPORTAL_BASE_URL}/pedigree/",
+                    "Accept":  "image/*,*/*;q=0.8",
+                },
+                timeout=30000,
+            )
+            if response.status != 200:
+                logger.warning(f"Zoo photo: HTTP {response.status} для {photo_url}")
+                return None
+            if "text/html" in response.headers.get("content-type", ""):
+                logger.warning(f"Zoo photo: вернул HTML для {photo_url}")
+                return None
+            body = response.body()
+            logger.info(f"Zoo photo: скачано {len(body)}b для {photo_url}")
+            return body
+        except Exception as e:
+            logger.warning(f"Zoo photo download error: {e}")
+            return None
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ПАРСЕР ZOOPORTAL
@@ -266,8 +296,18 @@ class ZooportalParser:
         data = self._parse_dog_html(html, dog_id)
         logger.info(f"💾 {data.get('registered_name')}")
 
+        # Скачиваем фото сразу — пока Playwright контекст авторизован.
+        # Zoo блокирует прямые запросы без сессии, через контекст работает.
+        if data and data.get('photo_url'):
+            photo_bytes = browser.download_photo_bytes(data['photo_url'])
+            if photo_bytes:
+                data['photo_bytes'] = photo_bytes
+                logger.info(f"📷 Фото скачано при парсинге ({len(photo_bytes)}b)")
+
         if data and data.get('registered_name'):
-            c.set(key, data, timeout=_TTL_DOG)
+            # Не кешируем photo_bytes — большие данные, не нужны при повторе
+            cache_data = {k: v for k, v in data.items() if k != 'photo_bytes'}
+            c.set(key, cache_data, timeout=_TTL_DOG)
             logger.debug(f"💾 Кеш SET zoo:dog:{dog_id}:{generations} "
                          f"({data['registered_name']}, TTL=6ч)")
 

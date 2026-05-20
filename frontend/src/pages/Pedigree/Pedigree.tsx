@@ -122,7 +122,7 @@ function convertNode(api: PedigreeNode): TreeNode {
   return {
     id: api.id,
     name: api.display_name || api.registered_name || "?",
-    img: api.photo_url ?? undefined,
+    img: api.dog_photo ?? api.photo_url ?? undefined,
     color: api.color ?? undefined,
     prefixTitles: (api as any).prefix_titles ?? undefined,
     suffixTitles: (api as any).suffix_titles ?? undefined,
@@ -164,9 +164,15 @@ function mkPhoto(g: G, defs: Defs, uid: string, src: string, x: number, y: numbe
   const cid = `cp-${uid}`;
   defs.append("clipPath").attr("id", cid).append("rect")
     .attr("x", x).attr("y", y).attr("width", s).attr("height", s).attr("rx", r);
-  g.append("image").attr("href", src).attr("x", x).attr("y", y)
+  g.append("image")
+    .attr("href", src)
+    .attr("x", x).attr("y", y)
     .attr("width", s).attr("height", s)
-    .attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", `url(#${cid})`);
+    .attr("preserveAspectRatio", "xMidYMid slice")
+    .attr("clip-path", `url(#${cid})`)
+    .on("error", function() {
+      d3.select(this).attr("href", DEFAULT_PHOTO);
+    });
   g.append("rect").attr("x", x).attr("y", y).attr("width", s).attr("height", s)
     .attr("rx", r).attr("fill", "none").attr("stroke", "#e5e7eb").attr("stroke-width", .6);
 }

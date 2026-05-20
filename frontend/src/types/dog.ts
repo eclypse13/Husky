@@ -1,10 +1,5 @@
 // src/types/dog.ts
-/**
- * Типы данных для модуля собак.
- * Соответствуют сериализаторам Django: DogListSerializer, DogDetailSerializer, PedigreeSerializer
- */
 
-// Ответ API /api/dogs/search/ и /api/dogs/
 export interface DogListItem {
   id: number;
   uuid: string;
@@ -12,19 +7,19 @@ export interface DogListItem {
   display_name: string;
   registered_name: string;
   call_name: string | null;
-  sex: number;           // 1 = кобель, 2 = сука
-  sex_display: string;   // "Кобель" / "Сука"
+  sex: number;
+  sex_display: string;
   year_of_birth: number | null;
   date_of_birth: string | null;
   color: string | null;
   photo_url: string | null;
+  dog_photo: string | null; // yandex disk photo
   land_of_birth: string | null;
   prefix_titles: string | null;
   suffix_titles: string | null;
-  breeder_names: string[];    // из breeder.name через dogbreederlink
+  breeder_names: string[];
 }
 
-// Пагинация
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -36,7 +31,6 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// Параметры поиска
 export interface DogSearchParams {
   q?: string;
   sex?: string;
@@ -50,7 +44,6 @@ export interface DogSearchParams {
   per_page?: number;
 }
 
-// Родитель (краткий)
 export interface DogParent {
   id: number;
   uuid: string;
@@ -61,9 +54,9 @@ export interface DogParent {
   year_of_birth: number | null;
   color: string | null;
   photo_url: string | null;
+  dog_photo: string | null;
 }
 
-// Титул
 export interface DogTitle {
   id: number;
   short_name: string;
@@ -73,7 +66,6 @@ export interface DogTitle {
   winner_year: number | null;
 }
 
-// Полная информация о собаке
 export interface DogDetail {
   id: number;
   uuid: string;
@@ -93,6 +85,7 @@ export interface DogDetail {
   coi: number | null;
   coi_updated_on: string | null;
   photo_url: string | null;
+  dog_photo: string | null;
   kennel: string | null;
   land_of_birth: string | null;
   registration_number: string | null;
@@ -106,7 +99,6 @@ export interface DogDetail {
   titles: DogTitle[];
 }
 
-// Рекурсивная родословная
 export interface PedigreeNode {
   id: number;
   uuid: string;
@@ -117,6 +109,7 @@ export interface PedigreeNode {
   year_of_birth: number | null;
   date_of_birth: string | null;
   photo_url: string | null;
+  dog_photo: string | null;
   color: string | null;
   land_of_birth: string | null;
   prefix_titles: string | null;
@@ -126,7 +119,6 @@ export interface PedigreeNode {
   sire: PedigreeNode | null;
 }
 
-// Статистика
 export interface DogStats {
   total: number;
   males: number;
@@ -136,14 +128,12 @@ export interface DogStats {
   total_owners: number;
 }
 
-// Результат расчёта COI (POST /api/dogs/{id}/calculate_coi/)
 export interface CoiCalculationResult {
-  coi:                    number;
-  coi_updated_on:         string;
-  generations:            number;
-  common_ancestors:       number;
-  total_ancestors_sire:   number;
-  total_ancestors_dam:    number;
-  // {ancestor_id: вклад_в_%}
+  coi: number;
+  coi_updated_on: string;
+  generations: number;
+  common_ancestors: number;
+  total_ancestors_sire: number;
+  total_ancestors_dam: number;
   ancestor_contributions: Record<string, number>;
 }

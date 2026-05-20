@@ -5,14 +5,11 @@ import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDogDetail } from "@/api/dogs";
 import type {CoiCalculationResult, DogDetail} from "@/types/dog";
 import "./DogDetail.css";
+import HealthModal from "@/components/HealthModal/HealthModal";
+import {DEFAULT_DOG_IMG, dogPhoto} from "@/utils/dogPhoto";
 
 const SEX_LABEL: Record<number, string> = { 1: "♂ Кобель", 2: "♀ Сука" };
-// const SEX_CLASS: Record<number, string> = { 1: "dd-sex--male", 2: "dd-sex--female" };
 
-const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
-const DEFAULT_DOG_IMG = "/no-image-dog.png";
-const dogPhoto = (url: string | null | undefined): string =>
-  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
 function formatDate(raw: string | null): string | null {
     if (!raw) return null;
@@ -35,8 +32,8 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 function ParentCard({ label, parent }: {
     label: string;
     parent: {
-        id: number; display_name: string; sex: number;
-        year_of_birth: number | null; color: string | null; photo_url: string | null;
+        id: number; registered_name: string; sex: number;
+        year_of_birth: number | null; color: string | null; photo_url: string | null; dog_photo: string | null;
     } | null;
 }) {
     return (
@@ -46,12 +43,13 @@ function ParentCard({ label, parent }: {
                 <Link to={`/archive/dog/${parent.id}`} className="dd-parent-link">
                     <div className="dd-parent-avatar">
                         <img
-                            src={dogPhoto(parent.photo_url)}
-                            alt={parent.display_name}
+                            src={dogPhoto(parent.dog_photo, parent.photo_url)}
+                            alt={parent.registered_name}
+                            onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
                         />
                     </div>
                     <div className="dd-parent-body">
-                        <span className="dd-parent-name">{parent.display_name}</span>
+                        <span className="dd-parent-name">{parent.registered_name}</span>
                     </div>
                     <span className="dd-parent-arrow">→</span>
                 </Link>
@@ -61,22 +59,6 @@ function ParentCard({ label, parent }: {
         </div>
     );
 }
-
-// function TitleBadges({ titles }: { titles: DogTitle[] }) {
-//     const prefix = titles.filter((t) => t.is_prefix);
-//     if (!prefix.length) return null;
-//     return (
-//         <div className="dd-title-badges">
-//             {prefix.map((t) => (
-//                 <span key={t.id} className="dd-title-badge" title={t.long_name ?? undefined}>
-//                     {t.short_name.toUpperCase()}
-//                     {t.country ? <em>.{t.country.toUpperCase()}</em> : null}
-//                     {t.winner_year ? <em className="dd-title-year"> '{String(t.winner_year).slice(-2)}</em> : null}
-//                 </span>
-//             ))}
-//         </div>
-//     );
-// }
 
 function Skeleton() {
     return (
@@ -96,6 +78,7 @@ export default function DogDetail() {
     const [dog, setDog] = useState<DogDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [healthOpen, setHealthOpen] = useState(false);
 
     // ── COI ───────────────────────────────────────────────────────────────────
     const [coiLoading, setCoiLoading]   = useState(false);
@@ -167,7 +150,7 @@ export default function DogDetail() {
                 items={[
                     { label: "Главная", to: "/" },
                     { label: "Архив", to: "/archive" },
-                    { label: dog?.display_name ?? "…" },
+                    { label: dog?.registered_name ?? "…" },
                 ]}
             />
 
@@ -190,18 +173,15 @@ export default function DogDetail() {
 
                             <div className="dd-photo-wrap">
                                 <img
-                                    src={dogPhoto(dog.photo_url)}
+                                    src={dogPhoto(dog.dog_photo, dog.photo_url)}
                                     alt={dog.display_name}
                                     className="dd-photo"
+                                    onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
                                 />
                             </div>
 
                             <div className="dd-header-info">
-                                {/*{dog.titles.length > 0 && <TitleBadges titles={dog.titles} />}*/}
-                                <h1 className="dd-name">{dog.display_name}</h1>
-                                {dog.call_name && dog.call_name !== dog.display_name && (
-                                    <p className="dd-callname">«{dog.call_name}»</p>
-                                )}
+                                <h1 className="dd-name">{dog.registered_name}</h1>
                                 {dog.kennel && <p className="dd-kennel">🏠 {dog.kennel}</p>}
 
                                 <div className="dd-actions">
@@ -350,13 +330,25 @@ export default function DogDetail() {
                         {/* ══ НАВИГАЦИЯ ═══════════════════════════════════════ */}
                         <div className="dd-nav">
                             <Link to="/archive" className="dd-btn">← Назад в архив</Link>
-                            <Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">
-                                Родословная
-                            </Link>
+                            <div style={{ display: "flex", gap: ".6rem" }}>
+                                <button className="dd-btn" onClick={() => setHealthOpen(true)}>
+                                    🩺 Здоровье
+                                </button>
+                                <Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">
+                                    Родословная
+                                </Link>
+                            </div>
                         </div>
                     </>
                 )}
             </div>
+            {healthOpen && dog && (
+            <HealthModal
+                dogId={dog.id}
+                dogName={dog.registered_name}
+                onClose={() => setHealthOpen(false)}
+            />
+        )}
         </div>
     );
 }
