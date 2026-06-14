@@ -67,13 +67,19 @@ export default function Stats() {
   const pageRef = useRef<HTMLDivElement>(null);
   const [data,    setData]    = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
     fetch(API_URL)
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.error ?? `HTTP ${r.status}`);
+        }
+        return r.json();
+      })
       .then(setData)
-      .catch(() => setError(true))
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -95,9 +101,9 @@ export default function Stats() {
   }, [data]);
 
   const ov         = data?.overview;
-  const maxYear    = data ? Math.max(...data.by_year.map(y => y.count))    : 0;
-  const maxCountry = data ? Math.max(...data.by_country.map(c => c.count)) : 0;
-  const maxCoi     = data ? Math.max(...data.coi_stats.buckets.map(b => b.count)) : 0;
+  const maxYear    = data?.by_year?.length    ? Math.max(...data.by_year.map(y => y.count))    : 0;
+  const maxCountry = data?.by_country?.length ? Math.max(...data.by_country.map(c => c.count)) : 0;
+  const maxCoi     = data?.coi_stats?.buckets?.length ? Math.max(...data.coi_stats.buckets.map(b => b.count)) : 0;
 
   return (
     <div ref={pageRef} className="st-page">
@@ -118,7 +124,7 @@ export default function Stats() {
 
           {error && (
             <div className="st-error">
-              Не удалось загрузить статистику. Попробуйте позже.
+              <strong>Не удалось загрузить статистику:</strong> {error}
             </div>
           )}
 

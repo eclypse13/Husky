@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDogDetail } from "@/api/dogs";
-import type {CoiCalculationResult, DogDetail} from "@/types/dog";
+import type { CoiCalculationResult, DogDetail } from "@/types/dog";
 import "./DogDetail.css";
 import HealthModal from "@/components/HealthModal/HealthModal";
-import {DEFAULT_DOG_IMG, dogPhoto} from "@/utils/dogPhoto";
+import { PLACEHOLDER_URLS } from "@/utils/dogPhoto";
+import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
 
 const SEX_LABEL: Record<number, string> = { 1: "♂ Кобель", 2: "♀ Сука" };
-
 
 function formatDate(raw: string | null): string | null {
     if (!raw) return null;
@@ -41,13 +41,12 @@ function ParentCard({ label, parent }: {
             <span className="dd-parent-label">{label}</span>
             {parent ? (
                 <Link to={`/archive/dog/${parent.id}`} className="dd-parent-link">
-                    <div className="dd-parent-avatar">
-                        <img
-                            src={dogPhoto(parent.dog_photo, parent.photo_url)}
-                            alt={parent.registered_name}
-                            onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
-                        />
-                    </div>
+                    <DogAvatar
+                        dog_photo={parent.dog_photo}
+                        photo_url={parent.photo_url}
+                        alt={parent.registered_name}
+                        wrapClassName="dd-parent-avatar"
+                    />
                     <div className="dd-parent-body">
                         <span className="dd-parent-name">{parent.registered_name}</span>
                     </div>
@@ -80,10 +79,13 @@ export default function DogDetail() {
     const [error, setError] = useState<string | null>(null);
     const [healthOpen, setHealthOpen] = useState(false);
 
+    // ── Lightbox ──────────────────────────────────────────────────────────────
+    const [photoOpen, setPhotoOpen] = useState(false);
+
     // ── COI ───────────────────────────────────────────────────────────────────
-    const [coiLoading, setCoiLoading]   = useState(false);
-    const [coiResult,  setCoiResult]    = useState<CoiCalculationResult | null>(null);
-    const [coiError,   setCoiError]     = useState<string | null>(null);
+    const [coiLoading, setCoiLoading] = useState(false);
+    const [coiResult, setCoiResult]   = useState<CoiCalculationResult | null>(null);
+    const [coiError, setCoiError]     = useState<string | null>(null);
 
     const handleCalculateCoi = async () => {
         if (!dog) return;
@@ -91,7 +93,6 @@ export default function DogDetail() {
         setCoiError(null);
         setCoiResult(null);
         try {
-            // CSRF token from cookie (Django)
             const csrfToken = document.cookie
                 .split("; ")
                 .find((r) => r.startsWith("csrftoken="))
@@ -107,7 +108,6 @@ export default function DogDetail() {
                 body: JSON.stringify({ generations: 10 }),
             });
 
-            // Handle non-JSON responses (e.g. 403 HTML page)
             const contentType = res.headers.get("content-type") ?? "";
             if (!contentType.includes("application/json")) {
                 setCoiError(`Сервер вернул ${res.status} (${res.statusText})`);
@@ -141,7 +141,18 @@ export default function DogDetail() {
             .finally(() => setLoading(false));
     }, [id]);
 
+    // Закрытие lightbox по Escape
+    useEffect(() => {
+        if (!photoOpen) return;
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setPhotoOpen(false);
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [photoOpen]);
+
     const suffixTitles = dog?.titles.filter((t) => !t.is_prefix) ?? [];
+    const isClickable  = !!dog?.photo_url && !PLACEHOLDER_URLS.includes(dog.photo_url);
 
     return (
         <div className="dd-page">
@@ -167,21 +178,45 @@ export default function DogDetail() {
 
                 {!loading && !error && dog && (
                     <>
+                        {/* ══ LIGHTBOX ════════════════════════════════════════ */}
+                        {photoOpen && (
+                            <div className="dd-lightbox" onClick={() => setPhotoOpen(false)}>
+                                <button
+                                    className="dd-lightbox-close"
+                                    onClick={() => setPhotoOpen(false)}
+                                    aria-label="Закрыть"
+                                >
+                                    ✕
+                                </button>
+                                <DogAvatar
+                                    dog_photo={dog.dog_photo}
+                                    photo_url={dog.photo_url}
+                                    alt={dog.registered_name}
+                                    className="dd-lightbox-img"
+                                    loading="eager"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </div>
+                        )}
+
                         {/* ══ ШАПКА ══════════════════════════════════════════ */}
                         <div className="dd-header">
-                            <div className="dd-header-bar" />
-
                             <div className="dd-photo-wrap">
-                                <img
-                                    src={dogPhoto(dog.dog_photo, dog.photo_url)}
-                                    alt={dog.display_name}
-                                    className="dd-photo"
-                                    onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
+                                <DogAvatar
+                                    dog_photo={dog.dog_photo}
+                                    photo_url={dog.photo_url}
+                                    alt={dog.registered_name}
+                                    className={`dd-photo${isClickable ? " dd-photo--clickable" : ""}`}
+                                    loading="eager"
+                                    onClick={isClickable ? () => setPhotoOpen(true) : undefined}
                                 />
                             </div>
 
                             <div className="dd-header-info">
                                 <h1 className="dd-name">{dog.registered_name}</h1>
+                                {dog.call_name && dog.call_name !== dog.registered_name && (
+                                    <p className="dd-callname">«{dog.call_name}»</p>
+                                )}
                                 {dog.kennel && <p className="dd-kennel">🏠 {dog.kennel}</p>}
 
                                 <div className="dd-actions">
@@ -206,14 +241,14 @@ export default function DogDetail() {
                             <section className="dd-card">
                                 <h2 className="dd-card-title"><span className="dd-card-icon">📄</span>Основные данные</h2>
                                 <div className="dd-rows">
-                                    <Row label="Кличка" value={dog.call_name || dog.display_name} />
+                                    <Row label="Кличка" value={dog.call_name || dog.registered_name} />
                                     <Row label="Пол" value={SEX_LABEL[dog.sex]} />
                                     <Row label="Дата рождения" value={formatDate(dog.date_of_birth)} />
                                     <Row label="Страна рождения" value={dog.land_of_birth} />
                                     <Row label="Окрас" value={dog.color} />
                                     <Row
-                                      label="Размер / Вес"
-                                      value={dog.size && dog.weight ? `${dog.size} см / ${dog.weight} кг` : null}
+                                        label="Размер / Вес"
+                                        value={dog.size && dog.weight ? `${dog.size} см / ${dog.weight} кг` : null}
                                     />
                                     <div className="dd-row">
                                         <span className="dd-row-label">COI</span>
@@ -244,11 +279,8 @@ export default function DogDetail() {
                                             )}
                                         </span>
                                     </div>
-
-
                                 </div>
                             </section>
-
 
                             <section className="dd-card">
                                 <h2 className="dd-card-title"><span className="dd-card-icon">🐾</span>Родители</h2>
@@ -342,14 +374,14 @@ export default function DogDetail() {
                     </>
                 )}
             </div>
+
             {healthOpen && dog && (
-            <HealthModal
-                dogId={dog.id}
-                dogName={dog.registered_name}
-                onClose={() => setHealthOpen(false)}
-            />
-        )}
+                <HealthModal
+                    dogId={dog.id}
+                    dogName={dog.registered_name}
+                    onClose={() => setHealthOpen(false)}
+                />
+            )}
         </div>
     );
 }
-

@@ -15,14 +15,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third party
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
     # For tokens
     'rest_framework.authtoken',
-    
+
     # Local
     'core',
 
@@ -70,6 +70,7 @@ MONGODB_NAME = config('MONGODB_NAME', default='nkp_husky')
 import mongoengine
 import time
 
+
 def connect_to_mongodb(retries=5, delay=2):
     """Подключение к MongoDB с повторными попытками"""
     for attempt in range(retries):
@@ -96,6 +97,7 @@ def connect_to_mongodb(retries=5, delay=2):
                     return False
                 else:
                     sys.exit(1)
+
 
 # Подключаемся к MongoDB при загрузке settings
 connect_to_mongodb()
@@ -156,6 +158,66 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': 7200,  # 12 часов
+}
+CELERY_TASK_ACKS_LATE = True
+
+CELERY_TASK_ROUTES = {
+
+    # ── playwright: задачи которые физически открывают браузер ───────────────
+    # Только эти задачи идут в worker с concurrency=1
+    'dogs_module.import_zooportal_dog': {'queue': 'playwright'},
+    'dogs_module.import_zooportal_page': {'queue': 'playwright'},
+    'dogs_module.import_hybrid_full_dog': {'queue': 'playwright'},
+    'dogs_module.import_hybrid_full_page': {'queue': 'playwright'},
+    'dogs_module.import_show_list': {'queue': 'playwright'},
+    'dogs_module.import_show_results': {'queue': 'playwright'},
+    'dogs_module.photo_fetch_zoo_via_playwright': {'queue': 'playwright'},
+    'dogs_module.refresh_cookies': {'queue': 'playwright'},
+
+    # ── celery: диспетчеры (только раздают задачи, Playwright не открывают) ──
+    'dogs_module.import_zooportal_range': {'queue': 'celery'},
+    'dogs_module.import_hybrid_full_range': {'queue': 'celery'},
+    'dogs_module.import_shows_full': {'queue': 'celery'},
+    'dogs_module.import_show_date_range': {'queue': 'celery'},
+    'dogs_module.import_results_for_date_range': {'queue': 'celery'},
+    'dogs_module.photo_fetch_zoo_bulk': {'queue': 'celery'},
+    'dogs_module.photo_upload_bulk': {'queue': 'celery'},
+    'dogs_module.process_pending_results': {'queue': 'celery'},
+    'dogs_module.process_all_pending_results': {'queue': 'celery'},
+    'dogs_module.recalculate_show_ratings': {'queue': 'celery'},
+    'dogs_module.finalize_shows': {'queue': 'celery'},
+
+    # ── ofa: HTTP к ofa.org ───────────────────────────────────────────────────
+    'dogs_module.fetch_ofa_dog_task': {'queue': 'ofa'},
+    'dogs_module.fetch_ofa_bulk_by_reg_task': {'queue': 'ofa'},
+    'dogs_module.fetch_ofa_bulk_by_name_task': {'queue': 'ofa'},
+    'dogs_module.refresh_ofa_sh_breed_stats': {'queue': 'ofa'},
+
+    # ── ba: HTTP к breedarchive.com ───────────────────────────────────────────
+    'dogs_module.fetch_breedarchive_dog': {'queue': 'ba'},
+    'dogs_module.fetch_full_pedigree': {'queue': 'ba'},
+    'dogs_module.sync_breedarchive_recent': {'queue': 'ba'},
+    # browse через Playwright но без проблем (антибота) работает
+    'dogs_module.sync_breedarchive_browse': {'queue': 'ba'},
+
+    # ── coi: CPU-интенсивный расчёт ───────────────────────────────────────────
+    'dogs_module.recalculate_all_coi': {'queue': 'coi'},
+
+    # ── photos: HTTP к Яндекс.Диску + DB ─────────────────────────────────────
+    'dogs_module.photo_upload_one': {'queue': 'photos'},
+    'dogs_module.photo_sync_yadisk_to_db': {'queue': 'photos'},
+    'dogs_module.photo_stats': {'queue': 'photos'},
+    'dogs_module.photo_delete_one': {'queue': 'photos'},
+    'dogs_module.photo_backfill_hashes': {'queue': 'photos'},
+    'dogs_module.photo_cleanup_placeholders': {'queue': 'photos'},
+
+    # ── ml: HTTP к ML-сервису ─────────────────────────────────────────────────
+    'dogs_module.train_ml_model_task': {'queue': 'celery'},
+    'dogs_module.predict_breeding_task': {'queue': 'celery'},
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

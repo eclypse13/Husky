@@ -4,7 +4,6 @@ version: '3.9'
 services:
   web:
     build: .
-#    command: gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3
     command: >
       sh -c "python manage.py migrate &&
              python manage.py migrate --database=dogs_db &&
@@ -23,7 +22,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-#        postgres
       postgres:
         condition: service_healthy
       ml_service:
@@ -56,7 +54,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# НОВЫЙ СЕРВИС: PostgreSQL для модуля собак
   postgres:
     image: postgres:15-alpine
     volumes:
@@ -99,7 +96,15 @@ services:
   celery:
     build: .
 #    command: celery -A nkp_project worker -l info
-    command: celery -A nkp_project worker -l info --pool=prefork --concurrency=4
+#    command: celery -A nkp_project worker -l info --pool=prefork --concurrency=4
+    command: >
+      celery -A nkp_project worker
+      --queues=celery,ofa,ba,coi
+      --concurrency=3
+      --hostname=celery@%h
+      --max-tasks-per-child=40
+      --max-memory-per-child=600000
+      -l info
     volumes:
       - .:/app
     env_file:
@@ -119,6 +124,66 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Playwright-воркер: строго 1 браузер в любой момент
+  # Zooportal блокирует если видит несколько параллельных запросов с одного IP
+  celery-playwright:
+    build: .
+    command: >
+      celery -A nkp_project worker
+      --queues=playwright
+      --concurrency=1
+      --hostname=playwright@%h
+      --max-tasks-per-child=10
+      --max-memory-per-child=1800000
+      -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  celery-photos:
+      build: .
+      command: >
+        celery -A nkp_project worker
+        --queues=photos
+        --concurrency=1
+        --hostname=celery-photos@%h
+        --max-tasks-per-child=20
+        --max-memory-per-child=600000
+        -l info
+      volumes:
+        - .:/app
+      env_file:
+        - .env
+      depends_on:
+        mongodb:
+          condition: service_healthy
+        redis:
+          condition: service_started
+        postgres:
+          condition: service_healthy
+      restart: unless-stopped
+      logging:
+        driver: "json-file"
+        options:
+          max-size: "10m"
+          max-file: "3"
+
 
   celery_beat:
     build: .

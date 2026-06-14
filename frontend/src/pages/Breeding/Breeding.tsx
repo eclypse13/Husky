@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import "./Breeding.css";
 import type { DogListItem } from "@/types/dog";
-import {dogPhoto, DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
+import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -102,13 +102,13 @@ function DogSelector({ sex, selected, onSelect, onClear }: SelectorProps) {
 
             {selected ? (
                 <div className="breeding-selected">
-                   <div className="breeding-selected-photo">
-                        <img
-                            src={dogPhoto(selected.dog_photo, selected.photo_url)}
-                            alt={selected.display_name}
-                            onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
-                        />
-                   </div>
+                    <DogAvatar
+                       dog_photo={selected.dog_photo}
+                       photo_url={selected.photo_url}
+                       alt={selected.registered_name}
+                       className="breeding-selected-photo"
+                       loading="eager"
+                    />
                     <div className="breeding-selected-info">
                         <Link to={`/archive/dog/${selected.id}`} className="breeding-selected-name">
                             {selected.display_name} ↗
@@ -139,13 +139,12 @@ function DogSelector({ sex, selected, onSelect, onClear }: SelectorProps) {
                             {!isFetching && !data?.results?.length && <div className="breeding-dropdown-empty">Ничего не найдено</div>}
                             {!isFetching && data?.results?.map(dog => (
                                 <div key={dog.id} className="breeding-dropdown-item" onMouseDown={() => pick(dog)}>
-                                    <div className="breeding-dropdown-avatar">
-                                        <img
-                                            src={dogPhoto(dog.dog_photo, dog.photo_url)}
-                                            alt={dog.display_name}
-                                            onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
-                                        />
-                                    </div>
+                                    <DogAvatar
+                                        dog_photo={dog.dog_photo}
+                                        photo_url={dog.photo_url}
+                                        alt={dog.registered_name}
+                                        wrapClassName="breeding-dropdown-avatar"
+                                    />
                                     <div>
                                         <div className="breeding-dropdown-name">{dog.display_name}</div>
                                         <div className="breeding-dropdown-meta">{formatMeta(dog)}</div>

@@ -19,7 +19,7 @@
     transform: translateY(0);
 }
 
-.health-col>* {
+.health-col > * {
     min-width: 0;
 }
 
@@ -170,6 +170,7 @@
     gap: .6rem;
     color: var(--text-dark);
 }
+
 /* Добавить в конец Health.css */
 
 .health-results-head {
@@ -220,8 +221,13 @@
     color: var(--text-dark);
 }
 
-.health-table tr:last-child td { border-bottom: none; }
-.health-table tr:hover td { background: var(--arctic-gray); }
+.health-table tr:last-child td {
+    border-bottom: none;
+}
+
+.health-table tr:hover td {
+    background: var(--arctic-gray);
+}
 
 .health-table-link {
     color: var(--bright-blue);
@@ -229,7 +235,9 @@
     font-weight: 600;
 }
 
-.health-table-link:hover { text-decoration: underline; }
+.health-table-link:hover {
+    text-decoration: underline;
+}
 
 .health-table-muted {
     color: var(--text-light);
@@ -253,6 +261,7 @@
     opacity: .4;
     cursor: not-allowed;
 }
+
 @media (max-width: 1024px) {
     .health-search-form {
         grid-template-columns: 1fr;

@@ -16,6 +16,43 @@ def _best_dog_photo_url(dog) -> Optional[str]:
     return dog.photo_yadisk_url or dog.photo_url or None
 
 
+# ── Общие миксины валидации ───────────────────────────────────────────────────
+
+class IdRangeValidatorMixin:
+    """Проверяет что id_to >= id_from (если оба заданы)."""
+
+    def validate(self, data):
+        id_from = data.get('id_from', 1)
+        id_to = data.get('id_to')
+        if id_to is not None and id_to < id_from:
+            raise serializers.ValidationError("id_to должен быть ≥ id_from.")
+        return data
+
+
+class DateRangeValidatorMixin:
+    """Проверяет формат DD.MM.YYYY и что date_to >= date_from."""
+
+    def validate(self, data):
+        from datetime import datetime
+        fmt = '%d.%m.%Y'
+        try:
+            dt_from = datetime.strptime(data['date_from'], fmt)
+        except (ValueError, KeyError):
+            raise serializers.ValidationError(
+                {'date_from': 'Формат DD.MM.YYYY, например 01.01.2026'}
+            )
+        if data.get('date_to'):
+            try:
+                dt_to = datetime.strptime(data['date_to'], fmt)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {'date_to': 'Формат DD.MM.YYYY, например 31.01.2026'}
+                )
+            if dt_to < dt_from:
+                raise serializers.ValidationError('date_to должна быть >= date_from')
+        return data
+
+
 class BreederSerializer(serializers.ModelSerializer):
     class Meta:
         model = Breeder
@@ -53,6 +90,7 @@ class DogParentSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
     sex_display = serializers.SerializerMethodField()
     dog_photo = serializers.SerializerMethodField()
+
     class Meta:
         model = Dog
         fields = [
@@ -64,7 +102,9 @@ class DogParentSerializer(serializers.ModelSerializer):
         ]
 
     def get_display_name(self, obj): return obj.display_name
+
     def get_sex_display(self, obj):  return obj.sex_display
+
     def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
 
 
@@ -90,8 +130,11 @@ class DogListSerializer(serializers.ModelSerializer):
         ]
 
     def get_display_name(self, obj): return obj.display_name
+
     def get_sex_display(self, obj): return obj.sex_display
+
     def get_breeder_names(self, obj): return [b.name for b in obj.breeders.all()]
+
     def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
 
 
@@ -133,8 +176,11 @@ class DogDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_display_name(self, obj): return obj.display_name
+
     def get_sex_display(self, obj): return obj.sex_display
+
     def get_is_alive(self, obj): return obj.is_alive
+
     def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
 
 
@@ -154,11 +200,14 @@ class PedigreeSerializer(serializers.ModelSerializer):
             # photo_url для обратной совместимости
         ]
 
-    def get_display_name(self, obj): return obj.display_name
-    def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
+    def get_display_name(self, obj):
+        return obj.display_name
+
+    def get_dog_photo(self, obj):
+        return _best_dog_photo_url(obj)
 
     def get_dam(self, obj):
-        depth   = self.context.get('depth', 3)
+        depth = self.context.get('depth', 3)
         current = self.context.get('current_depth', 0)
         if obj.dam and current < depth:
             return PedigreeSerializer(
@@ -167,7 +216,7 @@ class PedigreeSerializer(serializers.ModelSerializer):
         return None
 
     def get_sire(self, obj):
-        depth   = self.context.get('depth', 3)
+        depth = self.context.get('depth', 3)
         current = self.context.get('current_depth', 0)
         if obj.sire and current < depth:
             return PedigreeSerializer(
@@ -180,7 +229,7 @@ class PedigreeSerializer(serializers.ModelSerializer):
 
 class ShowEventSerializer(serializers.ModelSerializer):
     class Meta:
-        model  = ShowEvent
+        model = ShowEvent
         fields = [
             'id', 'zooportal_show_id', 'title', 'event_date', 'date_end',
             'show_type', 'multiplier',
@@ -190,13 +239,13 @@ class ShowEventSerializer(serializers.ModelSerializer):
 
 
 class ShowResultSerializer(serializers.ModelSerializer):
-    event_title = serializers.CharField(source='event.title',              read_only=True)
-    event_date = serializers.DateField(source='event.event_date',         read_only=True)
-    event_id = serializers.CharField(source='event.zooportal_show_id',  read_only=True)
-    show_type = serializers.CharField(source='event.show_type',          read_only=True)
+    event_title = serializers.CharField(source='event.title', read_only=True)
+    event_date = serializers.DateField(source='event.event_date', read_only=True)
+    event_id = serializers.CharField(source='event.zooportal_show_id', read_only=True)
+    show_type = serializers.CharField(source='event.show_type', read_only=True)
 
     class Meta:
-        model  = ShowResult
+        model = ShowResult
         fields = [
             'id',
             'event_id',
@@ -226,17 +275,17 @@ class ImportZooportalDogSerializer(serializers.Serializer):
 class ImportZooportalPageSerializer(serializers.Serializer):
     page_num = serializers.IntegerField(required=True, min_value=1)
     max_dogs = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
-    delay    = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
+    delay = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
 
     class Meta:
         ref_name = 'ImportZooportalPage'
 
 
 class ImportZooportalRangeSerializer(serializers.Serializer):
-    start_page        = serializers.IntegerField(required=True, min_value=1)
-    end_page          = serializers.IntegerField(required=True, min_value=1)
+    start_page = serializers.IntegerField(required=True, min_value=1)
+    end_page = serializers.IntegerField(required=True, min_value=1)
     max_dogs_per_page = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
-    delay             = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
+    delay = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
 
     def validate(self, data):
         if data['start_page'] > data['end_page']:
@@ -248,9 +297,9 @@ class ImportZooportalRangeSerializer(serializers.Serializer):
 
 
 class TaskResponseSerializer(serializers.Serializer):
-    task_id          = serializers.CharField()
-    status           = serializers.CharField()
-    message          = serializers.CharField()
+    task_id = serializers.CharField()
+    status = serializers.CharField()
+    message = serializers.CharField()
     check_status_url = serializers.CharField()
 
     class Meta:
@@ -258,12 +307,12 @@ class TaskResponseSerializer(serializers.Serializer):
 
 
 class TaskStatusResponseSerializer(serializers.Serializer):
-    task_id  = serializers.CharField()
-    status   = serializers.CharField()
-    message  = serializers.CharField(required=False)
+    task_id = serializers.CharField()
+    status = serializers.CharField()
+    message = serializers.CharField(required=False)
     progress = serializers.DictField(required=False)
-    result   = serializers.DictField(required=False)
-    error    = serializers.CharField(required=False)
+    result = serializers.DictField(required=False)
+    error = serializers.CharField(required=False)
 
     class Meta:
         ref_name = 'TaskStatusResponse'
@@ -272,13 +321,13 @@ class TaskStatusResponseSerializer(serializers.Serializer):
 # ── ИМПОРТ — BREEDARCHIVE ────────────────────────────────────────────────────
 
 class ImportBreedarchiveDogSerializer(serializers.Serializer):
-    uuid         = serializers.CharField()
+    uuid = serializers.CharField()
     force_update = serializers.BooleanField(default=False, required=False)
 
 
 class ImportBreedarchiveRecentSerializer(serializers.Serializer):
-    pages_count  = serializers.IntegerField(default=1, min_value=1, max_value=10)
-    start_page   = serializers.IntegerField(default=0, min_value=0, max_value=9)
+    pages_count = serializers.IntegerField(default=1, min_value=1, max_value=10)
+    start_page = serializers.IntegerField(default=0, min_value=0, max_value=9)
     is_full_sync = serializers.BooleanField(default=False)
 
 
@@ -287,7 +336,7 @@ class ImportBreedarchiveBrowseSerializer(serializers.Serializer):
 
 
 class ImportBreedarchiveFullPedigreeSerializer(serializers.Serializer):
-    uuid         = serializers.CharField()
+    uuid = serializers.CharField()
     force_update = serializers.BooleanField(default=False, required=False)
 
 
@@ -295,16 +344,16 @@ class ImportBreedarchiveFullPedigreeSerializer(serializers.Serializer):
 
 class ImportHybridDogSerializer(serializers.Serializer):
     zooportal_id = serializers.CharField(required=True, max_length=20)
-    generations  = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
+    generations = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
 
     class Meta:
         ref_name = 'ImportHybridDog'
 
 
 class ImportHybridPageSerializer(serializers.Serializer):
-    page_num    = serializers.IntegerField(required=True, min_value=1)
-    max_dogs    = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
-    delay       = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
+    page_num = serializers.IntegerField(required=True, min_value=1)
+    max_dogs = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
+    delay = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
     generations = serializers.IntegerField(required=False, default=3, min_value=1, max_value=5)
 
     class Meta:
@@ -312,11 +361,11 @@ class ImportHybridPageSerializer(serializers.Serializer):
 
 
 class ImportHybridRangeSerializer(serializers.Serializer):
-    start_page              = serializers.IntegerField(required=True, min_value=1)
-    end_page                = serializers.IntegerField(required=True, min_value=1)
-    max_dogs_per_page       = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
-    delay                   = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
-    generations             = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
+    start_page = serializers.IntegerField(required=True, min_value=1)
+    end_page = serializers.IntegerField(required=True, min_value=1)
+    max_dogs_per_page = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
+    delay = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
+    generations = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
     countdown_between_pages = serializers.IntegerField(required=False, default=5, min_value=1, max_value=600)
 
     def validate(self, data):
@@ -330,7 +379,7 @@ class ImportHybridRangeSerializer(serializers.Serializer):
 
 class ImportHybridFullDogSerializer(serializers.Serializer):
     zooportal_id = serializers.CharField(required=True, max_length=20)
-    generations  = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
+    generations = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
     force_update = serializers.BooleanField(required=False, default=False)
 
     class Meta:
@@ -338,21 +387,21 @@ class ImportHybridFullDogSerializer(serializers.Serializer):
 
 
 class ImportHybridFullPageSerializer(serializers.Serializer):
-    page_num    = serializers.IntegerField(required=True, min_value=1)
-    max_dogs    = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
+    page_num = serializers.IntegerField(required=True, min_value=1)
+    max_dogs = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
     generations = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
-    delay       = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
+    delay = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
 
     class Meta:
         ref_name = 'ImportHybridFullPage'
 
 
 class ImportHybridFullRangeSerializer(serializers.Serializer):
-    start_page              = serializers.IntegerField(required=True, min_value=1)
-    end_page                = serializers.IntegerField(required=True, min_value=1)
-    max_dogs_per_page       = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
-    generations             = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
-    delay                   = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
+    start_page = serializers.IntegerField(required=True, min_value=1)
+    end_page = serializers.IntegerField(required=True, min_value=1)
+    max_dogs_per_page = serializers.IntegerField(required=False, default=11, min_value=1, max_value=11)
+    generations = serializers.IntegerField(required=False, default=5, min_value=1, max_value=5)
+    delay = serializers.FloatField(required=False, default=2.0, min_value=0.5, max_value=10.0)
     countdown_between_pages = serializers.IntegerField(required=False, default=20, min_value=1, max_value=600)
 
     def validate(self, data):
@@ -367,10 +416,10 @@ class ImportHybridFullRangeSerializer(serializers.Serializer):
 # ── ИМПОРТ — OFA ─────────────────────────────────────────────────────────────
 
 class ImportOFADogSerializer(serializers.Serializer):
-    dog_id              = serializers.IntegerField(required=False, allow_null=True)
-    registered_name     = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    dog_id = serializers.IntegerField(required=False, allow_null=True)
+    registered_name = serializers.CharField(required=False, allow_blank=True, max_length=500)
     registration_number = serializers.CharField(required=False, allow_blank=True, max_length=255)
-    ofa_number          = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    ofa_number = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
     def validate(self, data):
         has_search = any([
@@ -386,34 +435,21 @@ class ImportOFADogSerializer(serializers.Serializer):
         return data
 
 
-class ImportOFABulkByRegSerializer(serializers.Serializer):
-    id_from         = serializers.IntegerField(required=False, default=1, min_value=1)
-    id_to           = serializers.IntegerField(required=False, allow_null=True, default=None)
-    limit           = serializers.IntegerField(required=False, default=100, min_value=1)
-    delay           = serializers.FloatField(required=False, default=1.5, min_value=0.5)
+class _OFABulkBase(IdRangeValidatorMixin, serializers.Serializer):
+    """Общие поля для bulk OFA-импорта."""
+    id_from = serializers.IntegerField(required=False, default=1, min_value=1)
+    id_to = serializers.IntegerField(required=False, allow_null=True, default=None)
+    limit = serializers.IntegerField(required=False, default=100, min_value=1)
+    delay = serializers.FloatField(required=False, default=1.5, min_value=0.5)
     only_without_ofa = serializers.BooleanField(required=False, default=True)
 
-    def validate(self, data):
-        id_from = data.get('id_from', 1)
-        id_to   = data.get('id_to')
-        if id_to is not None and id_to < id_from:
-            raise serializers.ValidationError("id_to должен быть ≥ id_from.")
-        return data
+
+class ImportOFABulkByRegSerializer(_OFABulkBase):
+    pass
 
 
-class ImportOFABulkByNameSerializer(serializers.Serializer):
-    id_from         = serializers.IntegerField(required=False, default=1, min_value=1)
-    id_to           = serializers.IntegerField(required=False, allow_null=True, default=None)
-    limit           = serializers.IntegerField(required=False, default=100, min_value=1)
-    delay           = serializers.FloatField(required=False, default=1.5, min_value=0.5)
-    only_without_ofa = serializers.BooleanField(required=False, default=True)
-
-    def validate(self, data):
-        id_from = data.get('id_from', 1)
-        id_to   = data.get('id_to')
-        if id_to is not None and id_to < id_from:
-            raise serializers.ValidationError("id_to должен быть ≥ id_from.")
-        return data
+class ImportOFABulkByNameSerializer(_OFABulkBase):
+    pass
 
 
 # ── ИМПОРТ — ВЫСТАВКИ ────────────────────────────────────────────────────────
@@ -423,21 +459,21 @@ class ImportShowListSerializer(serializers.Serializer):
 
 
 class ImportShowResultsSerializer(serializers.Serializer):
-    show_id             = serializers.CharField(help_text='Zooportal ID мероприятия')
+    show_id = serializers.CharField(help_text='Zooportal ID мероприятия')
     import_missing_dogs = serializers.BooleanField(default=True)
 
 
 class ImportShowDateRangeSerializer(serializers.Serializer):
-    date_from          = serializers.CharField(help_text='DD.MM.YYYY')
-    date_to            = serializers.CharField(help_text='DD.MM.YYYY')
-    countdown_between  = serializers.IntegerField(default=10, min_value=1, max_value=300)
+    date_from = serializers.CharField(help_text='DD.MM.YYYY')
+    date_to = serializers.CharField(help_text='DD.MM.YYYY')
+    countdown_between = serializers.IntegerField(default=10, min_value=1, max_value=300)
 
 
 class RecalculateRatingsSerializer(serializers.Serializer):
     year = serializers.IntegerField(required=False, allow_null=True)
 
 
-class ImportShowsFullSerializer(serializers.Serializer):
+class ImportShowsFullSerializer(DateRangeValidatorMixin, serializers.Serializer):
     date_from = serializers.CharField(
         help_text='Дата начала DD.MM.YYYY'
     )
@@ -448,30 +484,8 @@ class ImportShowsFullSerializer(serializers.Serializer):
         help_text='Дата конца DD.MM.YYYY (если не указана — только date_from)'
     )
 
-    def validate(self, data):
-        from datetime import datetime
-        fmt = '%d.%m.%Y'
-        try:
-            dt_from = datetime.strptime(data['date_from'], fmt)
-        except ValueError:
-            raise serializers.ValidationError(
-                {'date_from': 'Формат DD.MM.YYYY, например 01.01.2026'}
-            )
-        if data.get('date_to'):
-            try:
-                dt_to = datetime.strptime(data['date_to'], fmt)
-            except ValueError:
-                raise serializers.ValidationError(
-                    {'date_to': 'Формат DD.MM.YYYY, например 31.01.2026'}
-                )
-            if dt_to < dt_from:
-                raise serializers.ValidationError(
-                    'date_to должна быть >= date_from'
-                )
-        return data
 
-
-class ImportResultsForDateRangeSerializer(serializers.Serializer):
+class ImportResultsForDateRangeSerializer(DateRangeValidatorMixin, serializers.Serializer):
     date_from = serializers.CharField(
         help_text='DD.MM.YYYY'
     )
@@ -490,21 +504,6 @@ class ImportResultsForDateRangeSerializer(serializers.Serializer):
         help_text='True = запускать импорт собак которых нет в БД'
     )
 
-    def validate(self, data):
-        from datetime import datetime
-        fmt = '%d.%m.%Y'
-        try:
-            dt_from = datetime.strptime(data['date_from'], fmt)
-        except ValueError:
-            raise serializers.ValidationError({'date_from': 'Формат DD.MM.YYYY'})
-        if data.get('date_to'):
-            try:
-                dt_to = datetime.strptime(data['date_to'], fmt)
-            except ValueError:
-                raise serializers.ValidationError({'date_to': 'Формат DD.MM.YYYY'})
-            if dt_to < dt_from:
-                raise serializers.ValidationError('date_to должна быть >= date_from')
-        return data
 
 # Yandex Photo
 class PhotoUploadBulkSerializer(serializers.Serializer):
@@ -530,4 +529,39 @@ class PhotoUploadBulkSerializer(serializers.Serializer):
     only_without_yadisk = serializers.BooleanField(
         default=True,
         help_text="true = только новые (нет фото на ЯД), false = все (проверит байты и обновит изменившиеся)",
+    )
+
+
+class PhotoBackfillHashesSerializer(serializers.Serializer):
+    limit = serializers.IntegerField(
+        default=1000,
+        max_value=50000,
+        help_text="Сколько фото обработать за прогон. Повторяй пока scanned > 0",
+    )
+    id_from = serializers.IntegerField(
+        default=1,
+        help_text="Начальный dog_id (включительно)",
+    )
+    id_to = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Конечный dog_id (включительно). Пусто = до конца",
+    )
+
+class PhotoBackfillHashesFromSourceSerializer(serializers.Serializer):
+    limit = serializers.IntegerField(
+        default=1000,
+        max_value=50000,
+        help_text="Сколько собак обработать за прогон",
+    )
+    id_from = serializers.IntegerField(
+        default=1,
+        help_text="Начальный dog_id (включительно)",
+    )
+    id_to = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Конечный dog_id (включительно). Пусто = до конца",
     )

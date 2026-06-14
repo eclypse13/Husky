@@ -46,11 +46,11 @@ class Owner(models.Model):
 
 
 class Dog(models.Model):
-
     # --- Идентификаторы ---
     uuid = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     zooportal_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
     zoo_hash = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    ofa_appnum = models.CharField(max_length=20, blank=True, null=True, unique=True, db_index=True)
 
     # --- Имена ---
     registered_name = models.CharField(max_length=500, blank=True, null=True)
@@ -91,12 +91,8 @@ class Dog(models.Model):
         max_length=500, blank=True, null=True,
         verbose_name='Путь фото на Яндекс.Диске',
     )
-    photo_yadisk_url = models.CharField(
-        max_length=500,
-        blank=True,
-        null=True,
-        verbose_name='Публичная ссылка фото на Яндекс.Диске'
-    )
+    photo_yadisk_url = models.TextField(null=True, blank=True, verbose_name='Публичная ссылка фото на Яндекс.Диске')
+    photo_hash = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
     # --- Титулы ---
     prefix_titles = models.CharField(max_length=500, blank=True, null=True)
@@ -177,7 +173,6 @@ class Dog(models.Model):
     )
 
     # --- ManyToMany связи ---
-    # Эти поля дают нам dog.breeders.all(), dog.owners.all(), dog.siblings.all()
     # through= указывает промежуточную таблицу (уже существует в БД)
     breeders = models.ManyToManyField(
         Breeder,
@@ -206,28 +201,30 @@ class Dog(models.Model):
 
         super().save(*args, **kwargs)
 
-    def generate_zoo_hash(self):
+    @staticmethod
+    def compute_zoo_hash(name: str, sex: int):
         """
-        Генерирует SHA-256 хэш для уникальной идентификации собаки.
-        Основан на имени (registered_name) и поле (sex) собаки.
+        Статический метод: вычисляет zoo_hash по имени и полу.
+        Используется как в instance-методе, так и в сервисах (без объекта Dog).
+        Возвращает None если имя или пол не заданы.
         """
         import hashlib
+        if not name or not sex:
+            return None
+        normalized = name.strip().lower()
+        sex_str = 'male' if sex == 1 else 'female' if sex == 2 else None
+        if not sex_str:
+            return None
+        return hashlib.sha256(f"{normalized}|{sex_str}".encode('utf-8')).hexdigest()
 
-        # Базовые данные для хэша
+    def generate_zoo_hash(self):
+        """
+        Генерирует zoo_hash для текущего экземпляра Dog.
+        Делегирует в compute_zoo_hash — единственный источник алгоритма.
+        """
         name = self.registered_name or self.call_name or ''
         sex = self.sex or 0
-
-        normalized_name = name.strip().lower()
-
-        # Нормализация пола (для совместимости)
-        sex_str = "male" if sex == 1 else "female" if sex == 2 else "unknown"
-
-        # Формируем строку для хэширования
-        # Только имя и пол (минимальные данные)
-        base_string = f"{normalized_name}|{sex_str}"
-
-        # Генерация SHA-256 хэша
-        return hashlib.sha256(base_string.encode('utf-8')).hexdigest()
+        return self.compute_zoo_hash(name, sex)
 
     class Meta:
         managed = True
@@ -239,6 +236,7 @@ class Dog(models.Model):
             models.Index(fields=['uuid']),
             models.Index(fields=['zooportal_id']),
             models.Index(fields=['zoo_hash']),
+            models.Index(fields=['sex', 'year_of_birth']),
         ]
 
     def __str__(self):
@@ -413,6 +411,7 @@ class ShowEvent(models.Model):
     show_type = models.CharField(
         max_length=20, default='other',
         choices=[
+            # Значения синхронизированы с constants/show_types.ShowType
             ('pk', 'Монопородная ПК'),
             ('kchk', 'Монопородная КЧК'),
             ('speciality', 'Специализированная'),
@@ -500,8 +499,35 @@ class ShowResult(models.Model):
     def __str__(self):
         return f'{self.dog_name} @ {self.event} → {self.grade} {self.place}'
 
+class ShowYearlyRating(models.Model):
+    dog = models.ForeignKey(
+        'Dog',
+        on_delete=models.CASCADE,
+        related_name='yearly_ratings'
+    )
+    year = models.SmallIntegerField(db_index=True)
+    nomination = models.CharField(max_length=20, default='main')
+    points = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'dogs_module'
+        db_table = 'show_yearly_rating'
+        unique_together = [('dog', 'year', 'nomination')]
+        indexes = [
+            models.Index(
+                fields=['year', 'nomination'],
+                name='yearly_rating_leaderboard_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Dog#{self.dog_id} {self.year}/{self.nomination} = {self.points}"
+
+
 class ImportTaskProxy(models.Model):
     """Прокси-модель только для отображения пункта в Django Admin sidebar."""
+
     class Meta:
         managed = False
         app_label = 'dogs_module'

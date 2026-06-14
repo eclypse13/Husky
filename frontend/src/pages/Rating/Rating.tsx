@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import RatingSidebar from "@/components/Sidebar/RatingSidebar";
 import { ShowResultsModal } from "@/components/ShowResultsModal/ShowResultsModal";
+import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
 import "./Rating.css";
-import {dogPhoto, DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
 
 const API_BASE = "/api";
 
@@ -37,21 +37,6 @@ interface ModalDog {
 const getName = (d: DogRating) => d.registered_name || d.display_name || d.name || "—";
 const getPts  = (d: DogRating) => d.points ?? d.rating ?? 0;
 
-// ── Аватар ─────────────────────────────────────────────────────────────────────
-function Avatar({ dog_photo, photoUrl, alt, size }: { dog_photo: string | null; photoUrl: string | null; alt: string; size: number }) {
-  return (
-    <div className="rt-avatar-wrap" style={{ width: size, height: size }}>
-      <img
-        src={dogPhoto(dog_photo, photoUrl)}
-        alt={alt}
-        loading="lazy"
-        className="rt-avatar-img"
-        onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
-      />
-    </div>
-  );
-}
-
 // ── Карточка подиума ───────────────────────────────────────────────────────────
 function PodiumCard({ dog, rank, onShowResults }: {
   dog: DogRating; rank: number; onShowResults: (dog: DogRating) => void;
@@ -62,9 +47,15 @@ function PodiumCard({ dog, rank, onShowResults }: {
         <span className={`rt-rank-badge rt-rank-badge--top`}>{rank}</span>
       </div>
 
-      <div className="rt-podium-avatar"
-        style={{ borderColor: "var(--accent-orange)" }}>
-        <Avatar photo={dog.dog_photo} photoUrl={dog.photo_url} alt={getName(dog)} size={80} />
+      <div className="rt-podium-avatar" style={{ borderColor: "var(--accent-orange)" }}>
+          <DogAvatar
+            dog_photo={dog.dog_photo}
+            photo_url={dog.photo_url}
+            alt={getName(dog)}
+            size={80}
+            wrapClassName="rt-avatar-wrap"
+            className="rt-avatar-img"
+          />
       </div>
 
       <Link to={`/archive/dog/${dog.id}`} className="rating-card-name rt-dog-link">
@@ -100,7 +91,14 @@ function RatingTableRow({ dog, rank, onShowResults }: {
         <span className="rt-rank-badge">{rank}</span>
       </td>
       <td className="rt-td-avatar">
-        <Avatar photo={dog.dog_photo} photoUrl={dog.photo_url} alt={getName(dog)} size={40} />
+          <DogAvatar
+            dog_photo={dog.dog_photo}
+            photo_url={dog.photo_url}
+            alt={getName(dog)}
+            size={40}
+            wrapClassName="rt-avatar-wrap"
+            className="rt-avatar-img"
+          />
       </td>
       <td className="rt-td-name">
         <Link to={`/archive/dog/${dog.id}`} className="rt-dog-link"
@@ -154,12 +152,13 @@ export default function Rating() {
   const [loading,    setLoading]    = useState(true);
   const [modal,      setModal]      = useState<ModalDog | null>(null);
 
-  const openModal = (dog: DogRating) => setModal({
-    id:       dog.id,
-    name:     getName(dog),
-    photo_url: dog.photo_url,
-    points:   getPts(dog),
-  });
+    const openModal = (dog: DogRating) => setModal({
+      id:        dog.id,
+      name:      getName(dog),
+      dog_photo: dog.dog_photo,
+      photo_url: dog.photo_url,
+      points:    getPts(dog),
+    });
 
   useEffect(() => {
     const root = pageRef.current;

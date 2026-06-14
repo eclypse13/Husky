@@ -6,6 +6,7 @@ import * as d3 from "d3";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { getDogPedigree } from "@/api/dogs";
 import type { PedigreeNode } from "@/types/dog";
+import { DEFAULT_DOG_IMG as DEFAULT_PHOTO } from "@/utils/dogPhoto";
 import "./Pedigree.css";
 
 // ═══════════════════════════════════════════════════════════════
@@ -58,7 +59,6 @@ const C = {
 } as const;
 
 const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
-const DEFAULT_PHOTO = "/no-image-dog.png";
 
 // ═══════════════════════════════════════════════════════════════
 // 3. CARD CONFIGURATIONS

@@ -38,6 +38,10 @@ from .tasks.tasks_photos import (
     photo_fetch_zoo_bulk,
     photo_sync_yadisk_to_db,
     photo_stats,
+    photo_delete_one,
+    photo_backfill_hashes,
+    photo_cleanup_placeholders,
+    photo_backfill_hashes_from_source,
 )
 from .tasks.tasks_ofa import (
     fetch_ofa_dog_task,
@@ -64,37 +68,44 @@ class ZooportalDogForm(forms.Form):
         widget=forms.TextInput(attrs={'placeholder': '17516431'}),
     )
 
+
 class ZooportalPageForm(forms.Form):
     page_num = forms.IntegerField(label='Страница', min_value=1, initial=1)
     max_dogs = forms.IntegerField(label='Макс. собак', min_value=1, max_value=11, initial=11)
-    delay    = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=2.0)
+    delay = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=2.0)
+
 
 class ZooportalRangeForm(forms.Form):
-    start_page              = forms.IntegerField(label='С страницы', min_value=1, initial=1)
-    end_page                = forms.IntegerField(label='По страницу', min_value=1, initial=2)
-    max_dogs_per_page       = forms.IntegerField(label='Собак / стр', min_value=1, max_value=11, initial=11)
+    start_page = forms.IntegerField(label='С страницы', min_value=1, initial=1)
+    end_page = forms.IntegerField(label='По страницу', min_value=1, initial=2)
+    max_dogs_per_page = forms.IntegerField(label='Собак / стр', min_value=1, max_value=11, initial=11)
     countdown_between_pages = forms.IntegerField(label='Пауза (сек)', min_value=1, initial=5)
+
 
 class BreedarchiveDogForm(forms.Form):
     """5 поколений — быстро."""
-    uuid         = forms.CharField(label='UUID', max_length=100)
+    uuid = forms.CharField(label='UUID', max_length=100)
     force_update = forms.BooleanField(label='Принудительно обновить', required=False)
+
 
 class BreedarchiveFullPedigreeForm(forms.Form):
     """Все поколения до конца — медленно, но полно."""
-    uuid         = forms.CharField(
+    uuid = forms.CharField(
         label='UUID', max_length=100,
         widget=forms.TextInput(attrs={'placeholder': '55dd8870-84fd-...'}),
     )
     force_update = forms.BooleanField(label='Принудительно обновить', required=False)
 
+
 class BreedarchiveRecentForm(forms.Form):
-    pages_count  = forms.IntegerField(label='Страниц', min_value=1, max_value=10, initial=1)
-    start_page   = forms.IntegerField(label='С страницы', min_value=0, max_value=9, initial=0)
+    pages_count = forms.IntegerField(label='Страниц', min_value=1, max_value=10, initial=1)
+    start_page = forms.IntegerField(label='С страницы', min_value=0, max_value=9, initial=0)
     is_full_sync = forms.BooleanField(label='Полная синхронизация', required=False)
+
 
 class BreedarchiveBrowseForm(forms.Form):
     recent_days = forms.IntegerField(label='За последние дней', min_value=1, max_value=30, initial=1)
+
 
 class HybridFullDogForm(forms.Form):
     """Zoo страница + BA полное дерево всех предков — одна собака."""
@@ -102,27 +113,29 @@ class HybridFullDogForm(forms.Form):
         label='Zooportal ID', max_length=20,
         widget=forms.TextInput(attrs={'placeholder': '17516431'}),
     )
-    generations  = forms.IntegerField(
+    generations = forms.IntegerField(
         label='Поколений Zoo (fallback)', min_value=1, max_value=5, initial=5,
     )
     force_update = forms.BooleanField(label='Сбросить BA-кеш', required=False)
 
+
 class HybridFullPageForm(forms.Form):
     """Zoo страница + BA полное дерево всех предков — целая страница Zoo."""
-    page_num    = forms.IntegerField(label='Страница Zoo', min_value=1, initial=1)
-    max_dogs    = forms.IntegerField(label='Макс. собак', min_value=1, max_value=11, initial=11)
-    delay       = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=2.0)
+    page_num = forms.IntegerField(label='Страница Zoo', min_value=1, initial=1)
+    max_dogs = forms.IntegerField(label='Макс. собак', min_value=1, max_value=11, initial=11)
+    delay = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=2.0)
     generations = forms.IntegerField(
         label='Поколений Zoo (fallback)', min_value=1, max_value=5, initial=5,
     )
 
+
 class HybridFullRangeForm(forms.Form):
     """Zoo страница + BA полное дерево всех предков — диапазон страниц Zoo."""
-    start_page              = forms.IntegerField(label='С страницы', min_value=1, initial=1)
-    end_page                = forms.IntegerField(label='По страницу', min_value=1, initial=2)
-    max_dogs_per_page       = forms.IntegerField(label='Собак / стр', min_value=1, max_value=11, initial=11)
-    delay                   = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=2.0)
-    generations             = forms.IntegerField(
+    start_page = forms.IntegerField(label='С страницы', min_value=1, initial=1)
+    end_page = forms.IntegerField(label='По страницу', min_value=1, initial=2)
+    max_dogs_per_page = forms.IntegerField(label='Собак / стр', min_value=1, max_value=11, initial=11)
+    delay = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=2.0)
+    generations = forms.IntegerField(
         label='Поколений Zoo (fallback)', min_value=1, max_value=5, initial=5,
     )
     countdown_between_pages = forms.IntegerField(
@@ -292,6 +305,57 @@ class PhotoZooBulkForm(forms.Form):
         help_text='Минимум 5с между задачами — браузер требует памяти',
     )
 
+
+class PhotoDeleteSingleForm(forms.Form):
+    """Удаляет фото одной собаки с Яндекс.Диска и чистит пути в БД."""
+    dog_id = forms.IntegerField(
+        label='Dog ID',
+        widget=forms.NumberInput(attrs={'placeholder': '12345'}),
+        help_text='Удалит файл с ЯД и обнулит photo_yadisk_path/url/hash',
+    )
+
+
+class PhotoBackfillHashesForm(forms.Form):
+    """Считает photo_hash для уже залитых фото у кого его нет. Разовый прогон."""
+    limit = forms.IntegerField(
+        label='Лимит', min_value=1, max_value=10000, initial=1000,
+        help_text='Сколько фото обработать за прогон. Повторяй пока scanned > 0',
+    )
+    id_from = forms.IntegerField(
+        label='ID от', min_value=1, initial=1, required=False,
+        help_text='Начальный dog_id (включительно)',
+    )
+    id_to = forms.IntegerField(
+        label='ID до', min_value=1, required=False,
+        help_text='Конечный dog_id (включительно). Пусто = до конца',
+    )
+
+
+class PhotoBackfillHashesFromSourceForm(forms.Form):
+    """Считает photo_hash из оригинального photo_url (не с ЯД). BA-собаки через HTTP, Zoo — пропускает."""
+    limit = forms.IntegerField(
+        label='Лимит', min_value=1, max_value=10000, initial=1000,
+        help_text='Сколько собак обработать за прогон',
+    )
+    id_from = forms.IntegerField(
+        label='ID от', min_value=1, initial=1, required=False,
+        help_text='Начальный dog_id (включительно)',
+    )
+    id_to = forms.IntegerField(
+        label='ID до', min_value=1, required=False,
+        help_text='Конечный dog_id (включительно). Пусто = до конца',
+    )
+
+
+class PhotoCleanupPlaceholdersForm(forms.Form):
+    """
+    Удаляет с ЯД дефолтные заглушки (серое фото сайта).
+    Работает по списку DEFAULT_PHOTO_HASHES в config/yadisk.py —
+    сначала заполни его хэшем заглушки, потом запускай.
+    """
+    pass
+
+
 # ── Формы OFA ─────────────────────────────────────────────
 
 
@@ -312,12 +376,12 @@ class OFABulkByNameForm(forms.Form):
     Массовый импорт OFA по кличке — для собак у которых нет рег.номера AKC.
     Парсит сайт OFA по имени, верифицирует по полу и году рождения.
     """
-    id_from          = forms.IntegerField(label='Dog ID с', min_value=1, initial=1)
-    id_to            = forms.IntegerField(label='Dog ID по', required=False,
-                                          help_text='Пусто = до конца базы')
-    limit            = forms.IntegerField(label='Батч (собак)', min_value=1, max_value=500, initial=100)
-    delay            = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=1.5,
-                                        help_text='Пауза между запросами к OFA. Не ставить < 1с')
+    id_from = forms.IntegerField(label='Dog ID с', min_value=1, initial=1)
+    id_to = forms.IntegerField(label='Dog ID по', required=False,
+                               help_text='Пусто = до конца базы')
+    limit = forms.IntegerField(label='Батч (собак)', min_value=1, max_value=500, initial=100)
+    delay = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=1.5,
+                             help_text='Пауза между запросами к OFA. Не ставить < 1с')
     only_without_ofa = forms.BooleanField(label='Только без OFA записей', required=False, initial=True)
 
 
@@ -326,12 +390,13 @@ class OFABulkByRegForm(forms.Form):
     Массовый импорт OFA по регистрационному номеру AKC.
     Быстрее чем поиск по имени — номер уникален, совпадение гарантировано.
     """
-    id_from          = forms.IntegerField(label='Dog ID с', min_value=1, initial=1)
-    id_to            = forms.IntegerField(label='Dog ID по', required=False,
-                                          help_text='Пусто = до конца базы')
-    limit            = forms.IntegerField(label='Батч (собак)', min_value=1, max_value=500, initial=100)
-    delay            = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=1.5)
+    id_from = forms.IntegerField(label='Dog ID с', min_value=1, initial=1)
+    id_to = forms.IntegerField(label='Dog ID по', required=False,
+                               help_text='Пусто = до конца базы')
+    limit = forms.IntegerField(label='Батч (собак)', min_value=1, max_value=500, initial=100)
+    delay = forms.FloatField(label='Задержка (сек)', min_value=0.5, initial=1.5)
     only_without_ofa = forms.BooleanField(label='Только без OFA записей', required=False, initial=True)
+
 
 # ── Формы ML ─────────────────────────────────────────────
 class MLTrainForm(forms.Form):
@@ -341,7 +406,7 @@ class MLTrainForm(forms.Form):
     После обучения модели автоматически сохраняются — predict начнёт использовать
     новые версии без перезапуска сервиса.
     """
-    augment     = forms.BooleanField(
+    augment = forms.BooleanField(
         label='Добавить синтетические данные', required=False, initial=True,
         help_text='Рекомендуется при < 3000 реальных записей в датасете',
     )
@@ -365,6 +430,7 @@ class MLPredictForm(forms.Form):
         widget=forms.NumberInput(attrs={'placeholder': '67890'}),
     )
 
+
 # ── Формы COI ─────────────────────────────────────────────
 
 class COIRecalculateForm(forms.Form):
@@ -385,6 +451,7 @@ class COIRecalculateForm(forms.Form):
         label='Учитывать COI предков (1 + F_A)', required=False, initial=False,
         help_text='Даёт +0.1–2% точности при сильном инбридинге. Требует что предки уже посчитаны',
     )
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ACTIONS ДЛЯ МОДЕЛИ DOG
@@ -477,28 +544,28 @@ class ImportPanelAdmin(admin.ModelAdmin):
                     'label': 'Zooportal — только базовая информация из Breedarchive для корневой собаки',
                     'badge': 'zoo',
                     'cards': [
-                        ('zoo_dog',   'Одна собака по ID',  forms_map['zoo_dog']),
-                        ('zoo_page',  'Страница поиска',    forms_map['zoo_page']),
-                        ('zoo_range', 'Диапазон страниц',   forms_map['zoo_range']),
+                        ('zoo_dog', 'Одна собака по ID', forms_map['zoo_dog']),
+                        ('zoo_page', 'Страница поиска', forms_map['zoo_page']),
+                        ('zoo_range', 'Диапазон страниц', forms_map['zoo_range']),
                     ],
                 },
                 {
                     'label': 'BreedArchive',
                     'badge': 'ba',
                     'cards': [
-                        ('ba_dog',      'По UUID (5 поколений)', forms_map['ba_dog']),
-                        ('ba_dog_full', 'По UUID (все предки)',  forms_map['ba_dog_full']),
-                        ('ba_recent',   'Последние обновления', forms_map['ba_recent']),
-                        ('ba_browse',   'Browse (все предки)',   forms_map['ba_browse']),
+                        ('ba_dog', 'По UUID (5 поколений)', forms_map['ba_dog']),
+                        ('ba_dog_full', 'По UUID (все предки)', forms_map['ba_dog_full']),
+                        ('ba_recent', 'Последние обновления', forms_map['ba_recent']),
+                        ('ba_browse', 'Browse (все предки)', forms_map['ba_browse']),
                     ],
                 },
                 {
                     'label': 'Гибрид Zoo→BA (все поколения)',
                     'badge': 'hybrid_full',
                     'cards': [
-                        ('hybrid_full_dog',   'Одна собака — все предки',   forms_map['hybrid_full_dog']),
-                        ('hybrid_full_page',  'Страница Zoo — все предки',  forms_map['hybrid_full_page']),
-                        ('hybrid_full_range', 'Диапазон Zoo — все предки',  forms_map['hybrid_full_range']),
+                        ('hybrid_full_dog', 'Одна собака — все предки', forms_map['hybrid_full_dog']),
+                        ('hybrid_full_page', 'Страница Zoo — все предки', forms_map['hybrid_full_page']),
+                        ('hybrid_full_range', 'Диапазон Zoo — все предки', forms_map['hybrid_full_range']),
                     ],
                 },
                 {
@@ -529,6 +596,26 @@ class ImportPanelAdmin(admin.ModelAdmin):
                             'photo_yadisk_to_db',
                             'Восстановить пути в БД по файлам на ЯД',
                             forms_map['photo_yadisk_to_db'],
+                        ),
+                        (
+                            'photo_delete',
+                            'Удалить фото одной собаки с ЯД',
+                            forms_map['photo_delete'],
+                        ),
+                        (
+                            'photo_backfill',
+                            'Посчитать хэши залитых фото (разово)',
+                            forms_map['photo_backfill'],
+                        ),
+                        (
+                            'photo_cleanup',
+                            'Удалить дефолтные заглушки с ЯД',
+                            forms_map['photo_cleanup'],
+                        ),
+                        (
+                            'photo_backfill_from_source',
+                            'Посчитать хэши из source URL (BA-собаки)',
+                            forms_map['photo_backfill_from_source'],
                         ),
                     ],
                 },
@@ -571,6 +658,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
                             'Пересчитать рейтинговые баллы всех собак за год',
                             forms_map['show_recalculate'],
                         ),
+
                     ],
                 },
                 {
@@ -619,11 +707,16 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'show_full': ShowImportFullForm(_post('show_full'), prefix='show_full'),
             'show_pending': forms.Form(_post('show_pending'), prefix='show_pending'),
             'show_recalculate': ShowRecalculateRatingsForm(_post('show_recalculate'), prefix='show_recalculate'),
-            'photo_stats':        PhotoStatsForm(_post('photo_stats'),            prefix='photo_stats'),
-            'photo_bulk':         PhotoUploadBulkForm(_post('photo_bulk'),        prefix='photo_bulk'),
-            'photo_single':       PhotoSingleDogForm(_post('photo_single'),       prefix='photo_single'),
-            'photo_zoo_bulk':     PhotoZooBulkForm(_post('photo_zoo_bulk'),       prefix='photo_zoo_bulk'),
+            'photo_stats': PhotoStatsForm(_post('photo_stats'), prefix='photo_stats'),
+            'photo_bulk': PhotoUploadBulkForm(_post('photo_bulk'), prefix='photo_bulk'),
+            'photo_single': PhotoSingleDogForm(_post('photo_single'), prefix='photo_single'),
+            'photo_zoo_bulk': PhotoZooBulkForm(_post('photo_zoo_bulk'), prefix='photo_zoo_bulk'),
             'photo_yadisk_to_db': PhotoSyncYaDiskToDbForm(_post('photo_yadisk_to_db'), prefix='photo_yadisk_to_db'),
+            'photo_delete': PhotoDeleteSingleForm(_post('photo_delete'), prefix='photo_delete'),
+            'photo_backfill': PhotoBackfillHashesForm(_post('photo_backfill'), prefix='photo_backfill'),
+            'photo_cleanup': PhotoCleanupPlaceholdersForm(_post('photo_cleanup'), prefix='photo_cleanup'),
+            'photo_backfill_from_source': PhotoBackfillHashesFromSourceForm(_post('photo_backfill_from_source'),
+                                                                            prefix='photo_backfill_from_source'),
             'ofa_dog': OFADogForm(_post('ofa_dog'), prefix='ofa_dog'),
             'ofa_bulk_name': OFABulkByNameForm(_post('ofa_bulk_name'), prefix='ofa_bulk_name'),
             'ofa_bulk_reg': OFABulkByRegForm(_post('ofa_bulk_reg'), prefix='ofa_bulk_reg'),
@@ -635,28 +728,32 @@ class ImportPanelAdmin(admin.ModelAdmin):
 
     def _dispatch(self, request, action: str) -> dict:
         handlers = {
-            'zoo_dog':           self._zoo_dog,
-            'zoo_page':          self._zoo_page,
-            'zoo_range':         self._zoo_range,
-            'ba_dog':            self._ba_dog,
-            'ba_dog_full':       self._ba_dog_full,
-            'ba_recent':         self._ba_recent,
-            'ba_browse':         self._ba_browse,
-            'hybrid_full_dog':   self._hybrid_full_dog,
-            'hybrid_full_page':  self._hybrid_full_page,
+            'zoo_dog': self._zoo_dog,
+            'zoo_page': self._zoo_page,
+            'zoo_range': self._zoo_range,
+            'ba_dog': self._ba_dog,
+            'ba_dog_full': self._ba_dog_full,
+            'ba_recent': self._ba_recent,
+            'ba_browse': self._ba_browse,
+            'hybrid_full_dog': self._hybrid_full_dog,
+            'hybrid_full_page': self._hybrid_full_page,
             'hybrid_full_range': self._hybrid_full_range,
-            'show_list':         self._show_list,
-            'show_results':      self._show_results,
-            'show_date_range':   self._show_date_range,
+            'show_list': self._show_list,
+            'show_results': self._show_results,
+            'show_date_range': self._show_date_range,
             'show_results_range': self._show_results_range,
-            'show_full':         self._show_full,
-            'show_pending':      self._show_pending,
-            'show_recalculate':  self._show_recalculate,
-            'photo_stats':        self._photo_stats,
-            'photo_bulk':         self._photo_bulk,
-            'photo_single':       self._photo_single,
-            'photo_zoo_bulk':     self._photo_zoo_bulk,
+            'show_full': self._show_full,
+            'show_pending': self._show_pending,
+            'show_recalculate': self._show_recalculate,
+            'photo_stats': self._photo_stats,
+            'photo_bulk': self._photo_bulk,
+            'photo_single': self._photo_single,
+            'photo_zoo_bulk': self._photo_zoo_bulk,
             'photo_yadisk_to_db': self._photo_yadisk_to_db,
+            'photo_delete': self._photo_delete,
+            'photo_backfill': self._photo_backfill,
+            'photo_cleanup': self._photo_cleanup,
+            'photo_backfill_from_source': self._photo_backfill_from_source,
             'ofa_dog': self._ofa_dog,
             'ofa_bulk_name': self._ofa_bulk_name,
             'ofa_bulk_reg': self._ofa_bulk_reg,
@@ -741,7 +838,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
         task = import_hybrid_full_dog_task.apply_async(
             kwargs={
                 'zooportal_id': d['zooportal_id'],
-                'generations':  d['generations'],
+                'generations': d['generations'],
                 'force_update': d['force_update'],
             },
             countdown=1,
@@ -791,10 +888,10 @@ class ImportPanelAdmin(admin.ModelAdmin):
             return {'error': str(form.errors)}
         d = form.cleaned_data
         task = photo_upload_bulk.apply_async(kwargs={
-            'id_from':             d['id_from'],
-            'id_to':               d.get('id_to'),
-            'limit':               d['limit'],
-            'delay':               d['delay'],
+            'id_from': d['id_from'],
+            'id_to': d.get('id_to'),
+            'limit': d['limit'],
+            'delay': d['delay'],
             'only_without_yadisk': d['only_without_yadisk'],
         }, countdown=1)
         return {
@@ -820,9 +917,9 @@ class ImportPanelAdmin(admin.ModelAdmin):
         d = form.cleaned_data
         task = photo_fetch_zoo_bulk.apply_async(kwargs={
             'id_from': d['id_from'],
-            'id_to':   d.get('id_to'),
-            'limit':   d['limit'],
-            'delay':   d['delay'],
+            'id_to': d.get('id_to'),
+            'limit': d['limit'],
+            'delay': d['delay'],
         }, countdown=1)
         return {
             'task_id': task.id,
@@ -835,6 +932,52 @@ class ImportPanelAdmin(admin.ModelAdmin):
         return {
             'task_id': task.id,
             'message': 'Синхронизация ЯД → БД запущена (сканируем disk:/dogs/photos/)',
+        }
+
+    def _photo_delete(self, request):
+        """Удаляет фото одной собаки с ЯД."""
+        form = PhotoDeleteSingleForm(request.POST, prefix='photo_delete')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        dog_id = form.cleaned_data['dog_id']
+        task = photo_delete_one.apply_async(kwargs={'dog_id': dog_id}, countdown=1)
+        return {'task_id': task.id, 'message': f"Удаление фото dog_id={dog_id} запущено"}
+
+    def _photo_backfill(self, request):
+        """Считает photo_hash для уже залитых фото (разовый прогон)."""
+        form = PhotoBackfillHashesForm(request.POST, prefix='photo_backfill')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+        task = photo_backfill_hashes.apply_async(kwargs={
+            'limit': d['limit'],
+            'id_from': d.get('id_from') or 1,
+            'id_to': d.get('id_to'),
+        }, countdown=1)
+        return {
+            'task_id': task.id,
+            'message': f"Backfill хэшей запущен (limit={d['limit']}, id {d.get('id_from') or 1}–{d.get('id_to') or '∞'})",
+        }
+
+    def _photo_cleanup(self, request):
+        """Удаляет дефолтные заглушки с ЯД по DEFAULT_PHOTO_HASHES."""
+        task = photo_cleanup_placeholders.apply_async(countdown=1)
+        return {'task_id': task.id, 'message': 'Очистка заглушек с ЯД запущена'}
+
+    def _photo_backfill_from_source(self, request):
+        """Считает photo_hash из оригинального photo_url. BA — HTTP, Zoo — пропускает."""
+        form = PhotoBackfillHashesFromSourceForm(request.POST, prefix='photo_backfill_from_source')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+        task = photo_backfill_hashes_from_source.apply_async(kwargs={
+            'limit': d['limit'],
+            'id_from': d.get('id_from') or 1,
+            'id_to': d.get('id_to'),
+        }, countdown=1)
+        return {
+            'task_id': task.id,
+            'message': f"Backfill хэшей из source запущен (limit={d['limit']}, id {d.get('id_from') or 1}–{d.get('id_to') or '∞'})",
         }
 
     def has_add_permission(self, request):
@@ -1057,12 +1200,85 @@ def upload_photos_to_yadisk_action(modeladmin, request, queryset):
         modeladmin.message_user(request, f"⚠️ У {no_url} собак нет photo_url", messages.WARNING)
 
 
+
+@admin.action(description="🔢 ЯД: посчитать hash фото выбранных собак")
+def backfill_hashes_action(modeladmin, request, queryset):
+    """
+    Для выбранных собак запускает подсчёт photo_hash.
+    BA-собаки: hash из оригинального photo_url (HTTP).
+    Zoo-собаки: hash с ЯД (Playwright не нужен — файл уже там).
+    """
+    ba_ids = []
+    zoo_ids = []
+    no_photo = 0
+
+    for dog in queryset:
+        if not dog.photo_url and not dog.photo_yadisk_path:
+            no_photo += 1
+            continue
+        if 'zooportal' in (dog.photo_url or ''):
+            zoo_ids.append(dog.id)
+        else:
+            ba_ids.append(dog.id)
+
+    dispatched = 0
+    if ba_ids:
+        photo_backfill_hashes_from_source.apply_async(
+            kwargs={'limit': len(ba_ids), 'id_from': min(ba_ids), 'id_to': max(ba_ids)}
+        )
+        dispatched += len(ba_ids)
+    if zoo_ids:
+        photo_backfill_hashes.apply_async(
+            kwargs={'limit': len(zoo_ids), 'id_from': min(zoo_ids), 'id_to': max(zoo_ids)}
+        )
+        dispatched += len(zoo_ids)
+
+    if dispatched:
+        modeladmin.message_user(
+            request,
+            f"🔢 Запущен подсчёт hash для {dispatched} собак "
+            f"(BA: {len(ba_ids)}, Zoo: {len(zoo_ids)})",
+            messages.SUCCESS,
+        )
+    if no_photo:
+        modeladmin.message_user(
+            request, f"⚠️ У {no_photo} собак нет фото", messages.WARNING
+        )
+
+
+@admin.action(description="🗑️ ЯД: удалить фото выбранных собак")
+def delete_photos_action(modeladmin, request, queryset):
+    dispatched = no_photo = 0
+    for idx, dog in enumerate(queryset):
+        if not dog.photo_yadisk_path:
+            no_photo += 1
+            continue
+        photo_delete_one.apply_async(
+            kwargs={"dog_id": dog.id}, countdown=idx * 2
+        )
+        dispatched += 1
+    if dispatched:
+        modeladmin.message_user(
+            request, f"🗑️ Удаление {dispatched} фото с ЯД запущено", messages.SUCCESS
+        )
+    if no_photo:
+        modeladmin.message_user(
+            request, f"⚠️ У {no_photo} собак нет фото на ЯД", messages.WARNING
+        )
+
+
 @admin.register(Dog)
 class DogAdmin(admin.ModelAdmin):
-    list_display    = ('registered_name', 'uuid', 'sex', 'year_of_birth', 'source')
-    search_fields   = ('registered_name', 'uuid', 'call_name')
-    list_filter     = ('sex', 'source', 'year_of_birth')
-    actions         = [sync_full_pedigree_action, sync_hybrid_full_pedigree_action, upload_photos_to_yadisk_action]
+    list_display = ('registered_name', 'uuid', 'sex', 'year_of_birth', 'source')
+    search_fields = ('registered_name', 'uuid', 'call_name')
+    list_filter = ('sex', 'source', 'year_of_birth')
+    actions = [
+        sync_full_pedigree_action,
+        sync_hybrid_full_pedigree_action,
+        upload_photos_to_yadisk_action,
+        backfill_hashes_action,
+        delete_photos_action,
+    ]
     readonly_fields = (
         'uuid', 'zooportal_id', 'zoo_hash', 'source',
         'dam', 'sire', 'coi', 'incomplete_pedigree',

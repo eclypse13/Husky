@@ -5,7 +5,7 @@ import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { searchDogs, getDogStats } from "@/api/dogs";
 import type { DogListItem, DogStats, DogSearchParams } from "@/types/dog";
 import "./Archive.css";
-import {dogPhoto, DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
+import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
 
 // Хелперы
 const sexLabel = (sex: number) => (sex === 1 ? "♂ Кобель" : sex === 2 ? "♀ Сука" : "—");
@@ -78,14 +78,28 @@ export default function Archive() {
   // Начальная загрузка + реакция на URL
   useEffect(() => {
     const params: DogSearchParams = {};
-    const q = searchParams.get("q");
-    const sex = searchParams.get("sex");
-    const color = searchParams.get("color");
-    const page = Number(searchParams.get("page")) || 1;
+    const q        = searchParams.get("q");
+    const sex      = searchParams.get("sex");
+    const color    = searchParams.get("color");
+    const kennel   = searchParams.get("kennel");
+    const country  = searchParams.get("country");
+    const yearFrom = searchParams.get("year_from");
+    const yearTo   = searchParams.get("year_to");
+    const page     = Number(searchParams.get("page")) || 1;
 
-    if (q) params.q = q;
-    if (sex) params.sex = sex;
-    if (color) params.color = color;
+    if (q)        params.q         = q;
+    if (sex)      params.sex       = sex;
+    if (color)    params.color     = color;
+    if (kennel)   params.kennel    = kennel;
+    if (country)  params.country   = country;
+    if (yearFrom) params.year_from = yearFrom;
+    if (yearTo)   params.year_to   = yearTo;
+
+    // Синхронизируем состояние полей с URL (восстановление при reload/back)
+    if (kennel)   setAdvKennel(kennel);
+    if (country)  setAdvCountry(country);
+    if (yearFrom) setAdvYearFrom(yearFrom);
+    if (yearTo)   setAdvYearTo(yearTo);
 
     doSearch(params, page);
   }, [searchParams, doSearch]);
@@ -96,9 +110,13 @@ export default function Archive() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const p = new URLSearchParams();
-    if (query) p.set("q", query);
-    if (sexFilter) p.set("sex", sexFilter);
-    if (colorFilter) p.set("color", colorFilter);
+    if (query)       p.set("q",        query);
+    if (sexFilter)   p.set("sex",      sexFilter);
+    if (colorFilter) p.set("color",    colorFilter);
+    if (advKennel)   p.set("kennel",   advKennel);
+    if (advCountry)  p.set("country",  advCountry);
+    if (advYearFrom) p.set("year_from", advYearFrom);
+    if (advYearTo)   p.set("year_to",  advYearTo);
     p.set("page", "1");
     setSearchParams(p);
   };
@@ -266,15 +284,12 @@ export default function Archive() {
               <div className="archive-dogs">
                 {dogs.map((d) => (
                   <article key={d.id} className="archive-dog-card">
-                    <div className="archive-dog-avatar">
-                      <img
-                        src={dogPhoto(d.dog_photo, d.photo_url)}
-                        alt={d.registered_name}
-                        loading="lazy"
-                        decoding="async"
-                        onError={e => { (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG; }}
-                      />
-                    </div>
+                    <DogAvatar
+                      dog_photo={d.dog_photo}
+                      photo_url={d.photo_url}
+                      alt={d.call_name ?? ""}
+                      wrapClassName="archive-dog-avatar"
+                    />
                     <div className="archive-dog-info">
                       <h4 className="archive-dog-name">{d.registered_name}</h4>
                       <div className="archive-dog-meta">

@@ -4,20 +4,25 @@ import { useQuery } from "@tanstack/react-query";
 import "./HealthModal.css";
 
 interface MedicalRecord {
-    id: number;
-    registry: string;
-    conclusion: string | null;
-    test_date: string | null;
+    id?: number;
     ofa_number: string | null;
+    registry: string;
+    group: string | null;
+    conclusion: string | null;
+    score: number | null;
+    test_date: string | null;
+    report_date: string | null;
+    age_in_months: number | null;
 }
 
 interface ApiResponse {
-    count?: number;
-    results?: MedicalRecord[];
+    dog_id?: number;
+    records?: MedicalRecord[];
 }
 
 interface Props {
     dogId: number;
+    dogName?: string;
     onClose: () => void;
 }
 
@@ -29,7 +34,7 @@ function formatDate(raw: string | null): string | null {
     return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export default function HealthModal({ dogId, onClose }: Props) {
+export default function HealthModal({ dogId, dogName, onClose }: Props) {
     const { data, isLoading, error } = useQuery<ApiResponse>({
         queryKey:  ["dog-health", dogId],
         queryFn:   async () => {
@@ -43,7 +48,7 @@ export default function HealthModal({ dogId, onClose }: Props) {
     // Поддержка обоих форматов ответа: {results: [...]} или просто [...]
     const records: MedicalRecord[] = Array.isArray(data)
         ? data
-        : (data?.results ?? []);
+        : (data?.records ?? []);
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -60,7 +65,7 @@ export default function HealthModal({ dogId, onClose }: Props) {
         <div className="hm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
             <div className="hm-inner">
                 <div className="hm-head">
-                    <h3 className="hm-title">🩺 Медицинские тесты</h3>
+                    <h3 className="hm-title">Медицинские тесты</h3>
                     <button className="hm-close" onClick={onClose}>✕</button>
                 </div>
 
@@ -94,13 +99,13 @@ export default function HealthModal({ dogId, onClose }: Props) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {records.map(r => (
-                                    <tr key={r.id}>
+                                {records.map((r, i) => (
+                                    <tr key={r.id ?? r.ofa_number ?? i}>
                                         <td>{r.registry}</td>
                                         <td style={{ fontWeight: 600 }}>
                                             {r.conclusion || "—"}
                                         </td>
-                                        <td className="hm-muted">{formatDate(r.test_date) || "—"}</td>
+                                        <td className="hm-muted">{formatDate(r.test_date ?? r.report_date) || "—"}</td>
                                         <td className="hm-muted">{r.ofa_number || "—"}</td>
                                     </tr>
                                 ))}

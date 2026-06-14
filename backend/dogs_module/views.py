@@ -46,76 +46,64 @@ from .serializers import (
     ImportShowDateRangeSerializer,
     RecalculateRatingsSerializer,
     ImportShowsFullSerializer,
-    ImportResultsForDateRangeSerializer, PhotoUploadBulkSerializer
-)
-from .tasks.tasks_zooportal import (
-    import_zooportal_dog_task,
-    import_zooportal_page_task,
-    import_zooportal_range_task,
-    import_hybrid_dog_task,
-    import_hybrid_page_task,
-    import_hybrid_range_task,
-)
-from .tasks.tasks_breedarchive import (
-    fetch_breedarchive_dog_task,
-    fetch_full_pedigree_task,
-    sync_breedarchive_recent_task,
-    sync_breedarchive_browse_task,
-    import_hybrid_full_dog_task,
-    import_hybrid_full_page_task,
-    import_hybrid_full_range_task,
-)
-from .tasks.tasks_ofa import (
-    fetch_ofa_dog_task,
-    fetch_ofa_bulk_by_reg_task,
-    fetch_ofa_bulk_by_name_task,
-)
-from .tasks.tasks_shows import (
-    import_show_list_task,
-    import_show_results_task,
-    import_show_date_range_task,
-    recalculate_ratings_task,
-    import_shows_full_task,
-    import_results_for_date_range_task, process_all_pending_results_task
+    ImportResultsForDateRangeSerializer,
+    PhotoUploadBulkSerializer,
+    PhotoBackfillHashesSerializer,
+    PhotoBackfillHashesFromSourceSerializer,
 )
 from .utils.coi_calculator import calculate_coi, save_coi
 
 logger = logging.getLogger(__name__)
 
-# ──────────────────────────────────────────────────────────────────────────────
-# СОБАКИ
-# ──────────────────────────────────────────────────────────────────────────────
 
+# СОБАКИ
 class DogViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Dog.objects.using('dogs_db').all().order_by('-id')
+    # none() нужен DRF для роутера; реальный queryset строится в get_queryset через репозиторий
+    queryset = Dog.objects.using('dogs_db').none()
     filter_backends = [SearchFilter, OrderingFilter]
     ordering_fields = ['rating', 'registered_name', 'id']
 
     def get_serializer_class(self):
         return DogListSerializer if self.action == 'list' else DogDetailSerializer
 
+    def get_object(self):
+        """
+        Override: добавляет prefetch для detail view.
+        Предотвращает N+1 на breeders / owners / titles / medical_records.
+        """
+        # Для retrieve и pedigree — получаем объект через правильный queryset с prefetch
+        if self.action in ('retrieve', 'pedigree', 'calculate_coi'):
+            from .repositories import dog_repository as dog_repo
+            return dog_repo.get_detail(self.kwargs[self.lookup_field])
+        return super().get_object()
+
     def get_queryset(self):
-        qs = super().get_queryset()
+        from .repositories import dog_repository as dog_repo
+        p = self.request.query_params
 
-        search = self.request.query_params.get('q')
-        if search:
-            qs = qs.filter(registered_name__icontains=search)
+        def _int(key):
+            v = p.get(key)
+            try:
+                return int(v) if v else None
+            except (ValueError, TypeError):
+                return None
 
-        sex = self.request.query_params.get('sex')
-        if sex:
-            qs = qs.filter(sex=sex)
-
-        year = self.request.query_params.get('year')
-        if year:
-            qs = qs.filter(year_of_birth=year)
-
-        return qs.select_related('dam', 'sire')
+        return dog_repo.search_filtered(
+            search=p.get('q'),
+            sex=_int('sex'),
+            year=_int('year'),
+            year_from=_int('year_from'),
+            year_to=_int('year_to'),
+            color=p.get('color'),
+            kennel=p.get('kennel'),
+            country=p.get('country'),
+        )
 
     @action(detail=True, methods=['get'])
     def pedigree(self, request, pk=None):
-        dog         = self.get_object()
+        dog = self.get_object()
         generations = max(1, min(int(request.query_params.get('generations', 3)), 10))
-        serializer  = PedigreeSerializer(
+        serializer = PedigreeSerializer(
             dog,
             context={'request': request, 'depth': generations, 'current_depth': 1}
         )
@@ -123,48 +111,38 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['get'])
     def siblings(self, request, pk=None):
-        dog      = self.get_object()
-        siblings = Dog.objects.using('dogs_db').filter(
-            dam=dog.dam, sire=dog.sire
-        ).exclude(id=dog.id)
+        from .repositories import dog_repository as dog_repo
+        dog = self.get_object()
+        siblings = dog_repo.get_siblings(dog)
         return Response(DogListSerializer(siblings, many=True).data)
 
     @action(detail=True, methods=['get'])
     def offspring(self, request, pk=None):
+        from .repositories import dog_repository as dog_repo
         dog = self.get_object()
-        if dog.sex == 1:
-            qs = Dog.objects.using('dogs_db').filter(sire=dog)
-        elif dog.sex == 2:
-            qs = Dog.objects.using('dogs_db').filter(dam=dog)
-        else:
-            qs = Dog.objects.using('dogs_db').none()
+        qs = dog_repo.get_offspring(dog)
         return Response(DogListSerializer(qs, many=True).data)
 
     @action(detail=False, methods=['get'])
     def search(self, request):
+        from .repositories import dog_repository as dog_repo
         query = request.query_params.get('q', '')
         if not query:
             return Response({'error': 'Query parameter required'}, status=400)
-        dogs = Dog.objects.using('dogs_db').filter(registered_name__icontains=query)[:20]
+        dogs = dog_repo.search_by_name(query)
         return Response(DogListSerializer(dogs, many=True).data)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        return Response({
-            'total':            Dog.objects.using('dogs_db').count(),
-            'males':            Dog.objects.using('dogs_db').filter(sex=1).count(),
-            'females':          Dog.objects.using('dogs_db').filter(sex=2).count(),
-            'breeders':         Breeder.objects.using('dogs_db').count(),
-            'with_zooportal_id': Dog.objects.using('dogs_db').filter(zooportal_id__isnull=False).count(),
-            'with_uuid':        Dog.objects.using('dogs_db').filter(uuid__isnull=False).count(),
-        })
+        from .repositories import dog_repository as dog_repo
+        return Response(dog_repo.get_overview_stats())
 
     @action(detail=True, methods=['post'], permission_classes=[AllowAny], authentication_classes=[])
     def calculate_coi(self, request, pk=None):
-        dog             = self.get_object()
-        generations     = max(1, min(int(request.data.get('generations', 5)), 10))
+        dog = self.get_object()
+        generations = max(1, min(int(request.data.get('generations', 5)), 10))
         use_ancestor_coi = bool(request.data.get('use_ancestor_coi', False))
-        result          = calculate_coi(dog, generations=generations, use_ancestor_coi=use_ancestor_coi)
+        result = calculate_coi(dog, generations=generations, use_ancestor_coi=use_ancestor_coi)
 
         if not result.is_valid:
             return Response({'error': result.error, 'coi': None}, status=422)
@@ -173,41 +151,44 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         dog.refresh_from_db(using='dogs_db')
 
         return Response({
-            'coi':                    result.coi,
-            'coi_updated_on':         dog.coi_updated_on,
-            'generations':            result.generations,
-            'common_ancestors':       result.common_ancestors,
-            'total_ancestors_sire':   result.total_ancestors_sire,
-            'total_ancestors_dam':    result.total_ancestors_dam,
+            'coi': result.coi,
+            'coi_updated_on': dog.coi_updated_on,
+            'generations': result.generations,
+            'common_ancestors': result.common_ancestors,
+            'total_ancestors_sire': result.total_ancestors_sire,
+            'total_ancestors_dam': result.total_ancestors_dam,
             'ancestor_contributions': result.ancestor_contributions,
         })
 
     @action(detail=True, methods=['get'])
     def show_results(self, request, pk=None):
-        from .services.show_service import get_rating_period, get_rating_year
-
-        qs = ShowResult.objects.using('dogs_db').filter(dog_id=pk).select_related('event')
+        from .repositories import show_repository as show_repo
+        from .services.show_service import get_rating_period
 
         year = request.query_params.get('year')
+        date_from = date_to = None
         if year:
             date_from, date_to = get_rating_period(int(year))
-            qs = qs.filter(
-                event__event_date__gte=date_from,
-                event__event_date__lte=date_to,
-            )
 
-        # nomination фильтруем на фронте — возвращаем все
-        qs = qs.order_by('-event__event_date')
+        qs = show_repo.get_results_for_dog(pk, date_from, date_to)
         return Response(ShowResultSerializer(qs, many=True).data)
 
     # Rating
     @action(detail=False, methods=['get'])
     def rating(self, request):
         from .services.show_service import get_rating_leaderboard, get_rating_year
+        from .serializers import DogListSerializer
         nomination = request.query_params.get('nomination', 'main')
         year = request.query_params.get('year')
         rating_year = int(year) if year else get_rating_year()
-        data = get_rating_leaderboard(nomination=nomination, rating_year=rating_year, limit=50)
+
+        leaderboard = get_rating_leaderboard(nomination=nomination, rating_year=rating_year, limit=50)
+
+        data = []
+        for entry in leaderboard:
+            row = DogListSerializer(entry['dog']).data
+            row['points'] = entry['points']
+            data.append(row)
         return Response(data)
 
 
@@ -216,39 +197,36 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class BreederViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset         = Breeder.objects.using('dogs_db').all()
+    queryset = Breeder.objects.using('dogs_db').none()
     serializer_class = BreederSerializer
 
 
 class OwnerViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset         = Owner.objects.using('dogs_db').all()
+    queryset = Owner.objects.using('dogs_db').none()
     serializer_class = OwnerSerializer
 
 
 class TitleViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Title.objects.using('dogs_db').all()
+    queryset = Title.objects.using('dogs_db').none()
     serializer_class = TitleSerializer
 
 
 class LitterViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Litter.objects.using('dogs_db').all()
+    queryset = Litter.objects.using('dogs_db').none()
     serializer_class = LitterSerializer
 
 
 class MedicalRecordViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = MedicalRecord.objects.using('dogs_db').all()
+    queryset = MedicalRecord.objects.using('dogs_db').none()
     serializer_class = MedicalRecordSerializer
     pagination_class = None
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        dog_id = self.request.query_params.get('dog_id')
-        source = self.request.query_params.get('source')
-        if dog_id:
-            qs = qs.filter(dog_id=dog_id)
-        if source:
-            qs = qs.filter(source=source)
-        return qs.order_by('-test_date')
+        from .repositories import medical_record_repository as med_repo
+        return med_repo.filter_records(
+            dog_id=self.request.query_params.get('dog_id'),
+            source=self.request.query_params.get('source'),
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -261,35 +239,24 @@ class ShowEventViewSet(viewsets.ReadOnlyModelViewSet):
     GET /api/dogs/shows/{id}/         — одна выставка
     GET /api/dogs/shows/{id}/results/ — результаты выставки
     """
-    queryset         = ShowEvent.objects.using('dogs_db').all().order_by('-event_date')
+    queryset = ShowEvent.objects.using('dogs_db').none()
     serializer_class = ShowEventSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset()
-
-        year = self.request.query_params.get('year')
-        if year:
-            qs = qs.filter(event_date__year=year)
-
-        city = self.request.query_params.get('city')
-        if city:
-            qs = qs.filter(city__icontains=city)
-
-        show_type = self.request.query_params.get('show_type')
-        if show_type:
-            qs = qs.filter(show_type=show_type)
-
-        has_results = self.request.query_params.get('has_results')
-        if has_results == '1':
-            qs = qs.filter(results_parsed_at__isnull=False)
-
-        return qs
+        from .repositories import show_repository as show_repo
+        return show_repo.search_events(
+            year=self.request.query_params.get('year'),
+            city=self.request.query_params.get('city'),
+            show_type=self.request.query_params.get('show_type'),
+            has_results=self.request.query_params.get('has_results') == '1',
+        )
 
     @action(detail=True, methods=['get'])
     def results(self, request, pk=None):
         """GET /api/dogs/shows/{id}/results/"""
-        event   = self.get_object()
-        results = ShowResult.objects.using('dogs_db').filter(event=event).select_related('dog')
+        from .repositories import show_repository as show_repo
+        event = self.get_object()
+        results = show_repo.get_results_for_event(event)
         return Response(ShowResultSerializer(results, many=True).data)
 
 
@@ -307,20 +274,20 @@ class ImportTaskStatusView(APIView):
     )
     def get(self, request, task_id):
         try:
-            task_result   = AsyncResult(task_id)
+            task_result = AsyncResult(task_id)
             response_data = {'task_id': task_id, 'status': task_result.status}
 
             if task_result.state == 'PENDING':
                 response_data['message'] = 'Задача в очереди'
             elif task_result.state == 'PROGRESS':
-                response_data['message']  = 'Выполняется'
+                response_data['message'] = 'Выполняется'
                 response_data['progress'] = task_result.info
             elif task_result.state == 'SUCCESS':
                 response_data['message'] = 'Завершена'
-                response_data['result']  = task_result.result
+                response_data['result'] = task_result.result
             elif task_result.state == 'FAILURE':
                 response_data['message'] = 'Ошибка'
-                response_data['error']   = str(task_result.info)
+                response_data['error'] = str(task_result.info)
 
             return Response(response_data)
         except Exception as e:
@@ -339,7 +306,8 @@ class ImportZooportalDogView(APIView):
         if not ser.is_valid():
             return Response(ser.errors, status=400)
         zoo_id = ser.validated_data['zooportal_id']
-        task   = import_zooportal_dog_task.apply_async(args=[zoo_id], countdown=1)
+        from .tasks.tasks_zooportal import import_zooportal_dog_task
+        task = import_zooportal_dog_task.apply_async(args=[zoo_id], countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
             'message': f'Импорт собаки {zoo_id} запущен',
@@ -354,7 +322,8 @@ class ImportZooportalPageView(APIView):
         ser = ImportZooportalPageSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_zooportal import import_zooportal_page_task
         task = import_zooportal_page_task.apply_async(
             args=[d['page_num'], d.get('max_dogs', 11), d.get('delay', 2.0)], countdown=1
         )
@@ -372,7 +341,8 @@ class ImportZooportalRangeView(APIView):
         ser = ImportZooportalRangeSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_zooportal import import_zooportal_range_task
         task = import_zooportal_range_task.apply_async(
             args=[d['start_page'], d['end_page'], d.get('max_dogs_per_page', 11), d.get('delay', 2.0)],
             countdown=1,
@@ -395,7 +365,8 @@ class ImportBreedarchiveDogView(APIView):
         ser = ImportBreedarchiveDogSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_breedarchive import fetch_breedarchive_dog_task
         task = fetch_breedarchive_dog_task.apply_async(args=[d['uuid'], d.get('force_update', False)])
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -411,7 +382,8 @@ class ImportBreedarchiveFullPedigreeView(APIView):
         ser = ImportBreedarchiveFullPedigreeSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_breedarchive import fetch_full_pedigree_task
         task = fetch_full_pedigree_task.apply_async(args=[d['uuid'], d.get('force_update', False)])
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -427,7 +399,8 @@ class ImportBreedarchiveRecentView(APIView):
         ser = ImportBreedarchiveRecentSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_breedarchive import sync_breedarchive_recent_task
         task = sync_breedarchive_recent_task.apply_async(
             args=[d['pages_count'], d['start_page'], d['is_full_sync']]
         )
@@ -445,6 +418,7 @@ class ImportBreedarchiveBrowseView(APIView):
         ser = ImportBreedarchiveBrowseSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_breedarchive import sync_breedarchive_browse_task
         task = sync_breedarchive_browse_task.apply_async(args=[ser.validated_data['recent_days']])
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -464,6 +438,7 @@ class ImportHybridDogView(APIView):
         ser = ImportHybridDogSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_zooportal import import_hybrid_dog_task
         task = import_hybrid_dog_task.apply_async(kwargs=ser.validated_data, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -479,6 +454,7 @@ class ImportHybridPageView(APIView):
         ser = ImportHybridPageSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_zooportal import import_hybrid_page_task
         task = import_hybrid_page_task.apply_async(kwargs=ser.validated_data, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -494,6 +470,7 @@ class ImportHybridRangeView(APIView):
         ser = ImportHybridRangeSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_zooportal import import_hybrid_range_task
         task = import_hybrid_range_task.apply_async(kwargs=ser.validated_data, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -509,10 +486,11 @@ class ImportHybridFullDogView(APIView):
         ser = ImportHybridFullDogSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_breedarchive import import_hybrid_full_dog_task
         task = import_hybrid_full_dog_task.apply_async(kwargs={
             'zooportal_id': d['zooportal_id'],
-            'generations':  d.get('generations', 3),
+            'generations': d.get('generations', 3),
             'force_update': d.get('force_update', False),
         })
         return Response({
@@ -529,12 +507,13 @@ class ImportHybridFullPageView(APIView):
         ser = ImportHybridFullPageSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_breedarchive import import_hybrid_full_page_task
         task = import_hybrid_full_page_task.apply_async(kwargs={
-            'page_num':   d['page_num'],
-            'max_dogs':   d.get('max_dogs', 11),
+            'page_num': d['page_num'],
+            'max_dogs': d.get('max_dogs', 11),
             'generations': d.get('generations', 3),
-            'delay':      d.get('delay', 2.0),
+            'delay': d.get('delay', 2.0),
         })
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -550,6 +529,7 @@ class ImportHybridFullRangeView(APIView):
         ser = ImportHybridFullRangeSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_breedarchive import import_hybrid_full_range_task
         task = import_hybrid_full_range_task.apply_async(kwargs=ser.validated_data)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -564,17 +544,18 @@ class ImportHybridFullRangeView(APIView):
 
 class ImportOFADogView(APIView):
     @extend_schema(summary='Импорт OFA для одной собаки', request=ImportOFADogSerializer,
-                   responses={202: OpenApiTypes.OBJECT}, tags=['Import OFA'])
+                   responses={202: OpenApiTypes.OBJECT}, tags=['OFA'])
     def post(self, request):
         ser = ImportOFADogSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_ofa import fetch_ofa_dog_task
         task = fetch_ofa_dog_task.apply_async(kwargs={
-            'dog_id':              d.get('dog_id'),
-            'registered_name':     d.get('registered_name'),
+            'dog_id': d.get('dog_id'),
+            'registered_name': d.get('registered_name'),
             'registration_number': d.get('registration_number'),
-            'ofa_number':          d.get('ofa_number'),
+            'ofa_number': d.get('ofa_number'),
         }, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -585,11 +566,12 @@ class ImportOFADogView(APIView):
 
 class ImportOFABulkByRegView(APIView):
     @extend_schema(summary='Bulk OFA по рег. номеру', request=ImportOFABulkByRegSerializer,
-                   responses={202: OpenApiTypes.OBJECT}, tags=['Import OFA'])
+                   responses={202: OpenApiTypes.OBJECT}, tags=['OFA'])
     def post(self, request):
         ser = ImportOFABulkByRegSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_ofa import fetch_ofa_bulk_by_reg_task
         task = fetch_ofa_bulk_by_reg_task.apply_async(kwargs=ser.validated_data, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -600,11 +582,12 @@ class ImportOFABulkByRegView(APIView):
 
 class ImportOFABulkByNameView(APIView):
     @extend_schema(summary='Bulk OFA по имени', request=ImportOFABulkByNameSerializer,
-                   responses={202: OpenApiTypes.OBJECT}, tags=['Import OFA'])
+                   responses={202: OpenApiTypes.OBJECT}, tags=['OFA'])
     def post(self, request):
         ser = ImportOFABulkByNameSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+        from .tasks.tasks_ofa import fetch_ofa_bulk_by_name_task
         task = fetch_ofa_bulk_by_name_task.apply_async(kwargs=ser.validated_data, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -622,7 +605,6 @@ class OFABreedingStatsSHView(APIView):
             logger.error(f"OFABreedingStatsSHView: {e}")
             return Response({'error': 'Не удалось получить статистику'}, status=503)
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # ИМПОРТ — ВЫСТАВКИ
 # ──────────────────────────────────────────────────────────────────────────────
@@ -635,7 +617,8 @@ class ImportShowListView(APIView):
         if not ser.is_valid():
             return Response(ser.errors, status=400)
         date_str = ser.validated_data['date_str']
-        task     = import_show_list_task.apply_async(args=[date_str], countdown=1)
+        from .tasks.tasks_shows import import_show_list_task
+        task = import_show_list_task.apply_async(args=[date_str], countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
             'message': f'Поиск выставок за {date_str} запущен',
@@ -650,7 +633,8 @@ class ImportShowResultsView(APIView):
         ser = ImportShowResultsSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_shows import import_show_results_task
         task = import_show_results_task.apply_async(
             args=[d['show_id'], d.get('import_missing_dogs', True)], countdown=1
         )
@@ -668,7 +652,8 @@ class ImportShowDateRangeView(APIView):
         ser = ImportShowDateRangeSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        d    = ser.validated_data
+        d = ser.validated_data
+        from .tasks.tasks_shows import import_show_date_range_task
         task = import_show_date_range_task.apply_async(kwargs=d, countdown=1)
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -685,6 +670,7 @@ class RecalculateRatingsView(APIView):
         if not ser.is_valid():
             return Response(ser.errors, status=400)
         year = ser.validated_data.get('year')
+        from .tasks.tasks_shows import recalculate_ratings_task
         task = recalculate_ratings_task.apply_async(args=[year])
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -697,6 +683,7 @@ class LinkShowResultsView(APIView):
     @extend_schema(summary='Залинковать незалинкованные результаты с собаками',
                    responses={202: OpenApiTypes.OBJECT}, tags=['Import Shows'])
     def post(self, request):
+        from .tasks.tasks_shows import process_all_pending_results_task
         task = process_all_pending_results_task.apply_async()
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -712,11 +699,11 @@ class LinkShowResultsView(APIView):
 class RecalculateAllCoiView(APIView):
     def post(self, request):
         from .tasks.tasks_coi import recalculate_all_coi_task
-        generations      = max(1, min(int(request.data.get('generations', 5)), 10))
-        only_missing     = bool(request.data.get('only_missing', True))
+        generations = max(1, min(int(request.data.get('generations', 5)), 10))
+        only_missing = bool(request.data.get('only_missing', True))
         use_ancestor_coi = bool(request.data.get('use_ancestor_coi', False))
-        batch_size       = max(10, min(int(request.data.get('batch_size', 100)), 500))
-        task             = recalculate_all_coi_task.apply_async(
+        batch_size = max(10, min(int(request.data.get('batch_size', 100)), 500))
+        task = recalculate_all_coi_task.apply_async(
             args=[generations, batch_size, only_missing, use_ancestor_coi]
         )
         return Response({
@@ -732,12 +719,10 @@ class RecalculateAllCoiView(APIView):
 
 class BreedingPredictView(APIView):
     def get(self, request):
-        from .services.ml_dog_service import get_dog_health_data, get_pair_data, get_breeding_recommendation
-        from .services.ml_client import predict_breeding
-        from .services.pedigree_service import calc_offspring_coi
+        from .services.ml_dog_service import predict_pair
 
         sire_id = request.query_params.get('sire_id')
-        dam_id  = request.query_params.get('dam_id')
+        dam_id = request.query_params.get('dam_id')
 
         if not sire_id or not dam_id:
             return Response({'error': 'Нужны sire_id и dam_id'}, status=400)
@@ -746,17 +731,9 @@ class BreedingPredictView(APIView):
         except ValueError:
             return Response({'error': 'sire_id и dam_id должны быть числами'}, status=400)
 
-        result = predict_breeding(
-            get_dog_health_data(sire_id),
-            get_dog_health_data(dam_id),
-            get_pair_data(sire_id, dam_id),
-        )
+        result = predict_pair(sire_id, dam_id)
         if 'error' in result:
             return Response(result, status=503)
-
-        offspring_coi = calc_offspring_coi(sire_id, dam_id)
-        result['offspring_coi'] = offspring_coi
-        result = get_breeding_recommendation(result, offspring_coi)
         return Response(result)
 
 
@@ -786,7 +763,6 @@ class ImportShowsFullView(APIView):
         tags=['Import Shows'],
     )
     def post(self, request):
-
         ser = ImportShowsFullSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
@@ -794,6 +770,7 @@ class ImportShowsFullView(APIView):
         date_from = ser.validated_data['date_from']
         date_to = ser.validated_data.get('date_to') or date_from
 
+        from .tasks.tasks_shows import import_shows_full_task
         task = import_shows_full_task.apply_async(
             kwargs={'date_from': date_from, 'date_to': date_to},
             countdown=1,
@@ -829,7 +806,6 @@ class ImportResultsForDateRangeView(APIView):
         tags=['Import Shows'],
     )
     def post(self, request):
-
         ser = ImportResultsForDateRangeSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
@@ -839,6 +815,7 @@ class ImportResultsForDateRangeView(APIView):
         date_to = d.get('date_to') or date_from
         period = date_from if date_from == date_to else f"{date_from} — {date_to}"
 
+        from .tasks.tasks_shows import import_results_for_date_range_task
         task = import_results_for_date_range_task.apply_async(
             kwargs={
                 'date_from': date_from,
@@ -861,200 +838,90 @@ class ImportResultsForDateRangeView(APIView):
 # Health поиск по медицинским тестам из БД
 # ──────────────────────────────────────────────────────────────────────────────
 class HealthSearchView(APIView):
-    """
-    GET /api/dogs/health/search/
-    """
+    """GET /api/dogs/health/search/"""
+
     def get(self, request):
-        from .models import Dog, MedicalRecord
+        from .services.health_service import search_health_records, DEFAULT_PER_PAGE
 
-        q          = request.query_params.get("q", "").strip()
-        registry   = request.query_params.get("registry", "").strip()
-        conclusion = request.query_params.get("conclusion", "").strip()
         try:
-            page     = max(1, int(request.query_params.get("page", 1)))
-            per_page = min(50, max(1, int(request.query_params.get("per_page", 20))))
+            page = int(request.query_params.get("page", 1))
+            per_page = int(request.query_params.get("per_page", DEFAULT_PER_PAGE))
         except ValueError:
-            page, per_page = 1, 20
+            page, per_page = 1, DEFAULT_PER_PAGE
 
-        qs = MedicalRecord.objects.using("dogs_db").filter(source="ofa")
-
-        if registry:
-            qs = qs.filter(registry__iexact=registry)
-
-        if conclusion:
-            qs = qs.filter(conclusion__icontains=conclusion)
-
-        if q:
-            dog_ids = list(
-                Dog.objects.using("dogs_db")
-                .filter(registered_name__icontains=q)
-                .values_list("id", flat=True)[:500]
-            )
-            qs = qs.filter(dog_id__in=dog_ids)
-
-        # Дедупликация: убираем одинаковые (dog_id, registry, ofa_number)
-        qs = qs.order_by("dog_id", "registry", "ofa_number", "-test_date")
-
-        # Используем distinct по ключевым полям
-        from django.db.models import Max
-        # Берём только последнюю запись для каждой пары (dog_id, registry, ofa_number)
-        qs = qs.distinct()
-
-        total  = qs.count()
-        offset = (page - 1) * per_page
-        records = list(
-            qs.order_by("-test_date")[offset: offset + per_page]
-            .values("id", "registry", "conclusion", "test_date",
-                    "ofa_number", "dog_id")
-        )
-
-        dog_ids_page = {r["dog_id"] for r in records}
-        dogs = {
-            d["id"]: d["registered_name"]
-            for d in Dog.objects.using("dogs_db")
-            .filter(id__in=dog_ids_page)
-            .values("id", "registered_name")
-        }
-
-        for r in records:
-            r["dog_name"] = dogs.get(r["dog_id"], "—")
-            # test_date — дата самого анализа из OFA
-            r["test_date"] = r["test_date"].strftime("%d.%m.%Y") if r["test_date"] else None
-
-        return Response({
-            "count":    total,
-            "page":     page,
-            "per_page": per_page,
-            "results":  records,
-        })
+        return Response(search_health_records(
+            q=request.query_params.get("q", "").strip(),
+            registry=request.query_params.get("registry", "").strip(),
+            conclusion=request.query_params.get("conclusion", "").strip(),
+            page=page, per_page=per_page,
+        ))
 
 
 class HealthRegistriesView(APIView):
-    """
-    GET /api/dogs/health/registries/
-    Возвращает только те тесты которые реально есть в БД
-    и входят в список релевантных для хаски.
-    """
+    """GET /api/dogs/health/registries/ — релевантные тесты, что есть в БД."""
+
     def get(self, request):
-        from .models import MedicalRecord
-        from django.core.cache import cache
-
-        cached = cache.get("health_registries_v2")
-        if cached:
-            return Response(cached)
-
-        # Только те что есть в БД И входят в список хаски
-        existing = set(
-            MedicalRecord.objects.using("dogs_db")
-            .filter(source="ofa")
-            .values_list("registry", flat=True)
-            .distinct()
-        )
-
-        # Сохраняем порядок из HUSKY_REGISTRIES
-        registries = [r for r in HUSKY_REGISTRIES if r in existing]
-
-        cache.set("health_registries_v2", registries, 3600)
-        return Response(registries)
+        from .services.health_service import get_available_registries
+        return Response(get_available_registries())
 
 
 class HealthStatsView(APIView):
-    """
-    GET /api/dogs/health/stats/
-    Статистика по медицинским тестам из БД. Кэш 1 час.
-    """
+    """GET /api/dogs/health/stats/ — статистика по тестам. Кэш 1 час."""
+
     def get(self, request):
-        from .models import Dog, MedicalRecord
-        from django.core.cache import cache
-
-        cached = cache.get("health_stats")
-        if cached:
-            return Response(cached)
-
-        total_tests = MedicalRecord.objects.using("dogs_db").filter(source="ofa").count()
-
-        dogs_with_tests = (
-            MedicalRecord.objects.using("dogs_db")
-            .filter(source="ofa")
-            .values("dog_id")
-            .distinct()
-            .count()
-        )
-
-        clear_total = MedicalRecord.objects.using("dogs_db").filter(
-            source="ofa",
-            registry__in=["DEGENERATIVE MYELOPATHY", "PROGRESSIVE RETINAL ATROPHY",
-                          "PRIMARY LENS LUXATION",
-                          "JUVENILE LARYNGEAL PARALYSIS & POLYNEUROPATHY (LPP)"]
-        ).count()
-
-        clear_normal = MedicalRecord.objects.using("dogs_db").filter(
-            source="ofa",
-            registry__in=["DEGENERATIVE MYELOPATHY", "PROGRESSIVE RETINAL ATROPHY",
-                          "PRIMARY LENS LUXATION",
-                          "JUVENILE LARYNGEAL PARALYSIS & POLYNEUROPATHY (LPP)"],
-            conclusion__icontains="CLEAR"
-        ).count()
-
-        pct_clear = round(clear_normal / clear_total * 100) if clear_total else 0
-
-        registries_count = (
-            MedicalRecord.objects.using("dogs_db")
-            .filter(source="ofa")
-            .values("registry")
-            .distinct()
-            .count()
-        )
-
-        stats = {
-            "total_tests":    total_tests,
-            "dogs_with_tests": dogs_with_tests,
-            "pct_clear":      pct_clear,
-            "registries":     registries_count,
-        }
-
-        cache.set("health_stats", stats, 3600)
-        return Response(stats)
+        from .services.health_service import get_health_stats
+        return Response(get_health_stats())
 
 
 class DogHealthRecordsView(APIView):
     """GET /api/dogs/health/records/?dog_id=123"""
+
     def get(self, request):
-        from .models import MedicalRecord
+        from .services.health_service import get_dog_health_records
         dog_id = request.query_params.get('dog_id')
         if not dog_id:
             return Response({"error": "dog_id required"}, status=400)
         try:
-            records = list(
-                MedicalRecord.objects.using('dogs_db')
-                .filter(dog_id=dog_id, source='ofa')
-                .order_by('-test_date')
-                .values('id', 'registry', 'conclusion', 'test_date', 'ofa_number')
-            )
-            for r in records:
-                r['test_date'] = r['test_date'].strftime('%d.%m.%Y') if r['test_date'] else None
-            return Response(records)
+            return Response(get_dog_health_records(dog_id))
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
 
 # Yandex Photo
-
 class PhotoStatsView(APIView):
     @extend_schema(
         summary="Статистика фото на Яндекс.Диске",
+        description=(
+                "Синхронный GET — результат виден сразу, без Celery задачи.\n\n"
+                "Возвращает:\n"
+                "- total: сколько собак в БД\n"
+                "- with_photo_url: есть photo_url (источник)\n"
+                "- with_yadisk: уже залито на ЯД (есть photo_yadisk_path)\n"
+                "- with_hash: есть photo_hash (дедупликация работает)\n"
+                "- without_yadisk: осталось залить\n"
+                "- placeholders: заглушки (совпадают с DEFAULT_PHOTO_HASHES)"
+        ),
         responses={200: OpenApiTypes.OBJECT},
         tags=["Photos"],
     )
     def get(self, request):
-        from .tasks.tasks_photos import photo_stats
-        result = photo_stats.apply_async()
-        return Response(result.get(timeout=30))
+        from .services.photo_service import get_photo_stats
+        return Response(get_photo_stats())
 
 
 class PhotoUploadBulkView(APIView):
     @extend_schema(
-        summary="Bulk загрузка фото БД → Яндекс.Диск",
+        summary="Bulk загрузка фото БД → Яндекс.Диск (BreedArchive)",
+        description=(
+                "Запускает Celery задачу. Скачивает photo_url с BreedArchive (HTTP) и заливает на ЯД.\n\n"
+                "Сравнивает хэш файла — не перекачивает если фото не изменилось.\n\n"
+                "Параметры:\n"
+                "- id_from / id_to: диапазон dog_id для батчевой обработки\n"
+                "- limit: сколько собак за один прогон (рекомендуется 500)\n"
+                "- delay: пауза между загрузками (0.5с достаточно для BA)\n"
+                "- only_without_yadisk: True = только новые, False = проверить все\n\n"
+                "⚠️ Только для BA-собак. Zoo-собаки требуют Playwright — используй /fetch-zoo/bulk/"
+        ),
         request=PhotoUploadBulkSerializer,
         responses={202: OpenApiTypes.OBJECT},
         tags=["Photos"],
@@ -1085,6 +952,12 @@ class PhotoUploadBulkView(APIView):
 class PhotoUploadSingleView(APIView):
     @extend_schema(
         summary="Загрузка фото одной собаки → Яндекс.Диск",
+        description=(
+                "Автоматически выбирает метод по источнику:\n"
+                "- BA-собака (photo_url содержит breedarchive) → прямой HTTP запрос\n"
+                "- Zoo-собака (photo_url содержит zooportal) → Playwright браузер\n\n"
+                "Используй для точечного исправления когда bulk уже отработал."
+        ),
         responses={202: OpenApiTypes.OBJECT},
         tags=["Photos"],
     )
@@ -1101,7 +974,15 @@ class PhotoUploadSingleView(APIView):
 
 class PhotoSyncFromYaDiskView(APIView):
     @extend_schema(
-        summary="Синхронизация путей ЯД → БД",
+        summary="Восстановить пути ЯД → БД (по именам файлов)",
+        description=(
+                "Сканирует папку disk:/dogs/photos/ на Яндекс.Диске.\n"
+                "По имени файла (12345.jpg → dog_id=12345) обновляет photo_yadisk_path в БД.\n\n"
+                "Когда использовать:\n"
+                "- после ручной загрузки файлов на ЯД\n"
+                "- после восстановления БД из бэкапа (пути сбились)\n"
+                "- если photo_yadisk_path пустой у собак у которых фото на ЯД точно есть"
+        ),
         responses={202: OpenApiTypes.OBJECT},
         tags=["Photos"],
     )
@@ -1171,6 +1052,128 @@ class PhotoFetchZooBulkView(APIView):
             "check_status_url": f"/api/dogs/import/status/{task.id}/",
         }, status=202)
 
+
+class PhotoDeleteSingleView(APIView):
+    @extend_schema(
+        summary="Удалить фото одной собаки с Яндекс.Диска",
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Photos"],
+    )
+    def post(self, request, dog_id: int):
+        from .tasks.tasks_photos import photo_delete_one
+        task = photo_delete_one.apply_async(kwargs={"dog_id": dog_id})
+        return Response({
+            "task_id": task.id,
+            "status": "PENDING",
+            "message": f"Удаление фото dog_id={dog_id} запущено",
+            "check_status_url": f"/api/dogs/import/status/{task.id}/",
+        }, status=202)
+
+
+class PhotoBackfillHashesView(APIView):
+    @extend_schema(
+        summary="Посчитать photo_hash из ЯД (для Zoo-собак)",
+        description=(
+                "Считает photo_hash для собак у которых есть photo_yadisk_path но нет hash.\n"
+                "Скачивает файл с ЯД для вычисления hash.\n\n"
+                "Используй для Zoo-собак — их фото нельзя повторно скачать с Zooportal напрямую,\n"
+                "поэтому hash считается уже с сохранённого файла на ЯД.\n\n"
+                "Для BA-собак удобнее /backfill-hashes-from-source/ — скачивает с оригинального URL.\n\n"
+                "Повторяй пока scanned > 0 в ответе задачи."
+        ),
+        request=PhotoBackfillHashesSerializer,
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Photos"],
+    )
+    def post(self, request):
+        from .tasks.tasks_photos import photo_backfill_hashes
+
+        ser = PhotoBackfillHashesSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+
+        d = ser.validated_data
+        task = photo_backfill_hashes.apply_async(
+            kwargs={
+                "limit": d["limit"],
+                "id_from": d["id_from"],
+                "id_to": d.get("id_to"),
+            }
+        )
+        return Response({
+            "task_id": task.id,
+            "status": "PENDING",
+            "message": f"Backfill хэшей запущен (limit={d['limit']}, id={d['id_from']}–{d.get('id_to') or '∞'})",
+            "check_status_url": f"/api/dogs/import/status/{task.id}/",
+        }, status=202)
+
+
+class PhotoBackfillHashesFromSourceView(APIView):
+    @extend_schema(
+        summary="Посчитать photo_hash из оригинального photo_url (BreedArchive)",
+        description=(
+                "Считает photo_hash напрямую с оригинального photo_url через HTTP.\n"
+                "Не требует скачивания с ЯД — быстрее и дешевле по трафику.\n\n"
+                "Применимость:\n"
+                "- BreedArchive-собаки: ✅ скачивает по HTTP\n"
+                "- Zoo-собаки: ❌ пропускаются (Zooportal блокирует прямые запросы)\n\n"
+                "Для Zoo используй /backfill-hashes/ (скачивает с ЯД).\n\n"
+                "Повторяй пока scanned > 0 в ответе задачи."
+        ),
+        request=PhotoBackfillHashesFromSourceSerializer,
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Photos"],
+    )
+    def post(self, request):
+        from .tasks.tasks_photos import photo_backfill_hashes_from_source
+
+        ser = PhotoBackfillHashesFromSourceSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+
+        d = ser.validated_data
+        task = photo_backfill_hashes_from_source.apply_async(
+            kwargs={
+                "limit": d["limit"],
+                "id_from": d["id_from"],
+                "id_to": d.get("id_to"),
+            }
+        )
+        return Response({
+            "task_id": task.id,
+            "status": "PENDING",
+            "message": (
+                f"Backfill хешей из source запущен "
+                f"(limit={d['limit']}, id={d['id_from']}–{d.get('id_to') or '∞'})"
+            ),
+            "check_status_url": f"/api/dogs/import/status/{task.id}/",
+        }, status=202)
+
+
+class PhotoCleanupPlaceholdersView(APIView):
+    @extend_schema(
+        summary="Удалить дефолтные заглушки с ЯД",
+        description=(
+                "Удаляет файлы с ЯД у которых photo_hash совпадает с DEFAULT_PHOTO_HASHES.\n"
+                "Чистит photo_yadisk_path, photo_yadisk_url, photo_hash в БД.\n\n"
+                "Перед запуском убедись что DEFAULT_PHOTO_HASHES в config/yadisk.py заполнен.\n"
+                "Как получить hash заглушки:\n"
+                "  1. Залей заглушку как фото любой собаки\n"
+                "  2. Запусти /backfill-hashes/ для этой собаки\n"
+                "  3. Скопируй photo_hash из БД в DEFAULT_PHOTO_HASHES"
+        ),
+        responses={202: OpenApiTypes.OBJECT},
+        tags=["Photos"],
+    )
+    def post(self, request):
+        from .tasks.tasks_photos import photo_cleanup_placeholders
+        task = photo_cleanup_placeholders.apply_async()
+        return Response({
+            "task_id": task.id,
+            "status": "PENDING",
+            "message": "Очистка заглушек с ЯД запущена",
+            "check_status_url": f"/api/dogs/import/status/{task.id}/",
+        }, status=202)
 
 
 # dog breed stats

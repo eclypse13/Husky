@@ -7,7 +7,6 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    # Существующие ViewSets
     DogViewSet,
     BreederViewSet,
     OwnerViewSet,
@@ -54,9 +53,14 @@ from .views import (
     PhotoUploadSingleView,
     PhotoSyncFromYaDiskView,
     PhotoFetchZooSingleView,
-    PhotoFetchZooBulkView, PopulationStatsView,
-)
+    PhotoFetchZooBulkView,
+    PhotoDeleteSingleView,
+    PhotoBackfillHashesView,
+    PhotoCleanupPlaceholdersView,
 
+    PopulationStatsView,
+    PhotoBackfillHashesFromSourceView,
+)
 
 router = DefaultRouter()
 router.register(r'dogs', DogViewSet, basename='dog')
@@ -148,8 +152,8 @@ urlpatterns = [
     # OFA
     path(
         'dogs/import/ofa/dog/',
-         ImportOFADogView.as_view(),
-         name='import-ofa-dog'
+        ImportOFADogView.as_view(),
+        name='import-ofa-dog'
     ),
     path(
         'dogs/import/ofa/bulk/reg/',
@@ -158,7 +162,7 @@ urlpatterns = [
     ),
     path(
         'dogs/import/ofa/bulk/name/',
-         ImportOFABulkByNameView.as_view(),
+        ImportOFABulkByNameView.as_view(),
         name='import-ofa-bulk-name'
     ),
     path(
@@ -169,14 +173,14 @@ urlpatterns = [
 
     # COI
     path(
-     'dogs/coi/recalculate/',
-       RecalculateAllCoiView.as_view(),
-       name='coi-recalculate-all'
+        'dogs/coi/recalculate/',
+        RecalculateAllCoiView.as_view(),
+        name='coi-recalculate-all'
     ),
     path(
-       'dogs/breeding/predict/',
-       BreedingPredictView.as_view(),
-       name='breeding-predict'
+        'dogs/breeding/predict/',
+        BreedingPredictView.as_view(),
+        name='breeding-predict'
     ),
 
     # ZOOPORTAL Shows (мероприятия)
@@ -225,9 +229,20 @@ urlpatterns = [
         PhotoFetchZooBulkView.as_view(),
         name='photos-fetch-zoo-bulk',
     ),
+    path('dogs/photos/delete/<int:dog_id>/',
+         PhotoDeleteSingleView.as_view(),
+         name='photos-delete-single'),
+    path('dogs/photos/backfill-hashes/',
+         PhotoBackfillHashesView.as_view(),
+         name='photos-backfill-hashes'),
+    path('dogs/photos/cleanup-placeholders/',
+         PhotoCleanupPlaceholdersView.as_view(),
+         name='photos-cleanup-placeholders'),
+
+    path('dogs/photos/backfill-hashes-from-source/',
+         PhotoBackfillHashesFromSourceView.as_view(),
+         name='photos-backfill-hashes-from-source'),
 
     # dog breed stats
     path('dogs/stats/population/', PopulationStatsView.as_view(), name='population-stats'),
-
-
 ]

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import {useEffect, useRef, useState} from "react";
+import {Link} from "react-router-dom";
+import {useQuery} from "@tanstack/react-query";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import "./Health.css";
 
@@ -23,7 +23,7 @@ interface HealthResponse {
 
 
 // Пагинация в стиле архива
-function Pagination({ page, totalPages, onChange }: {
+function Pagination({page, totalPages, onChange}: {
     page: number;
     totalPages: number;
     onChange: (p: number) => void;
@@ -77,39 +77,39 @@ function Pagination({ page, totalPages, onChange }: {
 export default function Health() {
     const pageRef = useRef<HTMLDivElement | null>(null);
 
-    const [query,            setQuery]            = useState("");
-    const [registry,         setRegistry]         = useState("");
-    const [conclusion,       setConclusion]       = useState("");
-    const [activeQuery,      setActiveQuery]      = useState("");
-    const [activeRegistry,   setActiveRegistry]   = useState("");
+    const [query, setQuery] = useState("");
+    const [registry, setRegistry] = useState("");
+    const [conclusion, setConclusion] = useState("");
+    const [activeQuery, setActiveQuery] = useState("");
+    const [activeRegistry, setActiveRegistry] = useState("");
     const [activeConclusion, setActiveConclusion] = useState("");
-    const [activePage,       setActivePage]       = useState(1);
-    const [searched,         setSearched]         = useState(false);
+    const [activePage, setActivePage] = useState(1);
+    const [searched, setSearched] = useState(false);
 
-    const { data: stats } = useQuery({
+    const {data: stats} = useQuery({
         queryKey: ["health-stats"],
-        queryFn:  () => fetch("/api/dogs/health/stats/").then(r => r.json()),
+        queryFn: () => fetch("/api/dogs/health/stats/").then(r => r.json()),
         staleTime: 3600_000,
     });
 
-    const { data: registries = [] } = useQuery<string[]>({
-        queryKey:  ["health-registries"],
-        queryFn:   () => fetch("/api/dogs/health/registries/").then(r => r.json()),
+    const {data: registries = []} = useQuery<string[]>({
+        queryKey: ["health-registries"],
+        queryFn: () => fetch("/api/dogs/health/registries/").then(r => r.json()),
         staleTime: 3600_000,
     });
 
-    const { data, isFetching } = useQuery<HealthResponse>({
+    const {data, isFetching} = useQuery<HealthResponse>({
         queryKey: ["health-search", activeQuery, activeRegistry, activeConclusion, activePage],
         queryFn: () => {
             const sp = new URLSearchParams();
-            if (activeQuery)      sp.set("q", activeQuery);
-            if (activeRegistry)   sp.set("registry", activeRegistry);
+            if (activeQuery) sp.set("q", activeQuery);
+            if (activeRegistry) sp.set("registry", activeRegistry);
             if (activeConclusion) sp.set("conclusion", activeConclusion);
             sp.set("page", String(activePage));
             sp.set("per_page", "20");
             return fetch(`/api/dogs/health/search/?${sp}`).then(r => r.json());
         },
-        enabled:   searched,
+        enabled: searched,
         staleTime: 30_000,
     });
 
@@ -122,7 +122,7 @@ export default function Health() {
         setSearched(true);
     };
 
-    const totalPages = data ? Math.ceil(data.count / data.per_page) : 0;
+    const totalPages = data?.total && data?.per_page ? Math.ceil(data.total / data.per_page) : 0;
 
     useEffect(() => {
         const root = pageRef.current;
@@ -132,9 +132,12 @@ export default function Health() {
         );
         const io = new IntersectionObserver(
             (entries) => entries.forEach((e) => e.isIntersecting && e.target.setAttribute("data-visible", "1")),
-            { threshold: 0.12, rootMargin: "0px 0px -50px 0px" }
+            {threshold: 0.12, rootMargin: "0px 0px -50px 0px"}
         );
-        els.forEach((el) => { el.setAttribute("data-visible", "0"); io.observe(el); });
+        els.forEach((el) => {
+            el.setAttribute("data-visible", "0");
+            io.observe(el);
+        });
         return () => io.disconnect();
     }, [searched]);
 
@@ -148,17 +151,29 @@ export default function Health() {
             const step = Math.max(1, Math.floor(target / 100));
             const t = setInterval(() => {
                 cur += step;
-                if (cur >= target) { cur = target; clearInterval(t); }
+                if (cur >= target) {
+                    cur = target;
+                    clearInterval(t);
+                }
                 node.textContent = cur.toLocaleString("ru-RU");
             }, 16);
         });
     }, []);
 
+    // pct_normal — доля нормальных результатов по всем группам
+    const pctNormal = (() => {
+        if (!stats?.by_group) return 0;
+        const groups = Object.values(stats.by_group) as Array<{ total: number; normal: number }>;
+        const totalNormal = groups.reduce((s, g) => s + (g.normal ?? 0), 0);
+        const totalAll   = groups.reduce((s, g) => s + (g.total  ?? 0), 0);
+        return totalAll ? Math.round(totalNormal / totalAll * 100) : 0;
+    })();
+
     return (
         <div ref={pageRef} className="health-page">
             <Breadcrumb
                 title="Здоровье породы"
-                items={[{ label: "Главная", to: "/" }, { label: "Здоровье породы" }]}
+                items={[{label: "Главная", to: "/"}, {label: "Здоровье породы"}]}
             />
 
             <main className="health-main">
@@ -186,13 +201,15 @@ export default function Health() {
                             </form>
 
                             <div className="health-filters">
-                                <select className="health-select" value={registry} onChange={e => setRegistry(e.target.value)}>
+                                <select className="health-select" value={registry}
+                                        onChange={e => setRegistry(e.target.value)}>
                                     <option value="">Все тесты</option>
                                     {registries.map(r => (
                                         <option key={r} value={r}>{r}</option>
                                     ))}
                                 </select>
-                                <select className="health-select" value={conclusion} onChange={e => setConclusion(e.target.value)}>
+                                <select className="health-select" value={conclusion}
+                                        onChange={e => setConclusion(e.target.value)}>
                                     <option value="">Любой статус</option>
                                     <option value="EXCELLENT">Excellent</option>
                                     <option value="GOOD">Good</option>
@@ -208,10 +225,10 @@ export default function Health() {
                         {searched && (
                             <section className="health-card">
                                 <div className="health-results-head">
-                                    <h3 className="health-card-title" style={{ margin: 0 }}>Результаты</h3>
-                                    {!isFetching && data && (
+                                    <h3 className="health-card-title" style={{margin: 0}}>Результаты</h3>
+                                    {!isFetching && data?.total != null && (
                                         <span className="health-results-count">
-                                            {data.count.toLocaleString("ru-RU")} записей
+                                            {data.total.toLocaleString("ru-RU")} записей
                                         </span>
                                     )}
                                 </div>
@@ -227,30 +244,31 @@ export default function Health() {
                                         <div className="health-table-wrap">
                                             <table className="health-table">
                                                 <thead>
-                                                    <tr>
-                                                        <th>Собака</th>
-                                                        <th>Тест</th>
-                                                        <th>Результат</th>
-                                                        <th>Дата теста</th>
-                                                        <th>OFA №</th>
-                                                    </tr>
+                                                <tr>
+                                                    <th>Собака</th>
+                                                    <th>Тест</th>
+                                                    <th>Результат</th>
+                                                    <th>Дата теста</th>
+                                                    <th>OFA №</th>
+                                                </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {data.results.map(r => (
-                                                        <tr key={r.id}>
-                                                            <td>
-                                                                <Link to={`/archive/dog/${r.dog_id}`} className="health-table-link">
-                                                                    {r.dog_name}
-                                                                </Link>
-                                                            </td>
-                                                            <td>{r.registry}</td>
-                                                            <td style={{ fontWeight: 600 }}>
-                                                                {r.conclusion || "—"}
-                                                            </td>
-                                                            <td className="health-table-muted">{r.test_date || "—"}</td>
-                                                            <td className="health-table-muted">{r.ofa_number || "—"}</td>
-                                                        </tr>
-                                                    ))}
+                                                {data.results.map(r => (
+                                                    <tr key={r.id}>
+                                                        <td>
+                                                            <Link to={`/archive/dog/${r.dog_id}`}
+                                                                  className="health-table-link">
+                                                                {r.dog_name}
+                                                            </Link>
+                                                        </td>
+                                                        <td>{r.registry}</td>
+                                                        <td style={{fontWeight: 600}}>
+                                                            {r.conclusion || "—"}
+                                                        </td>
+                                                        <td className="health-table-muted">{r.test_date || "—"}</td>
+                                                        <td className="health-table-muted">{r.ofa_number || "—"}</td>
+                                                    </tr>
+                                                ))}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -267,14 +285,15 @@ export default function Health() {
 
                         <section className="health-stats">
                             {[
-                                { icon: "🧬", num: String(stats?.total_tests ?? 0),    label: "Проведено тестов" },
-                                { icon: "🐾", num: String(stats?.dogs_with_tests ?? 0), label: "Собак с результатами" },
-                                { icon: "🟢", num: String(stats?.pct_clear ?? 0), suffix: "%", label: "Clear (генетика)" },
-                                { icon: "🧪", num: String(stats?.registries ?? 0), label: "Типов тестов" },
+                                {icon: "🧬", num: String(stats?.total_records ?? 0), label: "Проведено тестов"},
+                                {icon: "🐾", num: String(stats?.dogs_tested ?? 0), label: "Собак с результатами"},
+                                {icon: "🟢", num: String(pctNormal), suffix: "%", label: "Норм. результаты"},
+                                {icon: "🧪", num: String(Object.keys(stats?.by_group ?? {}).length), label: "Типов тестов"},
                             ].map((s) => (
                                 <article className="health-stat" key={s.label}>
                                     <div className="health-stat-icon">{s.icon}</div>
-                                    <div className="health-stat-number" data-target={s.num} style={{ fontVariantNumeric: "tabular-nums" }}>
+                                    <div className="health-stat-number" data-target={s.num}
+                                         style={{fontVariantNumeric: "tabular-nums"}}>
                                         {s.suffix ? `${s.num}${s.suffix}` : s.num}
                                     </div>
                                     <div className="health-stat-label">{s.label}</div>
