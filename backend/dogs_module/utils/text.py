@@ -158,7 +158,7 @@ def build_color_filter(qs, color: str):
     ]
 
     if len(parts) >= 2:
-        stems = [_color_stem(p) for p in parts if len(p) >= 3]
+        stems = [color_stem(p) for p in parts if len(p) >= 3]
         q = Q()
         for stem in stems:
             q &= Q(_color_norm__icontains=stem)
