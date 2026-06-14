@@ -6,7 +6,7 @@ from .routers import breeding
 app = FastAPI(
     title="Breeding ML Service",
     description="ML предсказания рисков для вязки собак",
-    version="2.0.0",
+    version="3.0.0",
 )
 
 app.include_router(breeding.router)
@@ -14,4 +14,4 @@ app.include_router(breeding.router)
 
 @app.get("/")
 def root():
-    return {"service": "breeding-ml", "version": "2.0.0", "status": "ok"}
+    return {"service": "breeding-ml", "version": "3.0.0", "status": "ok"}

@@ -1,16 +1,12 @@
 # ml_service/app/services/model_store.py
 """
 Загрузка и сохранение моделей.
-
-Отдельный слой между файловой системой и бизнес-логикой.
-trainer.py и predictor.py не знают про пути к файлам — только через этот модуль.
 """
 
 import logging
 from pathlib import Path
-from typing import Optional
 
-from ..config import settings
+from ..config import settings, TARGETS
 
 logger = logging.getLogger(__name__)
 
@@ -66,9 +62,8 @@ def invalidate_cache(name: str = None) -> None:
 
 
 def list_trained_models() -> dict:
-    """Возвращает список обученных моделей и их статус."""
-    targets = ["hip", "eye", "elbow"]
+    """Возвращает список обучаемых моделей и их статус."""
     return {
         name: "trained" if model_path(name).exists() else "not_trained"
-        for name in targets
+        for name in TARGETS
     }

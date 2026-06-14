@@ -1,8 +1,6 @@
 # ml_service/app/services/trainer.py
 """
 Обучение CatBoost моделей — по одной на каждую болезнь.
-
-Не знает про файловую систему — использует model_store.
 """
 
 import logging
@@ -16,13 +14,14 @@ from ..config import settings, FEATURE_COLS, TARGETS
 
 logger = logging.getLogger(__name__)
 
+
 def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
     """Обучает CatBoost для одной болезни."""
     from catboost import CatBoostClassifier, Pool
 
     positive = int(y.sum())
-    total    = len(y)
-    rate     = positive / total if total else 0
+    total = len(y)
+    rate = positive / total if total else 0
 
     if positive < settings.min_positive_samples:
         msg = f"мало позитивных случаев: {positive} (нужно {settings.min_positive_samples})"
@@ -32,8 +31,8 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
     logger.info(f"trainer {name}: {total} записей, позитивных: {positive} ({rate:.1%})")
 
     # Кросс-валидация
-    n_splits  = min(5, positive)
-    cv        = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    n_splits = min(5, positive)
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
     auc_scores = []
 
     for train_idx, val_idx in cv.split(X, y):
@@ -71,11 +70,11 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
     )
     final_model.fit(Pool(X, y))
 
-    # Сохраняем через model_store (не напрямую)
+    # Сохраняем через model_store
     save_model(final_model, name)
 
     auc_mean = round(float(np.mean(auc_scores)), 3)
-    auc_std  = round(float(np.std(auc_scores)), 3)
+    auc_std = round(float(np.std(auc_scores)), 3)
 
     importances = dict(zip(
         FEATURE_COLS,
@@ -84,13 +83,13 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
 
     logger.info(f"trainer {name}: ROC-AUC={auc_mean}±{auc_std}")
     return {
-        "skipped":             False,
-        "positive":            positive,
-        "positive_rate":       round(rate, 3),
-        "roc_auc":             auc_mean,
-        "roc_auc_std":         auc_std,
+        "skipped": False,
+        "positive": positive,
+        "positive_rate": round(rate, 3),
+        "roc_auc": auc_mean,
+        "roc_auc_std": auc_std,
         "feature_importances": importances,
-        "best_model":          "catboost",
+        "best_model": "catboost",
     }
 
 
@@ -100,8 +99,11 @@ def train(dataset: list[dict]) -> dict:
         return {"error": f"Мало данных: {len(dataset)} (нужно минимум 30)"}
 
     clean = [{k: v for k, v in row.items() if not k.startswith("_")} for row in dataset]
-    df    = pd.DataFrame(clean)
-    X     = df[FEATURE_COLS]  # NaN передаём напрямую — CatBoost умеет
+    df = pd.DataFrame(clean)
+
+    # reindex (не df[FEATURE_COLS]): недостающие колонки → NaN вместо KeyError.
+    # Защита от рассинхрона набора фич между Django и ML.
+    X = df.reindex(columns=FEATURE_COLS)
 
     results = {"dataset_size": len(df), "models": {}}
 
@@ -109,7 +111,7 @@ def train(dataset: list[dict]) -> dict:
         if col not in df.columns:
             results["models"][short_name] = {
                 "skipped": True,
-                "reason":  f"колонка {col} отсутствует",
+                "reason": f"колонка {col} отсутствует",
             }
             continue
 

@@ -5,143 +5,116 @@
 
 import logging
 
+from ..domain.health_codes import extract_scores
+from ..repositories import dog_repository as dog_repo
+from ..repositories import medical_record_repository as med_repo
+
 logger = logging.getLogger(__name__)
 
-HIP_MAP = {
-    "EXCELLENT": 0, "GOOD": 1, "FAIR": 2,
-    "BORDERLINE": 3, "MILD": 4, "MODERATE": 5, "SEVERE": 6,
-}
-EYE_MAP     = {"NORMAL": 0, "NORMAL W/BO": 0, "AFFECTED": 1}
-ELBOW_MAP   = {"NORMAL": 0, "GRADE I": 1, "GRADE II": 2, "GRADE III": 3}
-GENETIC_MAP = {
-    "CLEAR/NORMAL": 0, "CLEAR": 0, "NORMAL/CLEAR": 0,
-    "CARRIER": 1, "AFFECTED": 2,
-}
-CARDIAC_REGISTRIES = {"BASIC CARDIAC", "ADVANCED CARDIAC", "CONGENITAL CARDIAC"}
-EYE_REGISTRIES     = {"EYES", "CERF", "SIBERIAN HUSKY OPTH. REGISTRY"}
-PRA_REGISTRIES     = {
-    "PROGRESSIVE RETINAL ATROPHY",
-    "PRA - CONE ROD DYSTROPHY 3",
-    "EARLY ONSET PRA",
-}
-LPP_REGISTRIES = {
-    "JUVENILE LARYNGEAL PARALYSIS & POLYNEUROPATHY (LPP)",
-    "POLYNEUROPATHY",
+# логическая группа теста → имя поля в payload (DogHealthData) для ML сервиса
+_GROUP_TO_FIELD = {
+    "hips": "hips_score",
+    "eyes": "eyes_score",
+    "elbows": "elbows_score",
+    "dm": "dm_score",
+    "pra": "pra_score",
+    "pll": "pll_score",
+    "lpp": "lpp_score",
+    "cardiac": "cardiac_score",
+    "thyroid": "thyroid_score",
+    "patella": "patella_score",
 }
 
 
 def get_dog_health_data(dog_id: int) -> dict:
     """
-    Достаёт из БД данные здоровья собаки и маппит в формат для ML сервиса.
-
-    Возвращает dict готовый для передачи в predict_breeding().
+    Достаёт здоровье собаки из БД и маппит в формат DogHealthData (сырые баллы
+    для rules + законов Менделя). Баллы считаются той же extract_scores, что и
+    в обучении.
     """
-    from ..models import Dog, MedicalRecord
-
-    try:
-        dog = Dog.objects.using("dogs_db").get(pk=dog_id)
-    except Dog.DoesNotExist:
+    dog = dog_repo.get_by_id(dog_id)
+    if dog is None:
         logger.error(f"ml_dog_service: dog_id={dog_id} не найдена")
         return {"dog_id": dog_id}
 
-    records = list(
-        MedicalRecord.objects.using("dogs_db")
-        .filter(dog_id=dog_id, source="ofa")
-        .values("registry", "conclusion")
-    )
+    records = med_repo.get_ofa_records_for_dog_values(dog_id)
+    scores = extract_scores(records)  # {group: score}
 
     data = {
         "dog_id": dog_id,
-        "coi": float(dog.coi) if dog.coi else None,
+        "coi": float(dog.coi) if dog.coi else None,  # проценты
     }
-
-    for rec in records:
-        reg = rec["registry"].upper().strip()
-        con = (rec["conclusion"] or "").upper().strip()
-
-        if reg == "HIPS":
-            data["hips_score"] = HIP_MAP.get(con)
-
-        elif reg in EYE_REGISTRIES:
-            data["eyes_score"] = EYE_MAP.get(con)
-
-        elif reg == "ELBOW":
-            data["elbows_score"] = ELBOW_MAP.get(con)
-
-        elif reg == "DEGENERATIVE MYELOPATHY":
-            data["dm_score"] = GENETIC_MAP.get(con)
-
-        elif reg in PRA_REGISTRIES:
-            data["pra_score"] = GENETIC_MAP.get(con)
-
-        elif reg == "PRIMARY LENS LUXATION":
-            data["pll_score"] = GENETIC_MAP.get(con)
-
-        elif reg in LPP_REGISTRIES:
-            data["lpp_score"] = GENETIC_MAP.get(con)
-
-        elif reg in CARDIAC_REGISTRIES:
-            data["cardiac_score"] = 0 if "NORMAL" in con else 1
-
-        elif reg == "THYROID":
-            data["thyroid_score"] = 0 if "NORMAL" in con else 1
-
-        elif reg == "PATELLA":
-            data["patella_score"] = 0 if "NORMAL" in con else 1
+    for group, field in _GROUP_TO_FIELD.items():
+        if group in scores:
+            data[field] = scores[group]
 
     return data
 
-def get_pair_data(sire_id: int, dam_id: int) -> dict:
-    """Формирует данные пары для ML сервиса."""
-    from .pedigree_service import get_pair_pedigree_data, calc_offspring_coi
 
-    pedigree = get_pair_pedigree_data(sire_id, dam_id)
-    offspring_coi = calc_offspring_coi(sire_id, dam_id)
+def get_pair_data(sire_id: int, dam_id: int) -> dict:
+    """
+    Формирует данные пары для ML сервиса:
+      expected_coi — COI потомства в ПРОЦЕНТАХ (как в обучении, без деления на 100);
+      features     — готовая строка ML-признаков (та же build_feature_row, что и
+                     в обучении) с агрегатами по предкам.
+    """
+    from .pedigree_service import calc_offspring_coi
+    from .feature_builder import build_feature_row
+    from .ancestor_features import collect_ancestor_ids, ANCESTOR_DEPTH
+
+    offspring_coi = calc_offspring_coi(sire_id, dam_id)  # проценты
+
+    # Предки обеих сторон + сами родители — нужны их баллы для агрегатов.
+    need_ids = (
+            collect_ancestor_ids(sire_id, ANCESTOR_DEPTH)
+            | collect_ancestor_ids(dam_id, ANCESTOR_DEPTH)
+            | {sire_id, dam_id}
+    )
+    records_raw = med_repo.get_ofa_records_for_dogs_values(need_ids)
+    records_by_dog: dict[int, list] = {}
+    for rec in records_raw:
+        records_by_dog.setdefault(rec["dog_id"], []).append(rec)
+    scores_by_dog = {i: extract_scores(r) for i, r in records_by_dog.items()}
+
+    coi_map = dog_repo.get_coi_map({sire_id, dam_id})
+
+    features = build_feature_row(
+        sire_scores=scores_by_dog.get(sire_id, {}),
+        dam_scores=scores_by_dog.get(dam_id, {}),
+        sire_coi=float(coi_map.get(sire_id)) if coi_map.get(sire_id) else None,
+        dam_coi=float(coi_map.get(dam_id)) if coi_map.get(dam_id) else None,
+        pair_coi=offspring_coi,
+        sire_id=sire_id,
+        dam_id=dam_id,
+        scores_by_dog=scores_by_dog,
+        parent_map=None,  # для одной пары тянем предков из БД (дёшево)
+    )
 
     return {
-        "expected_coi":             offspring_coi / 100 if offspring_coi else None,
-        "hip_dysplasia_ratio_4gen": pedigree["pair_hip_ratio"],
+        "expected_coi": offspring_coi,  # проценты
+        "features": features,
     }
 
 
-def get_breeding_recommendation(result: dict, offspring_coi: float | None) -> dict:
+def predict_pair(sire_id: int, dam_id: int) -> dict:
     """
-    Рекомендация основана ТОЛЬКО на том что реально прогнозируется ML:
-      - COI потомства (главный приоритет — генетика)
-      - ML бёдра (ROC-AUC 0.642, обучена на реальных OFA данных)
-      - ML глаза (ROC-AUC 0.842, обучена на реальных OFA данных)
-
-    Остальные 8 болезней показываются информационно,
-    НЕ влияют на итоговую рекомендацию.
+    Полный бизнес-сценарий прогноза вязки пары:
+    данные родителей → ML-прогноз → COI потомства → рекомендация.
+    Возвращает результат ML с полями offspring_coi и recommendation,
+    либо {'error': ...} если ML недоступен.
     """
-    from .pedigree_service import get_coi_comment
+    from .ml_client import predict_breeding
+    from .pedigree_service import calc_offspring_coi
+    from ..domain.recommendation import get_breeding_recommendation
 
-    # COI — главный приоритет
-    coi_info = get_coi_comment(offspring_coi)
-    result["coi_info"] = coi_info
-
-    if offspring_coi is not None and offspring_coi > 12.5:
-        result["recommendation"] = "not_recommended"
+    result = predict_breeding(
+        get_dog_health_data(sire_id),
+        get_dog_health_data(dam_id),
+        get_pair_data(sire_id, dam_id),
+    )
+    if "error" in result:
         return result
 
-    if offspring_coi is not None and offspring_coi > 6.25:
-        if result.get("recommendation") == "recommended":
-            result["recommendation"] = "caution"
-
-    # ML бёдра и глаза — только если basis==ml
-    hip = result.get("hip_dysplasia", {})
-    eye = result.get("eye_disease", {})
-
-    hip_risk = hip.get("risk", 0) if hip.get("basis") == "ml" else None
-    eye_risk = eye.get("risk", 0) if eye.get("basis") == "ml" else None
-
-    if hip_risk is not None and hip_risk > 0.35:
-        result["recommendation"] = "not_recommended"
-    elif hip_risk is not None and hip_risk > 0.20:
-        if result.get("recommendation") == "recommended":
-            result["recommendation"] = "caution"
-    elif eye_risk is not None and eye_risk > 0.30:
-        if result.get("recommendation") == "recommended":
-            result["recommendation"] = "caution"
-
-    return result
+    offspring_coi = calc_offspring_coi(sire_id, dam_id)
+    result["offspring_coi"] = offspring_coi
+    return get_breeding_recommendation(result, offspring_coi)

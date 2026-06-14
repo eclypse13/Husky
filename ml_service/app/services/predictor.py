@@ -2,11 +2,14 @@
 """
 Предсказание рисков для пары.
 
-
 Три метода:
-  "ml"       — CatBoost модель (если обучена)
-  "rules"    — ветеринарные правила OFA
+  "ml" — CatBoost модель (если обучена)
+  "rules" — ветеринарные правила OFA
   "genetics" — законы Менделя (DM, PRA, PLL, LPP)
+
+ML-вектор признаков собирает Django (feature_builder). Здесь он
+НЕ пересобирается — только выравнивается по FEATURE_COLS. Сырые sire/dam нужны
+лишь для rules и Менделя.
 """
 
 import logging
@@ -19,46 +22,26 @@ from ..schemas.breeding import (
     BreedingPredictResponse,
     DiseaseRisk,
 )
-from ..config import settings, FEATURE_COLS
+from ..config import FEATURE_COLS
 
 logger = logging.getLogger(__name__)
 
 # Ветеринарные правила OFA
-HIP_RISK     = {0: 0.05, 1: 0.10, 2: 0.18, 3: 0.30, 4: 0.45, 5: 0.60, 6: 0.75}
-ELBOW_RISK   = {0: 0.05, 1: 0.20, 2: 0.40, 3: 0.65}
-EYE_RISK     = {0: 0.05, 1: 0.50}
+HIP_RISK = {0: 0.05, 1: 0.10, 2: 0.18, 3: 0.30, 4: 0.45, 5: 0.60, 6: 0.75}
+ELBOW_RISK = {0: 0.05, 1: 0.20, 2: 0.40, 3: 0.65}
+EYE_RISK = {0: 0.05, 1: 0.50}
 CARDIAC_RISK = {0: 0.03, 1: 0.40}
-THYROID_RISK = {0: 0.03, 1: 0.30}
+THYROID_RISK = {0: 0.03, 1: 0.40}
 PATELLA_RISK = {0: 0.05, 1: 0.35}
 
 
-def _build_features(req: BreedingPredictRequest) -> pd.DataFrame:
+def _features_df(req: BreedingPredictRequest) -> pd.DataFrame:
     """
-    Строит DataFrame из запроса.
-    NaN остаются NaN — CatBoost обрабатывает их нативно.
+    Строит DataFrame из ГОТОВОЙ строки признаков (req.features), собранной в Django.
+    reindex по FEATURE_COLS: недостающие колонки → NaN (CatBoost обрабатывает нативно),
+    лишние — отбрасываются. Один источник истины о наборе фич — config.FEATURE_COLS.
     """
-    s, d = req.sire, req.dam
-    avg_hip = None
-    if s.hips_score is not None and d.hips_score is not None:
-        avg_hip = (s.hips_score + d.hips_score) / 2
-
-    return pd.DataFrame([{
-        "sire_hips":       s.hips_score,
-        "sire_eyes":       s.eyes_score,
-        "sire_elbows":     s.elbows_score,
-        "sire_dm":         s.dm_score,
-        "sire_pra":        s.pra_score,
-        "sire_coi":        s.coi,
-        "dam_hips":        d.hips_score,
-        "dam_eyes":        d.eyes_score,
-        "dam_elbows":      d.elbows_score,
-        "dam_dm":          d.dm_score,
-        "dam_pra":         d.pra_score,
-        "dam_coi":         d.coi,
-        "pair_coi":        req.expected_coi,
-        "hip_ratio_4gen":  req.hip_dysplasia_ratio_4gen,
-        "avg_hip_score":   avg_hip,
-    }])
+    return pd.DataFrame([req.features or {}]).reindex(columns=FEATURE_COLS)
 
 
 def _ml_predict(name: str, features: pd.DataFrame) -> Optional[float]:
@@ -83,33 +66,34 @@ def _rule(sire, dam, table: dict, default: float, mult: float) -> float:
 def _genetics(sire: Optional[int], dam: Optional[int]) -> float:
     """
     Законы Менделя — аутосомно-рецессивное наследование.
-    0=Clear, 1=Carrier, 2=Affected
-
-    Carrier × Carrier → 25% больных потомков
+    0=Clear, 1=Carrier, 2=Affected. Carrier × Carrier → 25% больных потомков.
     """
     s = min(sire if sire is not None else 0, 2)
-    d = min(dam  if dam  is not None else 0, 2)
+    d = min(dam if dam is not None else 0, 2)
 
     affected = {
-        (0,0): 0.00, (0,1): 0.00, (0,2): 0.00,
-        (1,0): 0.00, (1,1): 0.25, (1,2): 0.50,
-        (2,0): 0.00, (2,1): 0.50, (2,2): 1.00,
+        (0, 0): 0.00, (0, 1): 0.00, (0, 2): 0.00,
+        (1, 0): 0.00, (1, 1): 0.25, (1, 2): 0.50,
+        (2, 0): 0.00, (2, 1): 0.50, (2, 2): 1.00,
     }
     carrier = {
-        (0,0): 0.00, (0,1): 0.50, (0,2): 1.00,
-        (1,0): 0.50, (1,1): 0.50, (1,2): 0.50,
-        (2,0): 1.00, (2,1): 0.50, (2,2): 0.00,
+        (0, 0): 0.00, (0, 1): 0.50, (0, 2): 1.00,
+        (1, 0): 0.50, (1, 1): 0.50, (1, 2): 0.50,
+        (2, 0): 1.00, (2, 1): 0.50, (2, 2): 0.00,
     }
     # Риск болезни + 10% от риска носительства
-    return round(affected[(s,d)] + 0.1 * carrier[(s,d)], 3)
+    return round(affected[(s, d)] + 0.1 * carrier[(s, d)], 3)
 
 
 def _coi_multiplier(coi: Optional[float]) -> float:
-    """Высокий COI увеличивает риск рецессивных болезней."""
-    if not coi:   return 1.0
-    if coi > 0.125:  return 1.4
-    if coi > 0.0625: return 1.2
-    if coi > 0.03:   return 1.1
+    """
+    Высокий COI увеличивает риск рецессивных болезней.
+    COI в ПРОЦЕНТАХ.
+    """
+    if not coi: return 1.0
+    if coi > 12.5: return 1.4
+    if coi > 6.25: return 1.2
+    if coi > 3.0: return 1.1
     return 1.0
 
 
@@ -123,10 +107,10 @@ def _make(risk: float, basis: str) -> DiseaseRisk:
 
 def predict(req: BreedingPredictRequest) -> BreedingPredictResponse:
     """Предсказывает риски для пары по всем болезням."""
-    s, d  = req.sire, req.dam
-    coi   = req.expected_coi
-    mult  = _coi_multiplier(coi)
-    feat  = _build_features(req)
+    s, d = req.sire, req.dam
+    coi = req.expected_coi  # проценты
+    mult = _coi_multiplier(coi)
+    feat = _features_df(req)
     used_ml = False
 
     def ml_or_rules(name, sire_score, dam_score, table, default):
@@ -138,31 +122,32 @@ def predict(req: BreedingPredictRequest) -> BreedingPredictResponse:
         return _make(_rule(sire_score, dam_score, table, default, mult), "rules")
 
     # Клинические — ML если обучена, иначе rules
-    hip_risk     = ml_or_rules("hip",   s.hips_score,   d.hips_score,   HIP_RISK,    0.15)
-    eye_risk     = ml_or_rules("eye",   s.eyes_score,   d.eyes_score,   EYE_RISK,    0.08)
-    elbow_risk   = ml_or_rules("elbow", s.elbows_score, d.elbows_score, ELBOW_RISK,  0.05)
+    hip_risk = ml_or_rules("hip", s.hips_score, d.hips_score, HIP_RISK, 0.15)
+    eye_risk = ml_or_rules("eye", s.eyes_score, d.eyes_score, EYE_RISK, 0.08)
+    # elbow обучения больше нет — всегда rules
+    elbow_risk = _make(_rule(s.elbows_score, d.elbows_score, ELBOW_RISK, 0.05, mult), "rules")
     cardiac_risk = _make(_rule(s.cardiac_score, d.cardiac_score, CARDIAC_RISK, 0.05, mult), "rules")
     thyroid_risk = _make(_rule(s.thyroid_score, d.thyroid_score, THYROID_RISK, 0.05, mult), "rules")
     patella_risk = _make(_rule(s.patella_score, d.patella_score, PATELLA_RISK, 0.05, mult), "rules")
 
     # Генетические — всегда законы Менделя
-    dm_risk  = _make(_genetics(s.dm_score,  d.dm_score),  "genetics")
+    dm_risk = _make(_genetics(s.dm_score, d.dm_score), "genetics")
     pra_risk = _make(_genetics(s.pra_score, d.pra_score), "genetics")
     pll_risk = _make(_genetics(s.pll_score, d.pll_score), "genetics")
     lpp_risk = _make(_genetics(s.lpp_score, d.lpp_score), "genetics")
 
     # Топ-5 рисков
     all_risks = {
-        "Дисплазия бёдер":           hip_risk,
-        "Дисплазия локтей":          elbow_risk,
-        "Болезни глаз":              eye_risk,
-        "Патология пателлы":         patella_risk,
-        "Болезни сердца":            cardiac_risk,
-        "Болезни щитовидки":         thyroid_risk,
+        "Дисплазия бёдер": hip_risk,
+        "Дисплазия локтей": elbow_risk,
+        "Болезни глаз": eye_risk,
+        "Патология пателлы": patella_risk,
+        "Болезни сердца": cardiac_risk,
+        "Болезни щитовидки": thyroid_risk,
         "Дегенеративная миелопатия": dm_risk,
-        "PRA (атрофия сетчатки)":    pra_risk,
-        "PLL (вывих хрусталика)":    pll_risk,
-        "Полинейропатия":            lpp_risk,
+        "PRA (атрофия сетчатки)": pra_risk,
+        "PLL (вывих хрусталика)": pll_risk,
+        "Полинейропатия": lpp_risk,
     }
     top5 = sorted(
         [{"disease": k, "risk": v.risk, "level": v.level, "basis": v.basis}
@@ -178,9 +163,10 @@ def predict(req: BreedingPredictRequest) -> BreedingPredictResponse:
     ] if v is not None)
     confidence = "high" if filled >= 6 else "medium" if filled >= 3 else "low"
 
-    # Итоговая рекомендация
+    # Предварительная рекомендация (итоговую считает Django: domain/recommendation.py).
+    # Оставлена, чтобы /breeding/predict был самодостаточен при ручном вызове.
     high_count = sum(1 for v in all_risks.values() if v.level == "high")
-    med_count  = sum(1 for v in all_risks.values() if v.level == "medium")
+    med_count = sum(1 for v in all_risks.values() if v.level == "medium")
     if high_count >= 2 or any(v.risk > 0.50 for v in all_risks.values()):
         recommendation = "not_recommended"
     elif high_count >= 1 or med_count >= 3:
@@ -205,4 +191,3 @@ def predict(req: BreedingPredictRequest) -> BreedingPredictResponse:
         features_used=FEATURE_COLS,
         top_risks=top5,
     )
-

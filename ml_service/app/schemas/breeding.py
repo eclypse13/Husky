@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class DogHealthData(BaseModel):
-    """Данные здоровья одной собаки."""
+    """Данные здоровья одной собаки (сырые баллы — для rules и законов Менделя)."""
     dog_id: int
 
     # Клинические тесты
@@ -21,24 +21,30 @@ class DogHealthData(BaseModel):
     pll_score: Optional[int] = None  # Primary Lens Luxation
     lpp_score: Optional[int] = None  # Laryngeal Paralysis & Polyneuropathy
 
-    coi: Optional[float] = None  # коэффициент инбридинга 0.0-1.0
+    coi: Optional[float] = None  # коэффициент инбридинга, ПРОЦЕНТЫ (0..100)
 
 
 class BreedingPredictRequest(BaseModel):
-    """Запрос предсказания для пары. Django отправляет — ML отвечает."""
-    sire: DogHealthData
-    dam:  DogHealthData
+    """
+    Запрос предсказания для пары.
 
-    expected_coi: Optional[float] = None
-    common_ancestors_count: Optional[int] = None
-    hip_dysplasia_ratio_4gen: Optional[float] = None
+    sire / dam — сырые баллы для rules + законов Менделя.
+    features — ГОТОВАЯ строка ML-признаков, собранная в Django
+    (feature_builder.build_feature_row). ML её не пересобирает,
+    только выравнивает по FEATURE_COLS. Это исключает train/serve skew.
+    """
+    sire: DogHealthData
+    dam: DogHealthData
+
+    expected_coi: Optional[float] = None  # COI потомства, проценты
+    features: dict = {}  # {feature_name: value | None}
 
 
 class DiseaseRisk(BaseModel):
     """Риск по одной болезни."""
     risk: float  # вероятность 0.0 - 1.0
-    level: str    # low / medium / high
-    basis: str    # ml / rules / genetics
+    level: str  # low / medium / high
+    basis: str  # ml / rules / genetics
 
 
 class BreedingPredictResponse(BaseModel):
@@ -60,8 +66,8 @@ class BreedingPredictResponse(BaseModel):
     polyneuropathy: DiseaseRisk
 
     # Итог
-    confidence: str         # high / medium / low
-    recommendation: str         # recommended / caution / not_recommended
-    model_used: str         # random_forest / logistic_regression / rules_and_genetics
+    confidence: str  # high / medium / low
+    recommendation: str  # recommended / caution / not_recommended
+    model_used: str  # catboost / rules_and_genetics
     features_used: list[str]
-    top_risks: list[dict]  # топ-5 наиболее вероятных
+    top_risks: list[dict]  # топ 5 наиболее вероятных

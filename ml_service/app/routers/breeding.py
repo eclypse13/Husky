@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from ..schemas.breeding import BreedingPredictRequest, BreedingPredictResponse
 from ..services.predictor import predict
 from ..services.trainer import train
-from ..services.model_store import list_trained_models, invalidate_cache
+from ..services.model_store import list_trained_models
 
 router = APIRouter(prefix="/breeding", tags=["breeding"])
 
@@ -28,7 +28,6 @@ def predict_breeding(req: BreedingPredictRequest):
 def train_model(req: TrainRequest):
     """
     Обучает модели на датасете.
-    Вызывается из Django Celery задачи.
     """
     if not req.dataset:
         raise HTTPException(status_code=400, detail="Пустой датасет")

@@ -1,6 +1,6 @@
 # dogs_module/tasks/tasks_ml.py
 """
-ML таски — только оркестрация.
+ML таски.
 """
 import logging
 from celery import shared_task
@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, name="dogs_module.train_ml_model_task")
 def train_ml_model_task(
-    self,
-    augment: bool = False,
-    n_synthetic: int = 1000,
+        self,
+        augment: bool = False,
+        n_synthetic: int = 1000,
 ) -> dict:
     """
     Собирает датасет и обучает ML модели.
 
     Параметры:
-      augment     — добавить синтетические данные
+      augment — добавить синтетические данные
       n_synthetic — сколько синтетических записей
     """
     from ..services.dataset_builder import build_dataset
@@ -35,7 +35,7 @@ def train_ml_model_task(
         for row in dataset
     ]
 
-    real_count      = sum(1 for r in dataset if not r.get("_synthetic"))
+    real_count = sum(1 for r in dataset if not r.get("_synthetic"))
     synthetic_count = sum(1 for r in dataset if r.get("_synthetic"))
 
     logger.info(
@@ -51,16 +51,10 @@ def train_ml_model_task(
 
 @shared_task(bind=True, name="dogs_module.predict_breeding_task")
 def predict_breeding_task(self, sire_id: int, dam_id: int) -> dict:
-    from ..services.ml_dog_service import get_dog_health_data, get_pair_data
-    from ..services.ml_client import predict_breeding
+    from ..services.ml_dog_service import predict_pair
 
-    sire_data = get_dog_health_data(sire_id)
-    dam_data  = get_dog_health_data(dam_id)
-    pair_data = get_pair_data(sire_id, dam_id)
+    result = predict_pair(sire_id, dam_id)
 
-    result = predict_breeding(sire_data, dam_data, pair_data)
-
-    # Добавь проверку
     if "error" in result:
         logger.error(f"ML predict failed: {result['error']}")
         return result

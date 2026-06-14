@@ -2,186 +2,125 @@
 """
 Сборщик датасета для обучения ML модели.
 
-Реальные данные берутся из БД.
-Синтетические данные генерируются в памяти и НЕ сохраняются в БД.
+Реальные данные берутся из БД (включая агрегаты по предкам).
 """
 
 import logging
 
+from ..domain.health_codes import (
+    extract_scores,
+    HIP_PROBLEM_THRESHOLD,
+    EYE_PROBLEM_THRESHOLD,
+)
+from ..repositories import dog_repository as dog_repo
+from ..repositories import medical_record_repository as med_repo
+from .ancestor_features import ANCESTOR_DEPTH
+from .feature_builder import build_feature_row
+
 logger = logging.getLogger(__name__)
 
-HIP_MAP = {
-    "EXCELLENT": 0, "GOOD": 1, "FAIR": 2,
-    "BORDERLINE": 3, "MILD": 4, "MODERATE": 5, "SEVERE": 6,
-}
-ELBOW_MAP = {
-    "NORMAL": 0, "GRADE I": 1, "GRADE II": 2, "GRADE III": 3,
-    "GRADE1": 1, "GRADE2": 2, "GRADE3": 3,
-}
-EYE_MAP     = {"NORMAL": 0, "NORMAL W/BO": 0, "AFFECTED": 1}
-GENETIC_MAP = {
-    "CLEAR/NORMAL": 0, "CLEAR": 0, "NORMAL/CLEAR": 0,
-    "CARRIER": 1, "CARRIER-PROBABLE": 1,
-    "AFFECTED": 2,
-}
 
-REGISTRY_GROUPS = {
-    "HIPS": "hips",
-    "ELBOW": "elbows",
-    "EYES": "eyes",
-    "CERF": "eyes",
-    "SIBERIAN HUSKY OPTH. REGISTRY": "eyes",
-    "PRIMARY LENS LUXATION": "pll",
-    "PROGRESSIVE RETINAL ATROPHY": "pra",
-    "PRA - CONE ROD DYSTROPHY 3": "pra",
-    "EARLY ONSET PRA": "pra",
-    "DEGENERATIVE MYELOPATHY": "dm",
-    "JUVENILE LARYNGEAL PARALYSIS & POLYNEUROPATHY (LPP)": "lpp",
-    "BASIC CARDIAC": "cardiac",
-    "ADVANCED CARDIAC": "cardiac",
-    "CONGENITAL CARDIAC": "cardiac",
-    "THYROID": "thyroid",
-    "PATELLA": "patella",
-}
-
-GROUP_MAPS = {
-    "hips":    HIP_MAP,
-    "elbows":  ELBOW_MAP,
-    "eyes":    EYE_MAP,
-    "pll":     GENETIC_MAP,
-    "pra":     GENETIC_MAP,
-    "dm":      GENETIC_MAP,
-    "lpp":     GENETIC_MAP,
-    "cardiac": {
-        "NORMAL": 0, "NORMAL-PRACTITIONER": 0,
-        "NORMAL-CARDIOLOGIST": 0, "NORMAL AUSC+ECHO": 0,
-        "ABNORMAL": 1,
-    },
-    "thyroid": {"NORMAL": 0, "ABNORMAL": 1},
-    "patella": {"NORMAL": 0, "ABNORMAL": 1},
-}
-
-HIP_PROBLEM_THRESHOLD   = 2
-ELBOW_PROBLEM_THRESHOLD = 1
-EYE_PROBLEM_THRESHOLD   = 1
+def _as_pct(value) -> float | None:
+    """COI хранится в процентах; приводим к float или None."""
+    return float(value) if value else None
 
 
-def _extract_scores(records: list) -> dict:
-    by_group = {}
-    for rec in records:
-        registry = rec["registry"].upper().strip()
-        group = REGISTRY_GROUPS.get(registry)
-        if not group:
-            continue
-        if group not in by_group:
-            by_group[group] = []
-        by_group[group].append(rec)
+def _load_parent_map(seed_ids: set[int], depth: int) -> dict[int, tuple]:
+    """
+    Строит скелет дерева предков {id: (sire_id, dam_id)} для всех seed_ids и их
+    предков на `depth` поколений вверх. Один батч-запрос на поколение —
+    никаких N+1. Используется для in-memory обхода в ancestor_features.
+    """
+    parent_map: dict[int, tuple] = {}
+    front = {i for i in seed_ids if i}
 
-    scores = {}
-    for group, recs in by_group.items():
-        latest = max(recs, key=lambda r: r["test_date"] or "")
-        conclusion = (latest["conclusion"] or "").upper().strip()
-        score = GROUP_MAPS[group].get(conclusion)
-        if score is None and "CLEAR" in conclusion:
-            score = 0
-        if score is None and "NORMAL" in conclusion:
-            score = 0
-        if score is None and "CARRIER" in conclusion:
-            score = 1
-        if score is not None:
-            scores[group] = score
-    return scores
+    for _ in range(depth):
+        unknown = {i for i in front if i not in parent_map}
+        if not unknown:
+            break
+        rows = dog_repo.get_parents_batch_values(unknown)
+        nxt: set[int] = set()
+        for row in rows:
+            parent_map[row["id"]] = (row.get("sire_id"), row.get("dam_id"))
+            for pid in (row.get("sire_id"), row.get("dam_id")):
+                if pid:
+                    nxt.add(pid)
+        front = nxt
+
+    return parent_map
 
 
-def _build_real_dataset() -> list[dict]:
-    """Собирает реальные данные из БД."""
-    from ..models import Dog, MedicalRecord
-
-    offspring_list = list(
-        Dog.objects.using("dogs_db")
-        .filter(sire_id__isnull=False, dam_id__isnull=False)
-        .values("id", "sire_id", "dam_id", "coi")
-    )
-
+def _build_real_dataset() -> tuple[list[dict], int]:
+    """Собирает реальные данные из БД. Возвращает (dataset, skipped)."""
+    offspring_list = dog_repo.get_offspring_with_parents_values()
     if not offspring_list:
-        return []
+        return [], 0
 
-    all_ids = set()
-    for dog in offspring_list:
-        all_ids.add(dog["id"])
-        all_ids.add(dog["sire_id"])
-        all_ids.add(dog["dam_id"])
+    # 1) Скелет дерева предков (для агрегатов по предкам, in-memory обход).
+    seed_parents: set[int] = set()
+    for d in offspring_list:
+        if d["sire_id"]:
+            seed_parents.add(d["sire_id"])
+        if d["dam_id"]:
+            seed_parents.add(d["dam_id"])
+    parent_map = _load_parent_map(seed_parents, ANCESTOR_DEPTH)
 
-    records_raw = list(
-        MedicalRecord.objects.using("dogs_db")
-        .filter(dog_id__in=all_ids, source="ofa")
-        .values("dog_id", "registry", "conclusion", "test_date")
-    )
+    # 2) Все id, для которых нужны OFA-записи: потомки + родители + все предки.
+    all_ids: set[int] = set()
+    for d in offspring_list:
+        all_ids.update({d["id"], d["sire_id"], d["dam_id"]})
+    all_ids.update(parent_map.keys())
+    for s_id, d_id in parent_map.values():
+        all_ids.update({s_id, d_id})
+    all_ids.discard(None)
 
-    records_by_dog = {}
+    records_raw = med_repo.get_ofa_records_for_dogs_values(all_ids)
+    records_by_dog: dict[int, list] = {}
     for rec in records_raw:
-        did = rec["dog_id"]
-        if did not in records_by_dog:
-            records_by_dog[did] = []
-        records_by_dog[did].append(rec)
+        records_by_dog.setdefault(rec["dog_id"], []).append(rec)
 
-    parent_ids = (
-        {d["sire_id"] for d in offspring_list} |
-        {d["dam_id"]  for d in offspring_list}
-    )
-    parent_coi = dict(
-        Dog.objects.using("dogs_db")
-        .filter(id__in=parent_ids)
-        .values_list("id", "coi")
+    # 3) Баллы по каждой собаке (родители + предки) — единой extract_scores.
+    scores_by_dog = {
+        dog_id: extract_scores(recs) for dog_id, recs in records_by_dog.items()
+    }
+
+    # 4) COI родителей.
+    parent_coi = dog_repo.get_coi_map(
+        {d["sire_id"] for d in offspring_list} | {d["dam_id"] for d in offspring_list}
     )
 
-    dataset = []
+    dataset: list[dict] = []
     skipped = 0
 
-    for dog in offspring_list:
-        dog_id  = dog["id"]
-        sire_id = dog["sire_id"]
-        dam_id  = dog["dam_id"]
+    for d in offspring_list:
+        dog_id, sire_id, dam_id = d["id"], d["sire_id"], d["dam_id"]
 
-        offspring_scores = _extract_scores(records_by_dog.get(dog_id, []))
+        # Метка есть только если у потомка известен результат по бёдрам.
+        offspring_scores = scores_by_dog.get(dog_id, {})
         if "hips" not in offspring_scores:
             skipped += 1
             continue
 
-        sire_scores = _extract_scores(records_by_dog.get(sire_id, []))
-        dam_scores  = _extract_scores(records_by_dog.get(dam_id, []))
-        sire_coi    = parent_coi.get(sire_id)
-        dam_coi     = parent_coi.get(dam_id)
-        pair_coi    = dog.get("coi")
-
-        avg_hip = None
-        if sire_scores.get("hips") is not None and dam_scores.get("hips") is not None:
-            avg_hip = (sire_scores["hips"] + dam_scores["hips"]) / 2
-
-        dataset.append({
-            "sire_hips":    sire_scores.get("hips"),
-            "sire_eyes":    sire_scores.get("eyes"),
-            "sire_elbows":  sire_scores.get("elbows"),
-            "sire_dm":      sire_scores.get("dm"),
-            "sire_pra":     sire_scores.get("pra"),
-            "sire_coi":     float(sire_coi) if sire_coi else None,
-            "dam_hips":     dam_scores.get("hips"),
-            "dam_eyes":     dam_scores.get("eyes"),
-            "dam_elbows":   dam_scores.get("elbows"),
-            "dam_dm":       dam_scores.get("dm"),
-            "dam_pra":      dam_scores.get("pra"),
-            "dam_coi":      float(dam_coi) if dam_coi else None,
-            "pair_coi":     float(pair_coi) if pair_coi else None,
-            "hip_ratio_4gen": None,
-            "avg_hip_score":  avg_hip,
-            "offspring_has_hip_problem":   int(offspring_scores["hips"] >= HIP_PROBLEM_THRESHOLD),
-            "offspring_has_eye_problem":   int(offspring_scores.get("eyes", 0) >= EYE_PROBLEM_THRESHOLD),
-            "offspring_has_elbow_problem": int(offspring_scores.get("elbows", 0) >= ELBOW_PROBLEM_THRESHOLD),
-            "_synthetic":    False,
+        row = build_feature_row(
+            sire_scores=scores_by_dog.get(sire_id, {}),
+            dam_scores=scores_by_dog.get(dam_id, {}),
+            sire_coi=_as_pct(parent_coi.get(sire_id)),
+            dam_coi=_as_pct(parent_coi.get(dam_id)),
+            pair_coi=_as_pct(d.get("coi")),
+            sire_id=sire_id,
+            dam_id=dam_id,
+            scores_by_dog=scores_by_dog,
+            parent_map=parent_map,
+        )
+        row.update({
+            "offspring_has_hip_problem": int(offspring_scores["hips"] >= HIP_PROBLEM_THRESHOLD),
+            "offspring_has_eye_problem": int(offspring_scores.get("eyes", 0) >= EYE_PROBLEM_THRESHOLD),
+            "_synthetic": False,
             "_offspring_id": dog_id,
-            "_sire_id":      sire_id,
-            "_dam_id":       dam_id,
+            "_sire_id": sire_id,
+            "_dam_id": dam_id,
         })
+        dataset.append(row)
 
     return dataset, skipped
 
@@ -190,58 +129,48 @@ def build_dataset(augment: bool = False, n_synthetic: int = 3000) -> list[dict]:
     """
     Собирает датасет для обучения ML.
 
-    Параметры:
-      augment     — добавить синтетические данные
-      n_synthetic — сколько синтетических записей добавить
+    augment     — добавить синтетические данные
+    n_synthetic — сколько синтетических записей добавить
 
-    Синтетические данные НЕ сохраняются в БД.
-    Они существуют только в памяти во время обучения.
+    Синтетические данные существуют только в памяти во время обучения.
     """
     logger.info("Сборка датасета...")
 
-    from ..models import Dog
-    offspring_count = Dog.objects.using("dogs_db").filter(
-        sire_id__isnull=False, dam_id__isnull=False
-    ).count()
+    offspring_count = dog_repo.count_offspring_with_parents()
     logger.info(f"Потомков с известными родителями: {offspring_count}")
 
     real_data, skipped = _build_real_dataset()
-    logger.info(f"OFA записей для реальных собак: {len(real_data)}")
+    logger.info(f"Реальных записей с меткой по бёдрам: {len(real_data)}")
 
     if not real_data:
         logger.warning("Нет реальных данных")
         return []
 
-    hip_pos   = sum(d["offspring_has_hip_problem"]   for d in real_data)
-    eye_pos   = sum(d["offspring_has_eye_problem"]   for d in real_data)
-    elbow_pos = sum(d["offspring_has_elbow_problem"] for d in real_data)
-    total     = len(real_data)
+    total = len(real_data)
+    hip_pos = sum(d["offspring_has_hip_problem"] for d in real_data)
+    eye_pos = sum(d["offspring_has_eye_problem"] for d in real_data)
 
     logger.info(
         f"Реальный датасет: {total} записей, пропущено: {skipped}\n"
-        f"  бёдра (FAIR+): {hip_pos} ({hip_pos/total:.1%})\n"
-        f"  глаза: {eye_pos} ({eye_pos/total:.1%})\n"
-        f"  локти: {elbow_pos} ({elbow_pos/total:.1%})"
+        f"  бёдра (Borderline+): {hip_pos} ({hip_pos / total:.1%})\n"
+        f"  глаза: {eye_pos} ({eye_pos / total:.1%})"
     )
 
     if not augment:
         return real_data
 
-    # Добавляем синтетические данные
     from .synthetic_generator import generate_synthetic_dataset
     synthetic = generate_synthetic_dataset(n_samples=n_synthetic)
 
     combined = real_data + synthetic
-    total_c  = len(combined)
-    hip_c    = sum(d["offspring_has_hip_problem"]   for d in combined)
-    eye_c    = sum(d["offspring_has_eye_problem"]   for d in combined)
-    elbow_c  = sum(d["offspring_has_elbow_problem"] for d in combined)
+    total_c = len(combined)
+    hip_c = sum(d["offspring_has_hip_problem"] for d in combined)
+    eye_c = sum(d["offspring_has_eye_problem"] for d in combined)
 
     logger.info(
         f"Итоговый датасет (реальные + синтетика): {total_c} записей\n"
-        f"  бёдра (FAIR+): {hip_c} ({hip_c/total_c:.1%})\n"
-        f"  глаза: {eye_c} ({eye_c/total_c:.1%})\n"
-        f"  локти: {elbow_c} ({elbow_c/total_c:.1%})"
+        f"  бёдра (Borderline+): {hip_c} ({hip_c / total_c:.1%})\n"
+        f"  глаза: {eye_c} ({eye_c / total_c:.1%})"
     )
 
     return combined
@@ -253,8 +182,11 @@ def save_dataset_csv(path: str = "/tmp/ofa_dataset.csv", augment: bool = False) 
     dataset = build_dataset(augment=augment)
     if not dataset:
         return ""
+    # Объединение ключи всех строк (у реальных и синтетических набор совпадает,
+    # но на всякий случай берется union для устойчивости заголовка).
+    fieldnames = list({k for row in dataset for k in row.keys()})
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=dataset[0].keys())
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(dataset)
     logger.info(f"Сохранено: {path} ({len(dataset)} строк)")
