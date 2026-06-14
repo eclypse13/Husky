@@ -1,5 +1,7 @@
 import "./RatingSidebar.css";
 
+const REGULATION_URL = "/docs/ПОЛОЖЕНИЕ_О_проведении_рейтинга_НКП_СИБИРСКИЙ_ХАСКИ_ФИНАЛ.docx";
+
 export default function RatingSidebar() {
   return (
     <aside className="sidebar">
@@ -23,7 +25,7 @@ export default function RatingSidebar() {
           Подробные критерии, балльная система, правила расчёта.
         </p>
         <a
-          href="#"
+          href={REGULATION_URL}
           style={{
             background: "var(--gradient-primary)",
             color: "var(--snow-white)",
@@ -61,14 +63,14 @@ export default function RatingSidebar() {
         </a>
       </div>
 
-      <div className="sidebar-card">
-        <h3 className="sidebar-title">🏅 История победителей</h3>
-        <ul style={{ listStyle: "none", paddingLeft: 0, fontSize: ".95rem", lineHeight: 1.6 }}>
-          <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2024 — Arctic Light’s Shadow</a></li>
-          <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2023 — Silver Snow Aurora</a></li>
-          <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2022 — Polaris Bright Flame</a></li>
-        </ul>
-      </div>
+      {/*<div className="sidebar-card">*/}
+      {/*  <h3 className="sidebar-title">🏅 История победителей</h3>*/}
+      {/*  <ul style={{ listStyle: "none", paddingLeft: 0, fontSize: ".95rem", lineHeight: 1.6 }}>*/}
+      {/*    <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2024 — Arctic Light’s Shadow</a></li>*/}
+      {/*    <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2023 — Silver Snow Aurora</a></li>*/}
+      {/*    <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2022 — Polaris Bright Flame</a></li>*/}
+      {/*  </ul>*/}
+      {/*</div>*/}
     </aside>
   );
 }

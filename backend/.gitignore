@@ -11,3 +11,4 @@ staticfiles/
 .coverage
 *.log
 .DS_Store
+celerybeat-schedule.db

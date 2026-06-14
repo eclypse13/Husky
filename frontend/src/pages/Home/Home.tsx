@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { getDict, pickValue } from "@/lib/dict";
 import "./Home.css";
 import * as d3 from "d3";
+import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
 
 const news = [
   { id: 1, tag: "Выставки", date: "18 июля 2025", title: "«Сибирская красота 2025» — рекордное участие", excerpt: "В Москве прошла крупнейшая специализированная выставка с участием более 200 собак из 15 стран.", featured: true, link: "Читать полный отчет", icon: "🏆", to: "/news/1" },
@@ -27,6 +28,7 @@ type HomeNewsItem = {
 type HeroDog = {
   id: number;
   display_name: string;
+  dog_photo: string | null;
   photo_url: string | null;
   prefix_titles: string | null;
   suffix_titles: string | null;
@@ -262,13 +264,6 @@ function ActivityFeed() {
   );
 }
 
-// ---------- Код из ветки feature/add-coi-fix-pedigree-add-dna-logic ----------
-const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
-const DEFAULT_DOG_IMG = "/no-image-dog.png";
-const dogPhoto = (url: string | null | undefined): string =>
-  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
-
-// ---------- Код из ветки dev (компонент карты) ----------
 type KennelItem = {
   name_rus?: string;
   FCIname?: string;
@@ -1089,13 +1084,13 @@ export default function Home() {
             ) : (
               <div className="home-hero-card">
                 <div className="home-hero-image">
-                  {heroDog.photo_url ? (
-                    <img
-                      src={dogPhoto(heroDog.photo_url)}
-                      alt={heroDog.display_name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
-                    />
-                  ) : "🐕"}
+                  <DogAvatar
+                    dog_photo={heroDog.dog_photo}
+                    photo_url={heroDog.photo_url}
+                    alt={heroDog.display_name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                    loading="eager"
+                  />
                 </div>
                 <h3>{heroDog.display_name}</h3>
                 <p>
@@ -1218,3 +1213,4 @@ export default function Home() {
     </div>
   );
 }
+

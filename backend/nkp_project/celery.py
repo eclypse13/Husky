@@ -10,40 +10,34 @@ app = Celery('nkp_project')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 app.conf.update(
-    # Пул
     worker_pool='prefork',
     worker_pool_restarts=True,
 
-    # Таймауты — увеличены для рекурсивного парсинга с предками
-    # Одна страница (10 собак × 3 поколения) может занимать до 30-40 мин
-    task_soft_time_limit=3600,   # 60 мин graceful stop
-    task_time_limit=4200,        # 70 мин жёсткий kill
+    # Таймауты для Playwright-задач (могут идти 30-40 мин)
+    task_soft_time_limit=3600,
+    task_time_limit=4200,
 
-    # Результаты
     result_backend='redis://redis:6379/0',
     result_expires=3600,
 
-    # Сериализация
     task_serializer='json',
     result_serializer='json',
     accept_content=['json'],
 
-    # Timezone
     timezone='Europe/Moscow',
     enable_utc=True,
 
-    # Автообнаружение
     imports=['dogs_module.tasks'],
 
-    # Память
-    worker_max_memory_per_child=400000,  # (400MB — мало для Playwright)
-    worker_max_tasks_per_child=50,       # перезапуск чаще (было 100) — чистим память
+    worker_max_tasks_per_child=50,
 
-    # Prefetch = 1: воркер берёт следующую задачу только закончив текущую
-    # Важно для длинных задач парсинга — не копим очередь в одном воркере
+    # Один worker не берёт задач больше чем может обработать
     worker_prefetch_multiplier=1,
 
     task_track_started=True,
+
+    # Задача подтверждается после выполнения, а не при получении
+    task_acks_late=True,
 )
 
 app.autodiscover_tasks()
