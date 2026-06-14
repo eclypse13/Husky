@@ -1,0 +1,65 @@
+regnum,registry,conclusion,test_date,source,expected_name
+5957408,EYES,NORMAL,2023-07-04,vento_libero,Vento Libero Zhetoka Reil Barih
+5290961,EYES,NORMAL,2023-07-01,vento_libero,Vento Libero Ruza Abral's Tutih
+3856894,EYES,AFFECTED,2023-07-02,vento_libero,Vento Libero Veter Rima Monlyuel
+3856894,PROGRESSIVE RETINAL ATROPHY,CLEAR,2023-07-28,zoogen,Vento Libero Veter Rima Monlyuel
+5880554,EYES,NORMAL,2021-11-06,vento_libero,Vento Libero Ahei Baishak Zibsvind
+5904383,EYES,NORMAL,2021-11-06,vento_libero,Vento Libero Yuvilli Urs Poeg
+5904384,EYES,NORMAL,2023-07-02,vento_libero,Vento Libero Yuzere Maikl Kori
+5880555,EYES,NORMAL,2021-11-06,vento_libero,Vento Libero Almar Barat Zinger
+4837410,EYES,AFFECTED,2023-07-02,vento_libero,Vento Libero Davos Apark Shelon
+4837414,EYES,NORMAL,2018-04-29,gabika,Vento Libero Dyl Angara Shair
+3366269,EYES,AFFECTED,2017-04-29,belanta,Vento Libero Ostryak Veter Nochi
+5880557,EYES,NORMAL,2023-07-02,vento_libero,Vento Libero Arma Balaton Zimp
+,EYES,NORMAL,2021-11-06,vento_libero,Vento Libero Zishma Imana Rame
+,EYES,NORMAL,2023-07-02,vento_libero,Vento Libero Istrak Vair Tazhut
+,EYES,NORMAL,2023-07-02,vento_libero,Vento Libero Orfen Dis Matu
+,EYES,NORMAL,2023-07-02,vento_libero,Vento Libero Zmiulan Olen Solntsa
+6564509,HIPS,A,2023-03-16,fci,Race Against The Wind Des Sarmentins
+6564509,ELBOW,0,2023-03-16,fci,Race Against The Wind Des Sarmentins
+6564509,EYES,AFFECTED,2025-01-28,gabika,Race Against The Wind Des Sarmentins
+5885362,HIPS,A,2023-03-09,fci,Yeah I'm Revolution Of Silver Way
+5885362,ELBOW,0,2023-03-09,fci,Yeah I'm Revolution Of Silver Way
+5885362,DEGENERATIVE MYELOPATHY,CLEAR,2020-11-30,vetgenomics,Yeah I'm Revolution Of Silver Way
+5885362,HYPERURICOSURIA,CLEAR,2020-11-30,vetgenomics,Yeah I'm Revolution Of Silver Way
+5885362,PROGRESSIVE RETINAL ATROPHY,CLEAR,2020-11-30,vetgenomics,Yeah I'm Revolution Of Silver Way
+5885362,MALIGNANT HYPERTHERMIA,CLEAR,2020-11-30,vetgenomics,Yeah I'm Revolution Of Silver Way
+5885364,HIPS,A,2023-03-16,fci,Era Madness Of Silver Way
+5885364,ELBOW,0,2023-03-16,fci,Era Madness Of Silver Way
+6881608,HIPS,A,2025-05-13,fci,Carlomagno De Santgrial
+6881608,ELBOW,0,2025-05-13,fci,Carlomagno De Santgrial
+6567461,HIPS,A,2025-05-13,fci,Legacy Dragon of Silver Way
+6567461,ELBOW,0,2025-05-13,fci,Legacy Dragon of Silver Way
+4417321,HIPS,A,2019-10-22,fci,Bring Me Raindrops
+4417321,ELBOW,0,2019-10-22,fci,Bring Me Raindrops
+4417321,EYES,NORMAL,2019-10-22,lithuania,Bring Me Raindrops
+6900099,EYES,NORMAL,2023-11-30,gabika,Husquisher Center Of My Universe
+5065982,EYES,AFFECTED,2019-09-12,ecvo,Arnato Baldesarini Salvadore
+4532495,PROGRESSIVE RETINAL ATROPHY,CARRIER,2018-11-22,zoogen,VANKUVER
+5295367,PROGRESSIVE RETINAL ATROPHY,CLEAR,2022-03-28,zoogen,ATTIKA
+5295367,DEGENERATIVE MYELOPATHY,CLEAR,2022-03-28,zoogen,ATTIKA
+5295373,PROGRESSIVE RETINAL ATROPHY,CARRIER,2023-10-06,zoogen,БРИГ КЭП
+5295373,DEGENERATIVE MYELOPATHY,CLEAR,2023-10-06,zoogen,БРИГ КЭП
+7150771,PROGRESSIVE RETINAL ATROPHY,CARRIER,2025-12-03,zoogen,БАРСКАУН ОФ МАЙ ИММОРТАЛ
+5996962,PROGRESSIVE RETINAL ATROPHY,CARRIER,2022-09-05,zoogen,TARGARYEN RED WOLF OF WINTERFELL
+6147223,PROGRESSIVE RETINAL ATROPHY,CARRIER,2024-06-26,zoogen,Serdtse Sibiri Devis
+5205983,PROGRESSIVE RETINAL ATROPHY,CLEAR,2022-01-01,zoogen,Husky Haven Rebecca Mader
+5206222,PROGRESSIVE RETINAL ATROPHY,CLEAR,2024-06-24,zoogen,НОЛЬДИ
+6216546,PROGRESSIVE RETINAL ATROPHY,CLEAR,2024-12-02,vetgenomics,TINUVIEL ZAZHIGAYUSHAYA ZVEZDY
+6811327,PROGRESSIVE RETINAL ATROPHY,CARRIER,2024-10-15,zoogen,Sluga blagorodstva Palladiy
+6560793,PROGRESSIVE RETINAL ATROPHY,CLEAR,2023-09-29,zoogen,Absolute Ice Eseniya
+61909183,PROGRESSIVE RETINAL ATROPHY,CARRIER,2021-12-30,zoogen,Goldwind Red Revolution
+61909183,DEGENERATIVE MYELOPATHY,CLEAR,2021-12-30,zoogen,Goldwind Red Revolution
+61909183,MDR1,CLEAR,2021-12-30,zoogen,Goldwind Red Revolution
+5906938,PROGRESSIVE RETINAL ATROPHY,CLEAR,2021-05-26,vetgenomics,Eskifavorite Ulyana Krasa
+5901460,PROGRESSIVE RETINAL ATROPHY,CLEAR,2021-08-30,vetgenomics,AFFLATUS BRIGHT WORLD STAR
+7219956,EYES,NORMAL,2026-05-16,ecvo,Metelitsa ays dream
+7252813,EYES,NORMAL,2026-05-16,ecvo,BEN SHERMAN GOLD
+,EYES,NORMAL,2026-05-31,gabika,Husquisher Gala Dali
+,EYES,NORMAL,2026-05-31,gabika,Husquisher Excellent Impression
+,EYES,NORMAL,2026-05-31,gabika,Husquisher Ease My Mind
+,EYES,NORMAL,2025-10-26,gabika,Husquisher Brazilian Thunder
+,EYES,NORMAL,2025-10-26,gabika,Husquisher Bossa Nova
+,EYES,NORMAL,2025-10-26,gabika,Husquisher Molly
+,EYES,NORMAL,2025-10-26,gabika,Husquisher Galactic Vita
+,EYES,NORMAL,2025-10-26,gabika,Husquisher Bark In The Dark
