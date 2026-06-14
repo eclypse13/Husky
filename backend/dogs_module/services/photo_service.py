@@ -1,70 +1,32 @@
 # dogs_module/services/photo_service.py
 """
 Бизнес-логика работы с фотографиями собак и Яндекс.Диском.
-
-Связь собака ↔ файл на ЯД:
-    Файл: disk:/dogs/photos/{dog.id}.jpg
-    dog.id — PostgreSQL primary key (Dog.id)
-
-Поля модели Dog:
-    photo_url          — оригинальная ссылка (Zooportal / BreedArchive), сохраняем всегда
-    photo_yadisk_path  — путь файла на ЯД: 'dogs/photos/12345.jpg'
-
-Сравнение «это ли фото»:
-    HEAD к photo_url → Content-Length (байты источника)
-    GET метаданных ЯД → size (байты на диске)
-    Равны → пропускаем. Отличаются → перекачиваем.
 """
-
+import hashlib
 import logging
 import os
-from io import BytesIO
+import time
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
-import requests
+from ..config.yadisk import (
+    YADISK_FOLDER, YADISK_PUBLIC_DOWNLOADER,
+    DOWNLOAD_TIMEOUT, HEAD_TIMEOUT,
+    MAX_FILE_SIZE, CHUNK_SIZE, ALLOWED_PHOTO_EXT, SOURCE_HEADERS,
+    DEFAULT_PHOTO_HASHES, PLACEHOLDER_URL_PATTERNS,
+)
+from . import yadisk_client as yd
 
 logger = logging.getLogger(__name__)
 
-# ── Константы ─────────────────────────────────────────────────────────────────
-
-YADISK_API       = "https://cloud-api.yandex.net/v1/disk/resources"
-YADISK_FOLDER    = "dogs/photos"
-DOWNLOAD_TIMEOUT = 30
-MAX_FILE_SIZE    = 10 * 1024 * 1024  # 10 МБ
-CHUNK_SIZE       = 16 * 1024
-
-SOURCE_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
-    ),
-    "Accept": "image/*,*/*;q=0.8",
-}
+# in-memory кеш public_key папки (не меняется во время работы сервиса)
+_PUBLIC_KEY_CACHE: dict = {}
 
 
-# ── Утилиты ───────────────────────────────────────────────────────────────────
-
-def _token() -> str:
-    from decouple import config
-    token = config("YANDEX_DISK_TOKEN", default="")
-    if not token:
-        raise ValueError("YANDEX_DISK_TOKEN не задан в .env")
-    return token
-
-
-def _yd_headers() -> dict:
-    return {"Authorization": f"OAuth {_token()}"}
-
-
-def _disk(path: str) -> str:
-    """'dogs/photos/1.jpg'  →  'disk:/dogs/photos/1.jpg'"""
-    return path if path.startswith("disk:/") else f"disk:/{path}"
-
-
+# Утилиты
 def _ext(url: str) -> str:
     ext = os.path.splitext(urlparse(url).path)[-1].lower()
-    return ext if ext in (".jpg", ".jpeg", ".png", ".gif", ".webp") else ".jpg"
+    return ext if ext in ALLOWED_PHOTO_EXT else ".jpg"
 
 
 def yadisk_path_for(dog_id: int, photo_url: str) -> str:
@@ -72,196 +34,105 @@ def yadisk_path_for(dog_id: int, photo_url: str) -> str:
     return f"{YADISK_FOLDER}/{dog_id}{_ext(photo_url)}"
 
 
-# ── Яндекс.Диск ───────────────────────────────────────────────────────────────
-
+# Публичный реэкспорт для обратной совместимости
+# tasks_photos.py и integration.py зовут yadisk_ensure_folder напрямую
 def yadisk_ensure_folder() -> None:
-    """Создаёт папки dogs/ и dogs/photos/ на ЯД если их нет."""
-    for folder in ["dogs", YADISK_FOLDER]:
-        r = requests.get(f"{YADISK_API}?path={_disk(folder)}", headers=_yd_headers(), timeout=10)
-        if r.status_code == 404:
-            r2 = requests.put(f"{YADISK_API}?path={_disk(folder)}", headers=_yd_headers(), timeout=10)
-            if r2.status_code not in (200, 201):
-                logger.warning(f"ЯД: не удалось создать папку '{folder}': HTTP {r2.status_code}")
+    """Создаёт dogs/ и dogs/photos/ на ЯД если их нет."""
+    yd.ensure_photos_folder()
 
 
-def yadisk_get_size(yadisk_path: str) -> Optional[int]:
-    """Размер файла на ЯД в байтах. None если файла нет или ошибка."""
+# Скачивание с источника
+def _download_with_ba_cookies(url: str) -> Optional[bytes]:
+    """Скачивает BA фото через httpx с retry."""
+    import ssl
+    import httpx
+
+    def _ssl_ctx():
+        ctx = ssl.create_default_context()
+        try:
+            ctx.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
+        except AttributeError:
+            ctx.options |= 0x00000080
+        return ctx
+
     try:
-        r = requests.get(
-            f"{YADISK_API}?path={_disk(yadisk_path)}&fields=size",
-            headers=_yd_headers(), timeout=10,
-        )
-        return r.json().get("size") if r.status_code == 200 else None
-    except Exception as e:
-        logger.debug(f"yadisk_get_size '{yadisk_path}': {e}")
-        return None
-
-
-def yadisk_upload(data: bytes, yadisk_path: str) -> bool:
-    """Загружает bytes на ЯД по указанному пути. True = успех."""
-    try:
-        r = requests.get(
-            f"{YADISK_API}/upload?path={_disk(yadisk_path)}&overwrite=true",
-            headers=_yd_headers(), timeout=15,
-        )
-        if r.status_code != 200:
-            logger.warning(f"ЯД upload URL: HTTP {r.status_code}")
-            return False
-        href = r.json().get("href")
-        if not href:
-            return False
-        r2 = requests.put(href, data=data, timeout=60)
-        return r2.status_code in (200, 201)
-    except Exception as e:
-        logger.error(f"yadisk_upload error: {e}", exc_info=True)
-        return False
-
-
-def yadisk_list_files(limit: int = 10000) -> List[Dict]:
-    """
-    Список файлов в папке YADISK_FOLDER.
-    Возвращает [{"name": "12345.jpg", "size": 54321, "path": "disk:/..."}, ...]
-    """
-    try:
-        url = (
-            f"{YADISK_API}?path={_disk(YADISK_FOLDER)}"
-            f"&fields=_embedded.items.name,_embedded.items.size,_embedded.items.path"
-            f"&limit={limit}"
-        )
-        r = requests.get(url, headers=_yd_headers(), timeout=15)
-        if r.status_code == 200:
-            return r.json().get("_embedded", {}).get("items", [])
-        return []
-    except Exception as e:
-        logger.error(f"yadisk_list_files: {e}")
-        return []
-
-def yadisk_publish_and_get_url(yadisk_path: str) -> Optional[str]:
-    """
-    Публикует файл на ЯД и возвращает ПРЯМУЮ ссылку на картинку
-    (не yadi.sk/i/... страницу просмотра, а реальный URL файла).
-
-    Алгоритм:
-      1. PUT publish — делаем файл публичным
-      2. GET метаданных с &fields=public_url,file — берём поле 'file'
-         ('file' = прямая ссылка на скачивание, работает в <img src=...>)
-      3. Если 'file' недоступен — fallback на download URL через отдельный запрос
-
-    Сохраняем в Dog.photo_yadisk_url — постоянная, не истекает.
-    """
-    try:
-        # Шаг 1: публикуем
-        requests.put(
-            f"{YADISK_API}/publish?path={_disk(yadisk_path)}",
-            headers=_yd_headers(), timeout=10,
-        )
-
-        # Шаг 2: получаем метаданные — нас интересует поле 'file'
-        # 'file' — прямая ссылка на файл, работает как <img src=...>
-        # 'public_url' — страница просмотра (yadi.sk/i/...), НЕ подходит для img
-        r = requests.get(
-            f"{YADISK_API}?path={_disk(yadisk_path)}&fields=file,public_url,sizes",
-            headers=_yd_headers(), timeout=10,
-        )
-        if r.status_code != 200:
-            logger.warning(f"yadisk_publish_and_get_url: HTTP {r.status_code} для '{yadisk_path}'")
+        from ..utils.cookie_refresher import get_ba_cookies
+        cookies = get_ba_cookies()
+        if not cookies:
+            logger.warning("BA куки недоступны")
             return None
 
-        data = r.json()
+        with httpx.Client(
+                cookies=cookies,
+                headers=SOURCE_HEADERS,
+                timeout=DOWNLOAD_TIMEOUT,
+                follow_redirects=True,
+                verify=_ssl_ctx(),
+        ) as client:
+            for attempt in range(3):
+                try:
+                    r = client.get(url)
+                    r.raise_for_status()
 
-        # 'file' — прямая ссылка (лучший вариант)
-        direct_url = data.get("file")
-        if direct_url:
-            logger.debug(f"ЯД: прямая ссылка получена для '{yadisk_path}'")
-            return direct_url
+                    if "text/html" in r.headers.get("content-type", ""):
+                        logger.warning(f"BA: HTML вместо изображения: {url}")
+                        return None
 
-        # Fallback: preview (thumbnail, но работает в браузере)
-        sizes = data.get("sizes", [])
-        if sizes:
-            # берём наибольший размер
-            biggest = max(sizes, key=lambda s: s.get("name", ""), default=None)
-            if biggest and biggest.get("url"):
-                logger.debug(f"ЯД: preview URL для '{yadisk_path}'")
-                return biggest["url"]
+                    data = r.content
+                    if len(data) > MAX_FILE_SIZE:
+                        logger.warning(f"BA: файл >10МБ, пропуск: {url}")
+                        return None
 
-        # Последний fallback: download URL (истекает через 30 мин — плохо, но хоть что-то)
-        r2 = requests.get(
-            f"{YADISK_API}/download?path={_disk(yadisk_path)}",
-            headers=_yd_headers(), timeout=10,
-        )
-        if r2.status_code == 200:
-            href = r2.json().get("href")
-            if href:
-                logger.warning(f"ЯД: используем временный download URL для '{yadisk_path}' — истечёт через 30 мин")
-                return href
+                    if data:
+                        logger.info(f"BA: фото скачано с куками ({len(data)}b)")
+                    return data or None
 
-        logger.error(f"ЯД: не удалось получить прямую ссылку для '{yadisk_path}'")
-        return None
+                except Exception as e:
+                    if attempt < 2:
+                        logger.warning(f"BA download попытка {attempt + 1}/3 {url}: {e}")
+                        time.sleep(2)
+                        continue
+                    logger.warning(f"BA fallback download failed {url}: {e}")
+                    return None
 
     except Exception as e:
-        logger.error(f"yadisk_publish_and_get_url '{yadisk_path}': {e}")
-        return None
-
-
-# ── Источник ──────────────────────────────────────────────────────────────────
-
-def source_content_length(url: str) -> Optional[int]:
-    """HEAD-запрос к источнику → Content-Length в байтах."""
-    try:
-        r = requests.head(url, headers=SOURCE_HEADERS, timeout=10, allow_redirects=True)
-        cl = r.headers.get("Content-Length")
-        return int(cl) if cl else None
-    except Exception as e:
-        logger.debug(f"HEAD {url}: {e}")
+        logger.warning(f"BA fallback download failed {url}: {e}")
         return None
 
 
 def _download_with_zoo_cookies(url: str) -> Optional[bytes]:
-    """
-    Fallback: скачивает Zoo фото с авторизацией + Referer.
-    Zoo проверяет что запрос идёт со страницы сайта.
-    """
+    """Fallback: скачивает Zoo фото с авторизацией + Referer."""
     try:
+        import httpx
         from ..utils.cookie_refresher import get_zoo_cookies
-        from ..config import ZOOPORTAL_BASE_URL
+        from ..config.scraping import ZOOPORTAL_PHOTO_HEADERS
+
         cookies = get_zoo_cookies()
         if not cookies:
             logger.warning("Zoo куки недоступны")
             return None
 
-        headers = {
-            **SOURCE_HEADERS,
-            "Referer":        f"{ZOOPORTAL_BASE_URL}/pedigree/",
-            "Origin":         ZOOPORTAL_BASE_URL,
-            "Accept":         "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-            "Sec-Fetch-Dest": "image",
-            "Sec-Fetch-Mode": "no-cors",
-            "Sec-Fetch-Site": "same-origin",
-        }
+        headers = {**SOURCE_HEADERS, **ZOOPORTAL_PHOTO_HEADERS}
+        with httpx.Client(
+                cookies=cookies,
+                headers=headers,
+                timeout=DOWNLOAD_TIMEOUT,
+                follow_redirects=True,
+        ) as client:
+            r = client.get(url)
+            r.raise_for_status()
 
-        r = requests.get(
-            url, headers=headers, cookies=cookies,
-            timeout=DOWNLOAD_TIMEOUT, stream=True, allow_redirects=True,
-        )
-        r.raise_for_status()
+            if "text/html" in r.headers.get("content-type", ""):
+                logger.warning(f"Zoo: всё ещё HTML даже с куками для {url}")
+                return None
 
-        content_type = r.headers.get("Content-Type", "")
-        if "text/html" in content_type:
-            logger.warning(f"Zoo: всё ещё HTML даже с куками и Referer для {url}")
-            return None
+            data = r.content
+            if len(data) > MAX_FILE_SIZE:
+                return None
+            if data:
+                logger.info(f"Zoo: фото скачано с куками ({len(data)}b)")
+            return data or None
 
-        buf = BytesIO()
-        size = 0
-        for chunk in r.iter_content(CHUNK_SIZE):
-            if chunk:
-                size += len(chunk)
-                if size > MAX_FILE_SIZE:
-                    return None
-                buf.write(chunk)
-        result = buf.getvalue() if size > 0 else None
-        if result:
-            logger.info(f"Zoo: фото скачано с куками ({size}b)")
-        return result
     except Exception as e:
         logger.warning(f"Zoo fallback download failed {url}: {e}")
         return None
@@ -269,133 +140,76 @@ def _download_with_zoo_cookies(url: str) -> Optional[bytes]:
 
 def download_from_source(url: str) -> Optional[bytes]:
     """
-    Скачивает фото с источника.
-    Если обычный запрос заблокирован (Zoo антибот) — пробует с куками.
+    BA  → httpx через _download_with_ba_cookies
+    Zoo → httpx, при блокировке — с куками
     """
     try:
-        r = requests.get(
-            url, headers=SOURCE_HEADERS,
-            timeout=DOWNLOAD_TIMEOUT, stream=True, allow_redirects=True,
-        )
-        r.raise_for_status()
+        if "breedarchive" in url:
+            return _download_with_ba_cookies(url)
 
-        if "text/html" in r.headers.get("Content-Type", ""):
-            logger.debug(f"Источник вернул HTML вместо изображения: {url}")
-            # Zooportal блокирует без авторизации — пробуем с куками
-            if "zooportal" in url:
-                logger.info(f"Zoo: пробуем с куками для {url}")
-                return _download_with_zoo_cookies(url)
-            return None
+        import httpx
+        with httpx.Client(
+                headers=SOURCE_HEADERS,
+                timeout=DOWNLOAD_TIMEOUT,
+                follow_redirects=True,
+        ) as client:
+            r = client.get(url)
+            r.raise_for_status()
 
-        buf = BytesIO()
-        size = 0
-        for chunk in r.iter_content(CHUNK_SIZE):
-            if chunk:
-                size += len(chunk)
-                if size > MAX_FILE_SIZE:
-                    logger.warning(f"Файл >10МБ, пропуск: {url}")
-                    return None
-                buf.write(chunk)
+            if "text/html" in r.headers.get("content-type", ""):
+                if "zooportal" in url:
+                    logger.info(f"Zoo: пробуем с куками для {url}")
+                    return _download_with_zoo_cookies(url)
+                logger.warning(f"Получили HTML вместо изображения: {url}")
+                return None
 
-        return buf.getvalue() if size > 0 else None
+            data = r.content
+            if len(data) > MAX_FILE_SIZE:
+                logger.warning(f"Файл >10МБ, пропуск: {url}")
+                return None
+            return data or None
 
-    except requests.HTTPError as e:
-        logger.warning(f"HTTP {e.response.status_code} скачивание {url}")
-        return None
     except Exception as e:
         logger.warning(f"Ошибка скачивания {url}: {e}")
         return None
 
 
-# ── Основная логика ───────────────────────────────────────────────────────────
-
-def sync_photo_to_yadisk(dog_id: int, photo_url: str, current_yadisk_path: Optional[str]) -> Dict:
-    """
-    Скачивает фото с источника и загружает на ЯД.
-
-    Алгоритм:
-      1. Определяем целевой путь на ЯД (текущий или новый по dog_id)
-      2. HEAD к источнику → source_size
-      3. GET метаданных ЯД → yadisk_size
-      4. source_size == yadisk_size → пропускаем (фото то же самое)
-      5. Иначе → скачиваем → загружаем → возвращаем путь
-
-    Возвращает dict:
-        status: "skipped" | "uploaded" | "error"
-        path:   путь на ЯД (при uploaded и skipped)
-        reason: причина (для логов)
-    """
+# Основная логика
+def sync_photo_to_yadisk(
+        dog_id: int,
+        photo_url: str,
+        current_yadisk_path: Optional[str],
+        current_hash: Optional[str] = None,
+) -> Dict:
+    """Скачивает фото и грузит на ЯД только если оно реально изменилось (по хэшу)."""
     yadisk_path = current_yadisk_path or yadisk_path_for(dog_id, photo_url)
 
-    source_size = source_content_length(photo_url)
-    yadisk_size = yadisk_get_size(yadisk_path)
-
-    # Байты совпадают — файл уже на ЯД и не изменился.
-    # Но публичный URL всё равно получаем — вдруг он ещё не сохранён в БД.
-    if source_size and yadisk_size and source_size == yadisk_size:
-        logger.debug(f"dog {dog_id}: фото не изменилось ({source_size}b), пропуск")
-        yadisk_url = yadisk_publish_and_get_url(yadisk_path)
-        return {
-            "status":     "skipped",
-            "path":       yadisk_path,
-            "yadisk_url": yadisk_url,
-            "reason":     f"байты совпадают ({source_size}b)",
-        }
-
-    if yadisk_size is None:
-        reason = "нет на ЯД — первая загрузка"
-    elif source_size and source_size != yadisk_size:
-        reason = f"фото изменилось: {yadisk_size}b → {source_size}b"
-    else:
-        reason = "Content-Length недоступен у источника"
-
-    logger.info(f"📷 dog {dog_id}: {reason}")
+    # Дешёвый префильтр: явная заглушка по URL — не тратим трафик
+    if _is_placeholder_url(photo_url):
+        logger.info(f"dog {dog_id}: URL-заглушка, пропуск ({photo_url})")
+        return {"status": "skipped_placeholder", "reason": "url-заглушка"}
 
     data = download_from_source(photo_url)
     if data is None:
         return {"status": "error", "error": "не удалось скачать с источника"}
 
-    ok = yadisk_upload(data, yadisk_path)
-    if not ok:
-        return {"status": "error", "error": "ошибка загрузки на ЯД"}
-
-    # Публикуем файл и получаем постоянный URL для хранения в БД
-    yadisk_url = yadisk_publish_and_get_url(yadisk_path)
-
-    return {
-        "status":     "uploaded",
-        "path":       yadisk_path,
-        "yadisk_url": yadisk_url,
-        "size":       len(data),
-        "reason":     reason,
-    }
+    return _store_or_skip(dog_id, yadisk_path, data, current_hash)
 
 
-def fetch_zoo_photo_via_playwright(dog_id: int, zooportal_id: str, photo_url: str) -> Dict:
+def fetch_zoo_photo_via_playwright(dog_id: int, zooportal_id: str, photo_url: str,
+                                   current_hash: Optional[str] = None, ) -> Dict:
     """
-    Открывает страницу собаки на Zooportal через Playwright,
-    скачивает фото через авторизованный контекст и загружает на ЯД.
-
-    Используется для собак у которых photo_url с Zoo но фото ещё не на ЯД.
-    Playwright нужен потому что Zoo блокирует прямые HTTP запросы к фото
-    (hotlink protection + проверка сессии).
-
-    Вызывается из таски fetch_zoo_photo_task.
+    Скачивает Zoo-фото через Playwright (обходит hotlink защиту) и заливает на ЯД.
     """
     from ..parsers.zooportal import BrowserManager
     from ..config import ZOOPORTAL_BASE_URL, ZOOPORTAL_DOG_PATH
 
     logger.info(f"📷 Zoo Playwright фото: dog_id={dog_id}, zoo_id={zooportal_id}")
-
     try:
         with BrowserManager() as browser:
-            # Открываем страницу собаки — устанавливает сессию и Referer
             url = f"{ZOOPORTAL_BASE_URL}{ZOOPORTAL_DOG_PATH}/{zooportal_id}/"
             browser.fetch_page(url)
-
-            # Скачиваем фото в том же контексте
             photo_bytes = browser.download_photo_bytes(photo_url)
-
     except Exception as e:
         logger.error(f"Zoo Playwright: ошибка для dog_id={dog_id}: {e}", exc_info=True)
         return {"status": "error", "error": str(e)}
@@ -403,54 +217,115 @@ def fetch_zoo_photo_via_playwright(dog_id: int, zooportal_id: str, photo_url: st
     if not photo_bytes:
         return {"status": "error", "error": "фото не скачалось через Playwright"}
 
-    return upload_photo_bytes_to_yadisk(dog_id, photo_url, photo_bytes)
+    return upload_photo_bytes_to_yadisk(dog_id, photo_url, photo_bytes, current_hash)
 
 
-def upload_photo_bytes_to_yadisk(dog_id: int, photo_url: str, photo_bytes: bytes) -> Dict:
-    """
-    Загружает уже скачанные байты фото на ЯД.
-    Вызывается из integration когда байты получены при парсинге Zoo.
-    Не делает повторный запрос к источнику.
-    """
+def upload_photo_bytes_to_yadisk(
+        dog_id: int,
+        photo_url: str,
+        photo_bytes: bytes,
+        current_hash: Optional[str] = None,
+) -> Dict:
+    """Заливает уже скачанные байты (Zoo/Playwright) с дедупом и фильтром заглушек."""
     yadisk_path = yadisk_path_for(dog_id, photo_url)
+    return _store_or_skip(dog_id, yadisk_path, photo_bytes, current_hash)
 
-    ok = yadisk_upload(photo_bytes, yadisk_path)
-    if not ok:
-        return {"status": "error", "error": "ошибка загрузки на ЯД"}
 
-    yadisk_url = yadisk_publish_and_get_url(yadisk_path)
-    logger.info(f"📷 dog {dog_id}: фото залито на ЯД из байт ({len(photo_bytes)}b)")
+# Оркестраторы
 
-    return {
-        "status":     "uploaded",
-        "path":       yadisk_path,
-        "yadisk_url": yadisk_url,
-        "size":       len(photo_bytes),
-    }
+def process_dog_photo(dog_id: int):
+    """
+    Полный цикл загрузки фото одной собаки на ЯД.
+    Zoo-фото перенаправляет на Playwright — возвращает (result, redirect_to_zoo=True).
+    """
+    from ..repositories import dog_repository as dog_repo
+
+    dog = dog_repo.get_photo_fields(dog_id, with_zooportal=True)
+    if dog is None:
+        return {"dog_id": dog_id, "status": "not_found"}, False
+    if not dog.photo_url:
+        return {"dog_id": dog_id, "status": "no_url"}, False
+
+    if "zooportal" in (dog.photo_url or "") and dog.zooportal_id:
+        return {"dog_id": dog_id, "status": "redirected_to_playwright"}, True
+
+    result = sync_photo_to_yadisk(
+        dog.id, dog.photo_url, dog.photo_yadisk_path, dog.photo_hash
+    )
+    result["dog_id"] = dog_id
+
+    # Заглушка: на ЯД ничего нет, но запоминаем хэш, чтобы не качать её снова
+    if result["status"] == "skipped_placeholder":
+        if result.get("hash") and result["hash"] != dog.photo_hash:
+            dog_repo.update_photo_paths(dog_id, {"photo_hash": result["hash"]})
+        return result, False
+
+    if result["status"] in ("uploaded", "skipped"):
+        update = {}
+        if result.get("path") and not dog.photo_yadisk_path:
+            update["photo_yadisk_path"] = result["path"]
+        if result.get("yadisk_url") and not dog.photo_yadisk_url:
+            update["photo_yadisk_url"] = result["yadisk_url"]
+        if result.get("hash") and result["hash"] != dog.photo_hash:
+            update["photo_hash"] = result["hash"]
+        if update:
+            dog_repo.update_photo_paths(dog_id, update)
+            logger.info(f"dog {dog_id}: обновлено в БД {list(update.keys())}")
+
+    return result, False
+
+
+def process_zoo_dog_photo(dog_id: int) -> Dict:
+    """Полный цикл загрузки Zoo-фото через Playwright + запись путей в БД."""
+    from ..repositories import dog_repository as dog_repo
+
+    dog = dog_repo.get_photo_fields(dog_id, with_zooportal=True)
+    if dog is None:
+        return {"dog_id": dog_id, "status": "not_found"}
+    if not dog.photo_url:
+        return {"dog_id": dog_id, "status": "no_url"}
+    if not dog.zooportal_id:
+        return {"dog_id": dog_id, "status": "no_zooportal_id"}
+    if dog.photo_yadisk_url:
+        return {"dog_id": dog_id, "status": "already_on_yadisk", "url": dog.photo_yadisk_url}
+
+    result = fetch_zoo_photo_via_playwright(
+        dog.id, dog.zooportal_id, dog.photo_url, dog.photo_hash
+    )
+    result["dog_id"] = dog_id
+
+    if result["status"] == "skipped_placeholder":
+        if result.get("hash") and result["hash"] != dog.photo_hash:
+            dog_repo.update_photo_paths(dog_id, {"photo_hash": result["hash"]})
+        return result
+    if result["status"] in ("uploaded", "skipped"):
+        update = {}
+        if result.get("path"):       update["photo_yadisk_path"] = result["path"]
+        if result.get("yadisk_url"): update["photo_yadisk_url"] = result["yadisk_url"]
+        if result.get("hash"):       update["photo_hash"] = result["hash"]
+        if update:
+            dog_repo.update_photo_paths(dog_id, update)
+            logger.info(f"dog {dog_id}: Zoo фото залито на ЯД через Playwright")
+
+    return result
 
 
 def sync_yadisk_to_db() -> Dict:
     """
     ЯД → БД: сканирует disk:/dogs/photos/, по имени файла
-    (12345.jpg → dog_id=12345) обновляет photo_yadisk_path в БД
-    для собак у которых это поле пустое.
-
-    Используй если:
-    - Загружал фото на ЯД вручную
-    - photo_yadisk_path в БД сбросился
-    - После восстановления данных
+    (12345.jpg → dog_id=12345) обновляет photo_yadisk_path в БД.
     """
-    from ..models import Dog
+    from ..repositories import dog_repository as dog_repo
 
-    files = yadisk_list_files()
+    files = yd.list_files()
     if not files:
         return {"status": "error", "error": "Папка пуста или не найдена на ЯД"}
 
     updated = not_found = already_set = 0
 
     for file in files:
-        name      = file.get("name", "")
-        stem      = os.path.splitext(name)[0]
+        name = file.get("name", "")
+        stem = os.path.splitext(name)[0]
         file_path = file.get("path", "").replace("disk:/", "")
 
         try:
@@ -458,23 +333,21 @@ def sync_yadisk_to_db() -> Dict:
         except ValueError:
             continue
 
-        try:
-            dog = Dog.objects.using("dogs_db").only("id", "photo_yadisk_path").get(pk=dog_id)
-        except Dog.DoesNotExist:
+        dog = dog_repo.get_yadisk_path(dog_id)
+        if dog is None:
             not_found += 1
             continue
-
         if dog.photo_yadisk_path:
             already_set += 1
             continue
 
-        Dog.objects.using("dogs_db").filter(pk=dog_id).update(photo_yadisk_path=file_path)
+        dog_repo.update_photo_paths(dog_id, {"photo_yadisk_path": file_path})
         updated += 1
 
     return {
-        "status":         "done",
+        "status": "done",
         "files_on_yadisk": len(files),
-        "updated_in_db":  updated,
+        "updated_in_db": updated,
         "already_had_path": already_set,
         "not_found_in_db": not_found,
     }
@@ -482,130 +355,248 @@ def sync_yadisk_to_db() -> Dict:
 
 def get_photo_stats() -> Dict:
     """Статистика по фото: сколько в БД, сколько на ЯД."""
-    from ..models import Dog
+    from ..repositories import dog_repository as dog_repo
 
-    total       = Dog.objects.using("dogs_db").count()
-    with_url    = Dog.objects.using("dogs_db").exclude(photo_url__isnull=True).exclude(photo_url="").count()
-    with_yadisk = Dog.objects.using("dogs_db").exclude(photo_yadisk_path__isnull=True).exclude(photo_yadisk_path="").count()
+    counts = dog_repo.get_photo_coverage_counts()
+    total = counts["total"]
+    with_url = counts["with_url"]
+    with_yadisk = counts["with_yadisk"]
 
-    yadisk_info = {}
-    try:
-        r = requests.get(
-            f"{YADISK_API}?path={_disk(YADISK_FOLDER)}&fields=_embedded.total",
-            headers=_yd_headers(), timeout=10,
-        )
-        if r.status_code == 200:
-            yadisk_info = {
-                "folder": f"disk:/{YADISK_FOLDER}",
-                "files_on_disk": r.json().get("_embedded", {}).get("total", "?"),
-            }
-        elif r.status_code == 404:
-            yadisk_info = {"folder": f"disk:/{YADISK_FOLDER}", "files_on_disk": 0, "note": "папка не создана"}
-    except Exception as e:
-        yadisk_info = {"error": str(e)}
+    files_on_disk = yd.count_files()
+    yadisk_info = {
+        "folder": f"disk:/{YADISK_FOLDER}",
+        "files_on_disk": files_on_disk if files_on_disk is not None else "?",
+    }
+    if files_on_disk == 0:
+        yadisk_info["note"] = "папка не создана"
 
     return {
-        "total_dogs":          total,
+        "total_dogs": total,
         "dogs_with_photo_url": with_url,
-        "dogs_on_yadisk":      with_yadisk,
-        "missing":             with_url - with_yadisk,
-        "yadisk":              yadisk_info,
+        "dogs_on_yadisk": with_yadisk,
+        "missing": with_url - with_yadisk,
+        "yadisk": yadisk_info,
     }
 
 
 def get_dogs_for_bulk_sync(
-    id_from: int = 1,
-    id_to: Optional[int] = None,
-    limit: int = 500,
-    only_without_yadisk: bool = True,
+        id_from: int = 1,
+        id_to: Optional[int] = None,
+        limit: int = 500,
+        only_without_yadisk: bool = True,
 ) -> List[Dict]:
     """Выбирает собак с photo_url для bulk-синхронизации."""
-    from ..models import Dog
-
-    qs = (
-        Dog.objects.using("dogs_db")
-        .filter(photo_url__isnull=False, id__gte=id_from)
-        .exclude(photo_url="")
-        .only("id")
-        .order_by("id")
+    from ..repositories import dog_repository as dog_repo
+    return dog_repo.get_dogs_with_photo_url(
+        id_from=id_from, id_to=id_to, limit=limit,
+        only_without_yadisk=only_without_yadisk,
     )
-    if id_to:
-        qs = qs.filter(id__lte=id_to)
-    if only_without_yadisk:
-        qs = qs.filter(photo_yadisk_path__isnull=True)
-
-    return list(qs.values("id")[:limit])
-
-
-_PUBLIC_KEY_CACHE: dict = {}  # простой in-memory кеш для public_key
 
 
 def get_yadisk_public_key() -> Optional[str]:
-    """
-    Возвращает public_key папки dogs/photos на ЯД.
-    При первом вызове публикует папку и кеширует ключ.
-    При повторных — возвращает из кеша (не ходит на ЯД каждый раз).
-    """
+    """Возвращает public_key папки dogs/photos. Кешируется в памяти."""
     if _PUBLIC_KEY_CACHE.get("key"):
         return _PUBLIC_KEY_CACHE["key"]
-
-    try:
-        # Сначала проверяем — вдруг папка уже опубликована
-        r = requests.get(
-            f"{YADISK_API}?path={_disk(YADISK_FOLDER)}&fields=public_key",
-            headers=_yd_headers(), timeout=10,
-        )
-        if r.status_code == 200:
-            key = r.json().get("public_key")
-            if key:
-                _PUBLIC_KEY_CACHE["key"] = key
-                return key
-
-        # Публикуем папку
-        requests.put(
-            f"{YADISK_API}/publish?path={_disk(YADISK_FOLDER)}",
-            headers=_yd_headers(), timeout=10,
-        )
-
-        # Получаем public_key
-        r2 = requests.get(
-            f"{YADISK_API}?path={_disk(YADISK_FOLDER)}&fields=public_key",
-            headers=_yd_headers(), timeout=10,
-        )
-        if r2.status_code == 200:
-            key = r2.json().get("public_key")
-            if key:
-                _PUBLIC_KEY_CACHE["key"] = key
-                logger.info(f"✅ ЯД: папка опубликована, public_key={key[:20]}...")
-                return key
-
-    except Exception as e:
-        logger.error(f"get_yadisk_public_key: {e}")
-
-    return None
+    key = yd.get_public_key()
+    if key:
+        _PUBLIC_KEY_CACHE["key"] = key
+        logger.info(f"✅ ЯД: папка опубликована, public_key={key[:20]}...")
+    return key
 
 
 def get_public_photo_url(yadisk_path: str) -> Optional[str]:
     """
-    Возвращает прямую публичную ссылку на файл в папке dogs/photos.
-
-    Как работает:
-      yadisk_path = 'dogs/photos/12345.jpg'
-      filename    = '12345.jpg'
-      URL = https://downloader.disk.yandex.ru/public/files/{public_key}/{filename}
-
-    Эта ссылка постоянная (не истекает как download URL).
-    Работает только если папка опубликована через get_yadisk_public_key().
+    Постоянная публичная ссылка на файл в папке dogs/photos.
+    URL = YADISK_PUBLIC_DOWNLOADER/{public_key}/{filename}
     """
     if not yadisk_path:
         return None
-
-    import os
-    filename = os.path.basename(yadisk_path)  # '12345.jpg'
-
+    filename = os.path.basename(yadisk_path)
     key = get_yadisk_public_key()
     if not key:
         return None
+    return f"{YADISK_PUBLIC_DOWNLOADER}/{key}/{filename}"
 
-    # Публичная ссылка на файл внутри публичной папки
-    return f"https://downloader.disk.yandex.ru/public/files/{key}/{filename}"
+
+# Отпечаток фото (хэш + детекция заглушек)
+
+def photo_hash(data: bytes) -> str:
+    """Контентный хэш изображения. Основа сравнения и дедупликации."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def _is_placeholder_url(url: str) -> bool:
+    u = (url or "").lower()
+    return any(p in u for p in PLACEHOLDER_URL_PATTERNS)
+
+
+def _is_placeholder_hash(h: str) -> bool:
+    return h in DEFAULT_PHOTO_HASHES
+
+
+def _store_or_skip(
+        dog_id: int,
+        yadisk_path: str,
+        data: bytes,
+        current_hash: Optional[str],
+) -> Dict:
+    """
+    Единое ядро решения для уже полученных байт.
+
+    status: uploaded | skipped | skipped_placeholder | error
+    """
+    new_hash = photo_hash(data)
+
+    # 1. Дефолтная картинка сайта — у сотни собак она одинаковая, не плодим копии
+    if _is_placeholder_hash(new_hash):
+        logger.info(f"dog {dog_id}: дефолтное фото сайта (hash={new_hash[:12]}), на ЯД не грузим")
+        return {"status": "skipped_placeholder", "hash": new_hash,
+                "reason": "дефолтное изображение"}
+
+    # 2. Побайтово не изменилось — ничего не делаем (только добираем url если нужно)
+
+    if current_hash and current_hash == new_hash:
+        existing_size = yd.get_file_size(yadisk_path)
+        if existing_size:
+            # файл есть на ЯД — пропускаем
+            yadisk_url = yd.publish_and_get_url(yadisk_path)
+            return {"status": "skipped", "path": yadisk_path, "yadisk_url": yadisk_url,
+                    "hash": new_hash, "reason": "хэш совпадает"}
+
+        # файла нет — перезаливаем несмотря на совпадение хеша
+        logger.warning(f"dog {dog_id}: хэш совпадает но файл не найден на ЯД, перезаливаем")
+
+    # 3. Новое/изменённое фото — заливаем
+    if not yd.upload(data, yadisk_path):
+        return {"status": "error", "error": "ошибка загрузки на ЯД"}
+
+    yadisk_url = yd.publish_and_get_url(yadisk_path)
+    logger.info(f"📷 dog {dog_id}: фото залито ({len(data)}b, hash={new_hash[:12]})")
+    return {"status": "uploaded", "path": yadisk_path, "yadisk_url": yadisk_url,
+            "size": len(data), "hash": new_hash}
+
+
+# Для тех, у которых есть yandex path
+def backfill_photo_hashes(
+        limit: int = 1000,
+        id_from: int = 1,
+        id_to: int = None,
+) -> Dict:
+    """
+    Считает photo_hash для собак с фото на ЯД но без hash.
+    Для Zoo-собак скачивает через Playwright (нужен hotlink обход).
+    """
+    from ..repositories import dog_repository as dog_repo
+
+    dogs = dog_repo.get_dogs_with_yadisk_without_hash(
+        limit=limit, id_from=id_from, id_to=id_to
+    )
+    done = skipped = errors = 0
+
+    for dog in dogs:
+        try:
+            # Zoo-фото требует Playwright для скачивания
+            if 'zooportal' in (dog.photo_url or '') and dog.zooportal_id:
+                from ..parsers.zooportal import BrowserManager
+                from ..config import ZOOPORTAL_BASE_URL, ZOOPORTAL_DOG_PATH
+                with BrowserManager() as browser:
+                    browser.fetch_page(
+                        f"{ZOOPORTAL_BASE_URL}{ZOOPORTAL_DOG_PATH}/{dog.zooportal_id}/"
+                    )
+                    data = browser.download_photo_bytes(dog.photo_url)
+            else:
+                data = download_from_source(dog.photo_url)
+
+            if not data:
+                skipped += 1
+                continue
+
+            h = photo_hash(data)
+            dog_repo.update_photo_paths(dog.id, {'photo_hash': h})
+            done += 1
+        except Exception as e:
+            logger.error(f"backfill_photo_hashes dog_id={dog.id}: {e}")
+            errors += 1
+
+    return {'scanned': len(dogs), 'updated': done, 'skipped': skipped, 'errors': errors}
+
+
+# С обычных ресурсов
+def backfill_hashes_from_source(
+        limit: int = 1000,
+        id_from: int = 1,
+        id_to: int = None,
+) -> Dict:
+    """
+    Считает photo_hash из оригинального photo_url (не с ЯД).
+    Для BA собак — HTTP, для Zoo — нужен Playwright (пропускаем).
+    """
+    from ..repositories import dog_repository as dog_repo
+
+    dogs = dog_repo.get_dogs_with_url_without_hash(
+        limit=limit, id_from=id_from, id_to=id_to
+    )
+    done = skipped = 0
+
+    for dog in dogs:
+        # Zoo требует Playwright — пропускаем здесь
+        if 'zooportal' in (dog.get('photo_url') or ''):
+            skipped += 1
+            logger.info(f"Processing dog {dog['id']}: {dog.get('photo_url')}")
+            continue
+
+        data = download_from_source(dog['photo_url'])
+        if not data:
+            skipped += 1
+            logger.warning(f"Не удалось скачать фото для dog_id={dog['id']}: {dog.get('photo_url')}")
+            continue
+
+        h = photo_hash(data)
+        dog_repo.update_photo_paths(dog['id'], {'photo_hash': h})
+        done += 1
+
+    return {'scanned': len(dogs), 'updated': done, 'skipped': skipped}
+
+
+def find_placeholder_candidates(min_count: int = 5, top: int = 20) -> List[Dict]:
+    """
+    Группирует фото по хэшу и возвращает самые частые.
+    Дефолтная серая заглушка всплывёт с count в сотни — её хэш переносите в DEFAULT_PHOTO_HASHES.
+    """
+    from ..repositories import dog_repository as dog_repo
+    return dog_repo.count_dogs_by_photo_hash(min_count=min_count, top=top)
+
+
+def cleanup_placeholder_photos() -> Dict:
+    """Удаляет с ЯД уже залитые заглушки (по DEFAULT_PHOTO_HASHES) и чистит поля."""
+    from ..repositories import dog_repository as dog_repo
+    from ..config.yadisk import DEFAULT_PHOTO_HASHES
+    dogs = dog_repo.get_dogs_by_photo_hash(list(DEFAULT_PHOTO_HASHES))  # написать в репо
+    deleted = 0
+    for dog in dogs:
+        if dog.photo_yadisk_path and yd.delete(dog.photo_yadisk_path):
+            deleted += 1
+        dog_repo.update_photo_paths(dog.id, {
+            "photo_yadisk_path": None, "photo_yadisk_url": None,
+        })
+    return {"status": "done", "cleaned": len(dogs), "deleted_from_yadisk": deleted}
+
+
+def delete_dog_photo(dog_id: int) -> Dict:
+    """Удаляет фото собаки с ЯД и обнуляет photo_yadisk_path/url/hash в БД."""
+    from ..repositories import dog_repository as dog_repo
+
+    dog = dog_repo.get_photo_fields(dog_id)
+    if dog is None:
+        return {"dog_id": dog_id, "status": "not_found"}
+    if not dog.photo_yadisk_path:
+        return {"dog_id": dog_id, "status": "no_yadisk_photo"}
+
+    deleted = yd.delete(dog.photo_yadisk_path)
+    dog_repo.update_photo_paths(dog_id, {
+        "photo_yadisk_path": None,
+        "photo_yadisk_url": None,
+        "photo_hash": None,
+    })
+    logger.info(f"🗑 dog {dog_id}: фото удалено с ЯД ({'ok' if deleted else 'файла не было'})")
+    return {"dog_id": dog_id, "status": "deleted", "removed_from_yadisk": deleted}

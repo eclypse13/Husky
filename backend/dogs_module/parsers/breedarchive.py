@@ -35,15 +35,11 @@ from ..utils.text import (
 
 logger = logging.getLogger(__name__)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
 # КЕШ
-# ══════════════════════════════════════════════════════════════════════════════
-
-_NOT_FOUND       = "__NOT_FOUND__"  # маркер «спрашивали — не нашли»
-_TTL_NAME_SEARCH = 2 * 24 * 3600       # 24ч  — UUID по имени
-_TTL_DOG_DATA    = 7 * 24 * 3600   # 7д   — полные данные собаки
-_TTL_BASIC_DATA  = 2 * 24 * 3600    # 24ч  — базовые данные
+_NOT_FOUND = "__NOT_FOUND__"  # маркер «спрашивали — не нашли»
+_TTL_NAME_SEARCH = 2 * 24 * 3600  # 24ч  — UUID по имени
+_TTL_DOG_DATA = 7 * 24 * 3600  # 7д   — полные данные собаки
+_TTL_BASIC_DATA = 2 * 24 * 3600  # 24ч  — базовые данные
 
 
 def _cache():
@@ -67,10 +63,7 @@ def _key_basic(uuid: str) -> str:
     return f"ba:basic:{uuid}"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # HTTP КЛИЕНТ — КУКИ + ЗАГОЛОВКИ
-# ══════════════════════════════════════════════════════════════════════════════
-
 def _create_session() -> requests.Session:
     """
     Создаёт HTTP-сессию с куками и заголовками для BreedArchive.
@@ -99,17 +92,7 @@ def _create_ba_client() -> httpx.Client:
     )
 
 
-def _build_photo_url(photo_path: Optional[str]) -> Optional[str]:
-    """Строит полный URL фото из относительного пути BreedArchive."""
-    if not photo_path:
-        return None
-    return f"https://siberianhusky.breedarchive.com/resource/{photo_path}"
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 # ПОИСК ПО ИМЕНИ — ВАРИАНТЫ
-# ══════════════════════════════════════════════════════════════════════════════
-
 def _build_search_variants(name: str) -> List[str]:
     """
     Строит список вариантов имени для поиска в BA.
@@ -147,20 +130,11 @@ def _build_search_variants(name: str) -> List[str]:
     return result
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ПОИСК ПО ИМЕНИ → UUID
-# ══════════════════════════════════════════════════════════════════════════════
 
 def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
     """
     Ищет собаку в BreedArchive по имени, возвращает UUID или None.
-
-    АЛГОРИТМ:
-      1. Проверяем кеш ba:name:{NAME}
-      2. Строим варианты имени (без титулов, RU→EN, EN→RU)
-      3. Для каждого варианта делаем GET /ng_animal/data?registered_name=...
-      4. Берём records[0].uuid при первом успешном результате
-      5. Кешируем UUID или _NOT_FOUND
 
     КЕШ: ba:name:{NAME_UPPER}, TTL=24ч
     """
@@ -253,16 +227,10 @@ def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
     return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ПОЛУЧЕНИЕ ПОЛНЫХ ДАННЫХ ПО UUID (с предками, 5 поколений)
-# ══════════════════════════════════════════════════════════════════════════════
-
 def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
     """
-    Получает полные данные собаки из BA: предки, владельцы, заводчики, титулы.
-    Endpoint: GET /animal/get_ancestors/{uuid}?generations=5
-
-    ВСЕГДА запрашиваем generations=5 (максимум) — кешируем полный результат.
+     Получает полные данные собаки из BA, запрашиваем generations=5 — кешируем полный результат.
 
     КЕШ: ba:dog:{uuid}, TTL=7д
     """
@@ -312,7 +280,7 @@ def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
         return None
 
 
-def _collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
+def collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
     """
     Рекурсивно обходит дерево предков и собирает UUID «граничных» узлов.
 
@@ -321,7 +289,6 @@ def _collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
       - sire и/или dam = None, но sireId / damId > 0
         (родитель существует в BA, просто не вошёл в текущий ответ из-за лимита 5 поколений)
 
-    Именно для таких узлов нужно делать дополнительный запрос get_ancestors/{uuid}.
     """
     if not isinstance(node, dict):
         return
@@ -339,18 +306,16 @@ def _collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
 
     # Если родители пришли — рекурсивно проверяем их тоже.
     if node.get('sire'):
-        _collect_leaf_uuids(node['sire'], leaves)
+        collect_leaf_uuids(node['sire'], leaves)
     if node.get('dam'):
-        _collect_leaf_uuids(node['dam'], leaves)
+        collect_leaf_uuids(node['dam'], leaves)
 
-# ══════════════════════════════════════════════════════════════════════════════
+
 # ПОЛУЧЕНИЕ БАЗОВЫХ ДАННЫХ ПО UUID (без предков — быстро)
-# ══════════════════════════════════════════════════════════════════════════════
 
 def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
     """
     Получает базовые данные собаки без дерева предков.
-    Endpoint: GET /animal/get_animal/{uuid}?include_ancestors=false&generations=1
 
     КЕШ: ba:basic:{uuid}, TTL=24ч
     """
@@ -367,7 +332,6 @@ def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
 
     try:
         response = session.get(
-            # f"{BREEDARCHIVE_BASE_URL}/animal/get_animal/{uuid}",
             f"{BREEDARCHIVE_SEARCH_DOG_BASE_NO_ANCESTORS}/{uuid}",
             params={'include_ancestors': False, 'generations': 1},
             timeout=30,
@@ -383,32 +347,33 @@ def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
 
         photo_path = animal_data.get('primary_photo_path') or animal_data.get('primaryPhotoPath')
 
+        from backend.dogs_module.utils.parser_utils import build_BA_photo_url
         result = {
             'uuid': uuid,
-            'registered_name':    animal_data.get('registered_name')    or animal_data.get('registeredName'),
-            'link_name':          animal_data.get('link_name')          or animal_data.get('linkName'),
-            'call_name':          animal_data.get('call_name')          or animal_data.get('callName'),
-            'sex':                animal_data.get('sex'),
-            'color':              animal_data.get('color'),
-            'color_marking':      animal_data.get('color_marking')      or animal_data.get('colorMarking'),
-            'variety':            animal_data.get('variety'),
-            'year_of_birth':      animal_data.get('year_of_birth')      or animal_data.get('yearOfBirth'),
-            'month_of_birth':     animal_data.get('month_of_birth')     or animal_data.get('monthOfBirth'),
-            'day_of_birth':       animal_data.get('day_of_birth')       or animal_data.get('dayOfBirth'),
-            'date_of_birth':      animal_data.get('date_of_birth'),
-            'land_of_birth':      animal_data.get('land_of_birth')      or animal_data.get('landOfBirth'),
+            'registered_name': animal_data.get('registered_name') or animal_data.get('registeredName'),
+            'link_name': animal_data.get('link_name') or animal_data.get('linkName'),
+            'call_name': animal_data.get('call_name') or animal_data.get('callName'),
+            'sex': animal_data.get('sex'),
+            'color': animal_data.get('color'),
+            'color_marking': animal_data.get('color_marking') or animal_data.get('colorMarking'),
+            'variety': animal_data.get('variety'),
+            'year_of_birth': animal_data.get('year_of_birth') or animal_data.get('yearOfBirth'),
+            'month_of_birth': animal_data.get('month_of_birth') or animal_data.get('monthOfBirth'),
+            'day_of_birth': animal_data.get('day_of_birth') or animal_data.get('dayOfBirth'),
+            'date_of_birth': animal_data.get('date_of_birth'),
+            'land_of_birth': animal_data.get('land_of_birth') or animal_data.get('landOfBirth'),
             'land_of_birth_code': animal_data.get('land_of_birth_code') or animal_data.get('landOfBirthCode'),
-            'land_of_standing':   animal_data.get('land_of_standing')   or animal_data.get('landOfStanding'),
-            'prefix_titles':      animal_data.get('prefix_titles')      or animal_data.get('prefixTitles'),
-            'suffix_titles':      animal_data.get('suffix_titles')      or animal_data.get('suffixTitles'),
+            'land_of_standing': animal_data.get('land_of_standing') or animal_data.get('landOfStanding'),
+            'prefix_titles': animal_data.get('prefix_titles') or animal_data.get('prefixTitles'),
+            'suffix_titles': animal_data.get('suffix_titles') or animal_data.get('suffixTitles'),
             'registration_number': animal_data.get('registration_number') or animal_data.get('registrationNumber'),
             'registration_status': animal_data.get('registration_status') or animal_data.get('registrationStatus'),
-            'coi':                animal_data.get('coi'),
+            'coi': animal_data.get('coi'),
             'incomplete_pedigree': animal_data.get('incomplete_pedigree'),
             'primary_photo_path': photo_path,
-            'photo_url':          _build_photo_url(photo_path),
-            'neutered':           animal_data.get('neutered', False),
-            'source':             'breedarchive.com',
+            'photo_url': build_BA_photo_url(photo_path),
+            'neutered': animal_data.get('neutered', False),
+            'source': 'breedarchive.com',
         }
 
         result = {k: v for k, v in result.items() if v is not None}
@@ -424,22 +389,14 @@ def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
         return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ПОЛУЧЕНИЕ ПОСЛЕДНИХ ОБНОВЛЕНИЙ (operation=all)
-# ══════════════════════════════════════════════════════════════════════════════
-
 def fetch_recent_dogs(
-    pages_count: int = 1,
-    start_page: int = 0,
-    is_full_sync: bool = False,
+        pages_count: int = 1,
+        start_page: int = 0,
+        is_full_sync: bool = False,
 ) -> List[Dict]:
     """
     Получает список последних обновлённых/новых собак из BreedArchive.
-
-    ENDPOINT: GET /ng_animal/get_entries?operation=all&start={N}
-      - По 25 собак за раз (start=0, 25, 50, ..., 225)
-      - Максимум 250 записей (start > 225 → нет новых данных)
-      - data['has_more'] сигнализирует о продолжении
 
     ПАРАМЕТРЫ:
       pages_count  — количество страниц (1 стр = 25 собак)
@@ -507,24 +464,10 @@ def fetch_recent_dogs(
     return all_animals
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ПАРСИНГ BROWSE-СТРАНИЦЫ ЧЕРЕЗ PLAYWRIGHT
-# ══════════════════════════════════════════════════════════════════════════════
-
 def parse_browse_page(recent_days: int = 1) -> Dict[str, Any]:
     """
     Парсит страницу /animal/browse через синхронный Playwright.
-
-    ЗАЧЕМ PLAYWRIGHT:
-      Browse — это SPA (KnockoutJS), данные грузятся динамически через JS.
-      Обычный requests.get() вернёт пустой HTML без данных.
-
-    АЛГОРИТМ:
-      1. Открываем браузер, переходим на /animal/browse
-      2. Ждём загрузки списка, для каждого элемента извлекаем данные
-      3. Если modified_at < cutoff_date → стоп (данные упорядочены по дате)
-      4. Для каждой собаки → fetch_breedarchive_dog(uuid) для полных данных
-      5. Кликаем «Show more» если есть, повторяем
 
     ПАРАМЕТРЫ:
       recent_days — сколько последних дней обрабатывать (1–30)
@@ -800,10 +743,7 @@ def _extract_browse_element(element) -> Optional[Dict[str, Any]]:
         return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ИНВАЛИДАЦИЯ КЕША
-# ══════════════════════════════════════════════════════════════════════════════
-
+# Инвалидация кеша
 def invalidate_name_cache(dog_name: str) -> None:
     """Сбрасывает кеш поиска по имени."""
     key = _key_name(dog_name.strip().upper())

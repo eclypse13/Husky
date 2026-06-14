@@ -51,4 +51,7 @@ from .tasks_photos import (
     photo_fetch_zoo_bulk,
     photo_sync_yadisk_to_db,
     photo_stats,
+    photo_delete_one,
+    photo_backfill_hashes,
+    photo_cleanup_placeholders,
 )

@@ -1,16 +1,6 @@
 # dogs_module/utils/cookie_refresher.py
 """
 Автоматическое обновление куков для Zooportal и BreedArchive.
-
-Zoo логин:
-  1. Сначала пробует HTTP POST через requests (быстро, ~2с)
-  2. Если не получил PHPSESSID — fallback на Playwright
-  3. BITRIX_SM_UIDH не обязателен — для парсинга достаточно PHPSESSID + J-куков
-
-BA логин: HTTP POST /auth_user/perform_login (JSON).
-
-Redis-лок гарантирует что при одновременных запросах
-логин выполняется только один раз.
 """
 
 from __future__ import annotations
@@ -22,14 +12,14 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-_KEY_BA_COOKIES  = "auth:ba:cookies"
+_KEY_BA_COOKIES = "auth:ba:cookies"
 _KEY_ZOO_COOKIES = "auth:zoo:cookies"
-_KEY_BA_LOCK     = "auth:ba:lock"
-_KEY_ZOO_LOCK    = "auth:zoo:lock"
-_COOKIE_TTL      = 20 * 3600  # 20ч
+_KEY_BA_LOCK = "auth:ba:lock"
+_KEY_ZOO_LOCK = "auth:zoo:lock"
+_COOKIE_TTL = 20 * 3600  # 20ч
 
 
-# ── Redis helpers ─────────────────────────────────────────────────────────────
+# Redis helpers
 
 def _cache():
     from django.core.cache import caches
@@ -73,7 +63,7 @@ def _run_in_thread(fn, timeout: int):
             return None
 
 
-# ── BreedArchive ──────────────────────────────────────────────────────────────
+# BreedArchive
 
 def get_ba_cookies() -> Dict[str, str]:
     """Redis → автологин → .env fallback."""
@@ -85,7 +75,7 @@ def get_ba_cookies() -> Dict[str, str]:
         logger.warning(f"BA cookies: Redis недоступен ({e})")
         return _ba_env_cookies()
 
-    fresh = _do_ba_login()
+    fresh = do_ba_login()
     return fresh if fresh else _ba_env_cookies()
 
 
@@ -95,7 +85,7 @@ def on_ba_401() -> None:
         _cache().delete(_KEY_BA_COOKIES)
     except Exception:
         pass
-    _do_ba_login()
+    do_ba_login()
 
 
 def _ba_env_cookies() -> Dict[str, str]:
@@ -105,7 +95,7 @@ def _ba_env_cookies() -> Dict[str, str]:
     return cookies
 
 
-def _do_ba_login() -> Optional[Dict[str, str]]:
+def do_ba_login() -> Optional[Dict[str, str]]:
     from ..config import BREEDARCHIVE_EMAIL, BREEDARCHIVE_PASSWORD
 
     if not BREEDARCHIVE_EMAIL or not BREEDARCHIVE_PASSWORD:
@@ -143,10 +133,10 @@ def _ba_http_login() -> Optional[Dict[str, str]]:
         session.headers.update(BREEDARCHIVE_HEADERS)
         session.headers.update({
             'X-REQUESTED-WITH': 'XMLHttpRequest',
-            'Accept':           'application/json, text/plain, */*',
-            'Content-Type':     'application/json',
-            'Origin':           BREEDARCHIVE_BASE_URL,
-            'Referer':          BREEDARCHIVE_LOGIN_URL,
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json',
+            'Origin': BREEDARCHIVE_BASE_URL,
+            'Referer': BREEDARCHIVE_LOGIN_URL,
         })
 
         r = session.get(BREEDARCHIVE_LOGIN_URL, timeout=30)
@@ -156,10 +146,10 @@ def _ba_http_login() -> Optional[Dict[str, str]]:
 
         payload = {
             "credentials": {
-                "username":           BREEDARCHIVE_EMAIL,
-                "password":           BREEDARCHIVE_PASSWORD,
+                "username": BREEDARCHIVE_EMAIL,
+                "password": BREEDARCHIVE_PASSWORD,
                 "termsofuseAccepted": False,
-                "errors":             {},
+                "errors": {},
             }
         }
         r2 = session.post(perform_login_url, json=payload, timeout=30, allow_redirects=True)
@@ -190,7 +180,7 @@ def _ba_http_login() -> Optional[Dict[str, str]]:
         return None
 
 
-# ── Zooportal ─────────────────────────────────────────────────────────────────
+# Zooportal
 
 def get_zoo_cookies() -> Dict[str, str]:
     """Redis → автологин → .env fallback."""
@@ -202,7 +192,7 @@ def get_zoo_cookies() -> Dict[str, str]:
         logger.warning(f"Zoo cookies: Redis недоступен ({e})")
         return _zoo_env_cookies()
 
-    fresh = _do_zoo_login()
+    fresh = do_zoo_login()
     return fresh if fresh else _zoo_env_cookies()
 
 
@@ -212,7 +202,7 @@ def on_zoo_session_expired() -> None:
         _cache().delete(_KEY_ZOO_COOKIES)
     except Exception:
         pass
-    _do_zoo_login()
+    do_zoo_login()
 
 
 def _zoo_env_cookies() -> Dict[str, str]:
@@ -222,7 +212,7 @@ def _zoo_env_cookies() -> Dict[str, str]:
     return cookies
 
 
-def _do_zoo_login() -> Optional[Dict[str, str]]:
+def do_zoo_login() -> Optional[Dict[str, str]]:
     """
     Сначала пробует HTTP логин (быстро),
     если не получил PHPSESSID — fallback на Playwright.
@@ -259,7 +249,6 @@ def _zoo_http_login() -> Optional[Dict[str, str]]:
     """
     HTTP POST логин Zooportal.
     Использует J-куки из .env для прохождения anti-bot защиты.
-    PHPSESSID достаточно для парсинга — BITRIX_SM_UIDH не обязателен.
     """
     from ..config import (
         ZOOPORTAL_BASE_URL, ZOOPORTAL_LOGIN,
@@ -273,11 +262,11 @@ def _zoo_http_login() -> Optional[Dict[str, str]]:
     try:
         session = requests.Session()
         session.headers.update({
-            'User-Agent':      USER_AGENT,
-            'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'ru-RU,ru;q=0.9',
-            'Origin':          ZOOPORTAL_BASE_URL,
-            'Referer':         ZOOPORTAL_AUTH_PAGE_URL,
+            'Origin': ZOOPORTAL_BASE_URL,
+            'Referer': ZOOPORTAL_AUTH_PAGE_URL,
         })
 
         # GET — получаем начальные куки сервера
@@ -295,13 +284,13 @@ def _zoo_http_login() -> Optional[Dict[str, str]]:
 
         # POST формы
         payload = {
-            'AUTH_FORM':     'Y',
-            'TYPE':          'AUTH',
-            'backurl':       '/auth/?auth=yes',
-            'USER_LOGIN':    ZOOPORTAL_LOGIN,
+            'AUTH_FORM': 'Y',
+            'TYPE': 'AUTH',
+            'backurl': '/auth/?auth=yes',
+            'USER_LOGIN': ZOOPORTAL_LOGIN,
             'USER_PASSWORD': ZOOPORTAL_PASSWORD,
             'USER_REMEMBER': 'Y',
-            'Login':         'Войти',
+            'Login': 'Войти',
         }
         r2 = session.post(ZOOPORTAL_AUTH_POST_URL, data=payload, timeout=30, allow_redirects=True)
         fresh = dict(session.cookies)

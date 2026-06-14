@@ -1,9 +1,10 @@
 # dogs_module/utils/dog_matcher.py
 from datetime import datetime, date
 from typing import Any, Dict, Tuple
-
-from ..models import Dog
-
+from ..utils.text import normalize_for_similarity
+from ..config.matching import (
+    NAME_AUTO_MERGE, NAME_FLAG_REVIEW, PARENT_NAME_MATCH, YEAR_WINDOW,
+)
 
 # Поля, по которым проверяются конфликты между источниками
 _CONFLICT_FIELDS = (
@@ -35,46 +36,25 @@ def _serialize(value: Any) -> Any:
 
 
 def detect_conflicts(
-    existing_dog: Dog,
-    new_data: Dict[str, Any],
-    source: str,
+        existing_dog: Any,
+        new_data: Dict[str, Any],
+        source: str,
 ) -> Tuple[bool, Dict[str, Dict[str, Any]]]:
     """
     Сравнивает поля существующей записи Dog с новыми данными.
-    Конфликт = оба значения непустые и не совпадают.
-    registered_name сравнивается без учёта регистра.
+    Делегирует в detect_dict_conflicts — единственная реализация логики.
+    existing_dog принимает Any (обычно Dog) — не импортируем модель.
     """
-    conflicts: Dict[str, Dict[str, Any]] = {}
-
-    for field in _CONFLICT_FIELDS:
-        existing = _to_comparable(field, getattr(existing_dog, field, None))
-        incoming = _to_comparable(field, new_data.get(field))
-
-        if incoming in (None, ''):
-            continue
-        if existing in (None, ''):
-            continue
-
-        if field == 'registered_name':
-            if str(existing).upper() == str(incoming).upper():
-                continue
-        elif existing == incoming:
-            continue
-
-        existing_source = existing_dog.source or 'unknown'
-        conflicts[field] = {
-            existing_source: _serialize(existing),
-            source: _serialize(incoming),
-        }
-
-    return bool(conflicts), conflicts
+    existing_dict = {f: getattr(existing_dog, f, None) for f in _CONFLICT_FIELDS}
+    existing_source = getattr(existing_dog, 'source', None) or 'unknown'
+    return detect_dict_conflicts(existing_dict, new_data, existing_source, source)
 
 
 def detect_dict_conflicts(
-    left: Dict[str, Any],
-    right: Dict[str, Any],
-    left_source: str,
-    right_source: str,
+        left: Dict[str, Any],
+        right: Dict[str, Any],
+        left_source: str,
+        right_source: str,
 ) -> Tuple[bool, Dict[str, Dict[str, Any]]]:
     """
     Детектирует конфликты между двумя словарями данных (до сохранения в БД).
@@ -97,3 +77,113 @@ def detect_dict_conflicts(
         }
 
     return bool(conflicts), conflicts
+
+
+try:
+    from rapidfuzz.distance import JaroWinkler
+
+
+    def _jw(a: str, b: str) -> float:
+        return JaroWinkler.similarity(a, b)
+except ImportError:  # fallback без зависимости
+    def _jw(a: str, b: str) -> float:
+        # упрощённый Jaro-Winkler на чистом Python (если будут проблемы при импоре бибилотеки)
+        if a == b:
+            return 1.0
+        if not a or not b:
+            return 0.0
+        la, lb = len(a), len(b)
+        win = max(la, lb) // 2 - 1
+        ma = [False] * la
+        mb = [False] * lb
+        matches = 0
+        for i in range(la):
+            lo, hi = max(0, i - win), min(i + win + 1, lb)
+            for j in range(lo, hi):
+                if not mb[j] and a[i] == b[j]:
+                    ma[i] = mb[j] = True
+                    matches += 1
+                    break
+        if matches == 0:
+            return 0.0
+        t = k = 0
+        for i in range(la):
+            if ma[i]:
+                while not mb[k]:
+                    k += 1
+                if a[i] != b[k]:
+                    t += 1
+                k += 1
+        t /= 2
+        jaro = (matches / la + matches / lb + (matches - t) / matches) / 3
+        prefix = 0
+        for i in range(min(4, la, lb)):
+            if a[i] == b[i]:
+                prefix += 1
+            else:
+                break
+        return jaro + prefix * 0.1 * (1 - jaro)
+
+
+def name_similarity(a: str, b: str) -> float:
+    """Jaro-Winkler похожести двух имён собак после нормализации (0..1)."""
+    na, nb = normalize_for_similarity(a), normalize_for_similarity(b)
+    if not na or not nb:
+        return 0.0
+    return _jw(na, nb)
+
+
+def _parents_match(new: dict, cand: dict) -> str:
+    """Сравнение родителей по именам. → 'both' | 'one' | 'none' | 'unknown'."""
+    pairs = []
+    for role in ("sire_name", "dam_name"):
+        n, c = new.get(role), cand.get(role)
+        if n and c:
+            pairs.append(name_similarity(n, c) >= PARENT_NAME_MATCH)
+    if not pairs:
+        return "unknown"
+    if all(pairs) and len(pairs) == 2:
+        return "both"
+    if any(pairs):
+        return "one"
+    return "none"
+
+
+def _year_match(new: dict, cand: dict) -> bool:
+    y1, y2 = new.get("year_of_birth"), cand.get("year_of_birth")
+    if not y1 or not y2:
+        return False
+    return abs(int(y1) - int(y2)) <= YEAR_WINDOW
+
+
+def classify_duplicate(new: dict, cand: dict) -> tuple:
+    """
+    Решение по паре (новая собака, кандидат из БД).
+    → (verdict, score, reason), где verdict: 'merge' | 'flag' | 'different'.
+
+    Ожидает ключи: registered_name, sex, year_of_birth, sire_name, dam_name.
+    """
+    # Пол обязан совпадать — иначе разные точно
+    if new.get("sex") and cand.get("sex") and new["sex"] != cand["sex"]:
+        return "different", 0.0, "разный пол"
+
+    score = name_similarity(new.get("registered_name", ""), cand.get("registered_name", ""))
+    if score < NAME_FLAG_REVIEW:
+        return "different", score, f"имя не похоже ({score:.2f})"
+
+    parents = _parents_match(new, cand)
+    year_ok = _year_match(new, cand)
+
+    # Высокая уверенность → слияние
+    if score >= NAME_AUTO_MERGE and (parents == "both" or (parents == "one" and year_ok)):
+        return "merge", score, f"имя={score:.2f}, родители={parents}, год={'ok' if year_ok else '-'}"
+    if score >= 0.95 and year_ok and parents != "none":
+        return "merge", score, f"имя={score:.2f}, год совпал"
+
+    # Средняя → пометка
+    if parents == "none":
+        return "different", score, "родители различаются"
+    if year_ok or parents in ("both", "one"):
+        return "flag", score, f"имя={score:.2f}, родители={parents}, год={'ok' if year_ok else '-'}"
+
+    return "different", score, f"недостаточно подтверждений ({score:.2f})"

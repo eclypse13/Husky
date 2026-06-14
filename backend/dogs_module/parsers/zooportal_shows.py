@@ -11,7 +11,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..config import ZOOPORTAL_BASE_URL
-from .zooportal import BrowserManager  # переиспользуем существующий
+from .zooportal import BrowserManager
 
 from ..config import (
     ZOOPORTAL_SHOW_LIST_URL,
@@ -21,13 +21,14 @@ from ..config import (
     ZOOPORTAL_SHOW_SH_BREED_ID,
 )
 from ..utils.text import parse_sex
+
 logger = logging.getLogger(__name__)
 
 
 def fetch_show_list(
-    date_str: str,
-    group_id: int = ZOOPORTAL_SHOW_FCI_5_GROUP_ID,
-    breed_id: int = ZOOPORTAL_SHOW_SH_BREED_ID,
+        date_str: str,
+        group_id: int = ZOOPORTAL_SHOW_FCI_5_GROUP_ID,
+        breed_id: int = ZOOPORTAL_SHOW_SH_BREED_ID,
 ) -> list[dict]:
     """
     Возвращает список мероприятий с Zooportal для указанной даты и породы.
@@ -62,9 +63,9 @@ def fetch_show_list(
 
 
 def fetch_show_results(
-    show_id: str,
-    group_id: int = ZOOPORTAL_SHOW_FCI_5_GROUP_ID,
-    breed_id: int = ZOOPORTAL_SHOW_SH_BREED_ID,
+        show_id: str,
+        group_id: int = ZOOPORTAL_SHOW_FCI_5_GROUP_ID,
+        breed_id: int = ZOOPORTAL_SHOW_SH_BREED_ID,
 ) -> list[dict]:
     """
     Возвращает результаты собак на конкретной выставке.
@@ -111,7 +112,7 @@ def _parse_show_list_html(html: str) -> list[dict]:
 
     for city_box in city_boxes:
         city_name = _text(city_box.select_one('.city a:last-of-type'))
-        address   = _text(city_box.select_one('.address-box .address'))
+        address = _text(city_box.select_one('.address-box .address'))
 
         organizer_blocks = city_box.select('.organizer')
         if not organizer_blocks:
@@ -134,29 +135,29 @@ def _parse_show_list_html(html: str) -> list[dict]:
 
             for event in events:
                 date_str_raw = _text(event.select_one('.dates'))
-                name_tag     = event.select_one('a.name')
+                name_tag = event.select_one('a.name')
                 if not name_tag:
                     continue
 
-                href    = name_tag.get('href', '')
+                href = name_tag.get('href', '')
                 show_id = _extract_show_id(href)
                 if not show_id:
                     continue
 
-                title   = _text(name_tag)
-                judges  = _text(event.select_one('.experts'))
-                rank    = _extract_rank(title)
+                title = _text(name_tag)
+                judges = _text(event.select_one('.experts'))
+                rank = _extract_rank(title)
 
                 results.append({
                     'zooportal_show_id': show_id,
-                    'title':      title,
+                    'title': title,
                     'event_date': _parse_date(date_str_raw),
-                    'organizer':  organizer,
-                    'address':    address.strip() if address else None,
-                    'city':       city_name,
-                    'judges':     judges,
-                    'status':     status,
-                    'rank':       rank,
+                    'organizer': organizer,
+                    'address': address.strip() if address else None,
+                    'city': city_name,
+                    'judges': judges,
+                    'status': status,
+                    'rank': rank,
                     'rating_stars': rating_stars,
                 })
 
@@ -169,7 +170,7 @@ def _parse_show_results_html(html: str) -> list[dict]:
     rows = soup.select('.view-row.line')
     results = []
 
-    current_sex        = None
+    current_sex = None
     current_show_class = None
 
     for row in rows:
@@ -221,21 +222,22 @@ def _parse_show_results_html(html: str) -> list[dict]:
                 pass
 
         results.append({
-            'zooportal_dog_id':   zooportal_dog_id,
-            'dog_name':           dog_name,
+            'zooportal_dog_id': zooportal_dog_id,
+            'dog_name': dog_name,
             'registration_number': reg_number,
-            'owner_name':         owner_name,
-            'catalog_number':     catalog_number,
-            'request_id':         row.get('data-requestid'),
-            'sex':                current_sex,
-            'show_class':         current_show_class,
-            'grade':              grade,
-            'place':              place,
-            'titles_won':         titles_won or '',
+            'owner_name': owner_name,
+            'catalog_number': catalog_number,
+            'request_id': row.get('data-requestid'),
+            'sex': current_sex,
+            'show_class': current_show_class,
+            'grade': grade,
+            'place': place,
+            'titles_won': titles_won or '',
         })
 
     logger.info(f"Найдено {len(results)} результатов")
     return results
+
 
 # Вспомогательные функции для данного парсера
 
@@ -267,7 +269,6 @@ def _parse_date(date_str: str) -> Optional[str]:
         except ValueError:
             continue
     return None
-
 
 
 def _parse_assessment(text: str):

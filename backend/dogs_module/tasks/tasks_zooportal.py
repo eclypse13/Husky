@@ -19,14 +19,9 @@ from ..services.integration import (
     is_recursively_done,
 )
 from ..parsers.zooportal import BrowserManager, zooportal_parser
-from ..models import Dog
 
 logger = get_task_logger(__name__)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# БАЗОВЫЙ КЛАСС ЗАДАЧИ
-# ══════════════════════════════════════════════════════════════════════════════
 
 class BaseImportTask(Task):
     autoretry_for = (ConnectionError, TimeoutError, RuntimeError)
@@ -36,16 +31,47 @@ class BaseImportTask(Task):
     retry_jitter = True
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ЗАДАЧА 1: ИМПОРТ ОДНОЙ СОБАКИ (с рекурсивными предками)
-# ══════════════════════════════════════════════════════════════════════════════
+def _save_parsed_dogs(
+        parsed_list: list,
+        generations: int = 3,
+        main_ids: set = None,
+) -> tuple:
+    """
+    Сохраняет список распарсенных собак в БД и помечает как обработанные.
+    Возвращает (dog_ids, imported_count, failed_count).
+    """
+    dog_ids = []
+    imported = save_failed = 0
+
+    for idx, parsed in enumerate(parsed_list, 1):
+        zid = parsed['zooportal_id']
+        is_main = main_ids is None or zid in main_ids
+        prefix = "🐕" if is_main else "  👤"
+        try:
+            dog = save_dog_with_ancestors(parsed)
+            mark_recursively_done(zid, generations)
+            imported += 1
+            dog_ids.append(dog.id)
+            logger.info(f"  [{idx}/{len(parsed_list)}] {prefix} Сохранена: {dog.registered_name}")
+        except Exception as e:
+            save_failed += 1
+            logger.error(f"  [{idx}/{len(parsed_list)}] ❌ Ошибка сохранения {zid}: {e}")
+
+    return dog_ids, imported, save_failed
+
 
 @shared_task(
     base=BaseImportTask,
     name='dogs_module.import_zooportal_dog',
     bind=True,
-    soft_time_limit=3600,   # 1 час — рекурсия может быть глубокой
-    time_limit=4200,        # 70 минут жёсткий лимит
+    soft_time_limit=3600,  # 1 час — рекурсия может быть глубокой
+    time_limit=7200,  # 70 минут жёсткий лимит
+    autoretry_for=(ConnectionError, TimeoutError, ValueError, RuntimeError),
+    retry_kwargs={'max_retries': 5},
+    retry_backoff=True,
+    retry_backoff_max=300,
+    retry_jitter=True,
 )
 def import_zooportal_dog_task(self, zooportal_id: str) -> Dict:
     """
@@ -88,23 +114,20 @@ def import_zooportal_dog_task(self, zooportal_id: str) -> Dict:
         raise
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ЗАДАЧА 2: ИМПОРТ ОДНОЙ СТРАНИЦЫ ПОИСКА (с рекурсивными предками)
-# ══════════════════════════════════════════════════════════════════════════════
-
 @shared_task(
     base=BaseImportTask,
     name='dogs_module.import_zooportal_page',
     bind=True,
-    soft_time_limit=3600,   # 1 час — рекурсия существенно увеличивает время
-    time_limit=4200,        # 70 минут жёсткий лимит
+    soft_time_limit=3600,  # 1 час — рекурсия существенно увеличивает время
+    time_limit=4200,  # 70 минут жёсткий лимит
 )
 def import_zooportal_page_task(
-    self,
-    page_num: int,
-    max_dogs: int = 10,
-    delay: float = 2.0,
-    generations: int = 3,
+        self,
+        page_num: int,
+        max_dogs: int = 10,
+        delay: float = 2.0,
+        generations: int = 3,
 ) -> Dict:
     """
     Импортирует одну страницу поиска Zooportal.
@@ -130,9 +153,7 @@ def import_zooportal_page_task(
     parse_failed = 0
     total = 0
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # ЭТАП 1+2: Парсинг (Playwright жив, ORM не используется)
-    # ─────────────────────────────────────────────────────────────────────────
+    # ЭТАП 1+2: Парсинг
     try:
         with BrowserManager() as browser:
 
@@ -197,7 +218,7 @@ def import_zooportal_page_task(
                         browser=browser,
                         zooportal_id=zooportal_id,
                         generations=generations,
-                        visited=visited,    # ОБЩИЙ visited для всей страницы
+                        visited=visited,  # ОБЩИЙ visited для всей страницы
                         deadline=deadline,
                     )
                     all_parsed.extend(results)
@@ -208,7 +229,7 @@ def import_zooportal_page_task(
                     )
                     logger.info(
                         f"  [{idx}/{total}] ✅ {main_name} "
-                        f"(+{len(results)-1} предков, "
+                        f"(+{len(results) - 1} предков, "
                         f"visited={len(visited)}, "
                         f"total_parsed={len(all_parsed)})"
                     )
@@ -234,27 +255,11 @@ def import_zooportal_page_task(
         logger.error(f"❌ Критическая ошибка страницы {page_num}: {e}")
         raise
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # ЭТАП 3: Дедупликация перед сохранением
-    # ─────────────────────────────────────────────────────────────────────────
-    # visited гарантирует отсутствие дублей, но добавляем safety-check
-    seen_ids: Set[str] = set()
-    unique_parsed: List[Dict] = []
-    for p in all_parsed:
-        zid = p['zooportal_id']
-        if zid not in seen_ids:
-            seen_ids.add(zid)
-            unique_parsed.append(p)
-
+    # ЭТАП 3+4: Дедупликация + Сохранение в БД (Playwright остановлен)
+    from ..services.integration import deduplicate_parsed
+    unique_parsed = deduplicate_parsed(all_parsed)
     if len(unique_parsed) < len(all_parsed):
-        logger.info(
-            f"  Дедупликация: {len(all_parsed)} → {len(unique_parsed)} "
-            f"(убрано {len(all_parsed) - len(unique_parsed)} дублей)"
-        )
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # ЭТАП 4: Сохранение в БД (Playwright остановлен, ORM свободен)
-    # ─────────────────────────────────────────────────────────────────────────
+        logger.info(f"  Дедупликация: {len(all_parsed)} → {len(unique_parsed)}")
     imported = 0
     save_failed = 0
     dog_ids: List[int] = []
@@ -265,39 +270,9 @@ def import_zooportal_page_task(
         if p['zooportal_id'] not in main_dog_ids_on_page
     )
 
-    for idx, parsed in enumerate(unique_parsed, 1):
-        zid = parsed['zooportal_id']
-        is_main = zid in main_dog_ids_on_page
-
-        self.update_state(
-            state='PROGRESS',
-            meta={
-                'status': 'saving',
-                'page': page_num,
-                'current': idx,
-                'total': len(unique_parsed),
-                'imported': imported,
-                'is_main_dog': is_main,
-            }
-        )
-
-        try:
-            dog = save_dog_with_ancestors(parsed)
-            # Ставим маркер "полностью рекурсивно обработано"
-            mark_recursively_done(zid, generations)
-            imported += 1
-            dog_ids.append(dog.id)
-            prefix = "🐕" if is_main else "  👤"
-            logger.info(
-                f"  [{idx}/{len(unique_parsed)}] {prefix} Сохранена: "
-                f"{dog.registered_name}"
-            )
-        except Exception as e:
-            save_failed += 1
-            logger.error(
-                f"  [{idx}/{len(unique_parsed)}] ❌ Ошибка сохранения "
-                f"{zid}: {e}"
-            )
+    dog_ids, imported, save_failed = _save_parsed_dogs(
+        unique_parsed, generations=generations, main_ids=main_dog_ids_on_page
+    )
 
     processing_time = time.time() - start_time
     failed = parse_failed + save_failed
@@ -321,10 +296,7 @@ def import_zooportal_page_task(
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ЗАДАЧА 3: ЗАПУСК ИМПОРТА ДИАПАЗОНА СТРАНИЦ (NON-BLOCKING DISPATCH)
-# ══════════════════════════════════════════════════════════════════════════════
-
 @shared_task(
     name='dogs_module.import_zooportal_range',
     bind=True,
@@ -332,13 +304,13 @@ def import_zooportal_page_task(
     time_limit=180,
 )
 def import_zooportal_range_task(
-    self,
-    start_page: int,
-    end_page: int,
-    max_dogs_per_page: int = 10,
-    delay: float = 2.0,
-    generations: int = 3,
-    countdown_between_pages: int = 5,
+        self,
+        start_page: int,
+        end_page: int,
+        max_dogs_per_page: int = 10,
+        delay: float = 2.0,
+        generations: int = 3,
+        countdown_between_pages: int = 5,
 ) -> Dict:
     """
     Запускает импорт диапазона страниц через независимые Celery задачи.
@@ -393,10 +365,7 @@ def import_zooportal_range_task(
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ЗАДАЧА 4: ПОЛНЫЙ ИМПОРТ ВСЕХ СТРАНИЦ
-# ══════════════════════════════════════════════════════════════════════════════
-
 @shared_task(
     name='dogs_module.import_all_pages',
     bind=True,
@@ -404,12 +373,12 @@ def import_zooportal_range_task(
     time_limit=180,
 )
 def import_all_pages_task(
-    self,
-    total_pages: int = 1720,
-    max_dogs_per_page: int = 10,
-    delay: float = 2.0,
-    generations: int = 3,
-    countdown_between_pages: int = 30,  # Увеличено из-за рекурсии
+        self,
+        total_pages: int = 1720,
+        max_dogs_per_page: int = 10,
+        delay: float = 2.0,
+        generations: int = 3,
+        countdown_between_pages: int = 30,  # Увеличено из-за рекурсии
 ) -> Dict:
     """
     Запускает импорт ВСЕХ страниц через import_zooportal_range_task.
@@ -432,21 +401,18 @@ def import_all_pages_task(
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ЗАДАЧА 5: АВТОМАТИЧЕСКИЙ ИМПОРТ НОВЫХ СОБАК (Celery Beat)
-# ══════════════════════════════════════════════════════════════════════════════
-
 @shared_task(
     base=BaseImportTask,
     name='dogs_module.auto_import_new_dogs',
     bind=True,
-    soft_time_limit=3600,   # Увеличено из-за рекурсии
+    soft_time_limit=3600,  # Увеличено из-за рекурсии
     time_limit=4200,
 )
 def auto_import_new_dogs_task(
-    self,
-    check_pages: int = 1,
-    delay: float = 2.0,
+        self,
+        check_pages: int = 1,
+        delay: float = 2.0,
 ) -> Dict:
     """
     Автоматически импортирует новых собак с первых страниц.
@@ -481,6 +447,7 @@ def auto_import_new_dogs_task(
         raise
 
     # ── Фаза 2: Фильтрация (ORM — Playwright уже остановлен) ─────────────────
+    from ..repositories import dog_repository as dog_repo
     to_import: List[str] = []
     skipped = 0
 
@@ -495,9 +462,7 @@ def auto_import_new_dogs_task(
             continue
 
         try:
-            exists = Dog.objects.using('dogs_db').filter(
-                zooportal_id=zooportal_id
-            ).exists()
+            exists = dog_repo.exists_by_zooportal_id(zooportal_id)
         except Exception as e:
             logger.error(f"  ❌ Ошибка проверки БД: {e}")
             continue
@@ -548,7 +513,7 @@ def auto_import_new_dogs_task(
                     logger.info(
                         f"  [{idx}/{len(to_import)}] ✅ "
                         f"{results[0]['merged_data'].get('registered_name', '?') if results else '?'} "
-                        f"(+{len(results)-1} предков)"
+                        f"(+{len(results) - 1} предков)"
                     )
                 except Exception as e:
                     logger.error(
@@ -562,27 +527,10 @@ def auto_import_new_dogs_task(
         raise
 
     # ── Фаза 4: Сохранение (ORM — Playwright остановлен) ─────────────────────
-    # Дедупликация
-    seen_ids: Set[str] = set()
-    unique_parsed = []
-    for p in all_parsed:
-        zid = p['zooportal_id']
-        if zid not in seen_ids:
-            seen_ids.add(zid)
-            unique_parsed.append(p)
+    from ..services.integration import deduplicate_parsed
+    unique_parsed = deduplicate_parsed(all_parsed)
 
-    imported = 0
-    save_failed = 0
-
-    for parsed in unique_parsed:
-        try:
-            dog = save_dog_with_ancestors(parsed)
-            mark_recursively_done(parsed['zooportal_id'])
-            imported += 1
-            logger.info(f"  💾 Сохранена: {dog.registered_name}")
-        except Exception as e:
-            save_failed += 1
-            logger.error(f"  ❌ Ошибка сохранения {parsed['zooportal_id']}: {e}")
+    _, imported, save_failed = _save_parsed_dogs(unique_parsed, generations=3)
 
     processing_time = time.time() - start_time
     logger.info(
@@ -601,18 +549,16 @@ def auto_import_new_dogs_task(
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ЗАДАЧА 6: СТАТУС ПРОГРЕССА ИМПОРТА
-# ══════════════════════════════════════════════════════════════════════════════
 
 @shared_task(
     name='dogs_module.check_import_progress',
     bind=True,
 )
 def check_import_progress_task(
-    self,
-    start_page: int,
-    end_page: int,
+        self,
+        start_page: int,
+        end_page: int,
 ) -> Dict:
     """
     Проверяет прогресс пакетного импорта по диапазону страниц.
@@ -649,10 +595,8 @@ def check_import_progress_task(
         'progress_pct': round(completed / total * 100, 1) if total else 0,
     }
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ЗАДАЧА 7: ЕЖЕДНЕВНАЯ СИНХРОНИЗАЦИЯ СТРАНИЦ 1-10 (Celery Beat, каждый день 4:00)
-# ══════════════════════════════════════════════════════════════════════════════
 
+# ЗАДАЧА 7: ЕЖЕДНЕВНАЯ СИНХРОНИЗАЦИЯ СТРАНИЦ 1-10
 @shared_task(
     name='dogs_module.daily_zooportal_sync',
     bind=True,
@@ -660,12 +604,12 @@ def check_import_progress_task(
     time_limit=120,
 )
 def daily_zooportal_sync_task(
-    self,
-    start_page: int = 1,
-    end_page: int = 10,
-    max_dogs_per_page: int = 10,
-    generations: int = 3,
-    countdown_between_pages: int = 60,
+        self,
+        start_page: int = 1,
+        end_page: int = 10,
+        max_dogs_per_page: int = 10,
+        generations: int = 3,
+        countdown_between_pages: int = 60,
 ) -> Dict:
     """
     Ежедневная синхронизация страниц Zooportal.
@@ -695,9 +639,9 @@ def daily_zooportal_sync_task(
 
             import_zooportal_page_task.apply_async(
                 kwargs={
-                    'page_num':    page_num,
-                    'max_dogs':    max_dogs_per_page,
-                    'delay':       2.0,
+                    'page_num': page_num,
+                    'max_dogs': max_dogs_per_page,
+                    'delay': 2.0,
                     'generations': generations,
                 },
                 countdown=countdown,
@@ -729,10 +673,8 @@ def daily_zooportal_sync_task(
         'processing_time': processing_time,
     }
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ЗАДАЧА 8 + 9: ГИБРИДНЫЙ ИМПОРТ Zoo → BA полное дерево предков
-# ══════════════════════════════════════════════════════════════════════════════
 
+# ЗАДАЧА 8 + 9: ГИБРИДНЫЙ ИМПОРТ Zoo → BA полное дерево предков
 from ..services.integration import collect_hybrid_page_data, save_hybrid_dog
 
 
@@ -744,15 +686,15 @@ from ..services.integration import collect_hybrid_page_data, save_hybrid_dog
     time_limit=4200,
 )
 def import_hybrid_page_task(
-    self,
-    page_num: int,
-    max_dogs: int = 10,
-    delay: float = 2.0,
-    generations: int = 3,
+        self,
+        page_num: int,
+        max_dogs: int = 10,
+        delay: float = 2.0,
+        generations: int = 3,
 ) -> Dict:
     """Гибридный импорт страницы: Zoo список → BA полное дерево предков → Zoo патч."""
     start_time = time.time()
-    deadline    = start_time + 3300
+    deadline = start_time + 3300
     logger.info(f"🔀 Гибрид стр.{page_num}, max={max_dogs}, gen={generations}")
 
     self.update_state(state='PROGRESS', meta={'status': 'parsing', 'page': page_num})
@@ -819,13 +761,13 @@ def import_hybrid_page_task(
     time_limit=180,
 )
 def import_hybrid_range_task(
-    self,
-    start_page: int,
-    end_page: int,
-    max_dogs_per_page: int = 10,
-    delay: float = 2.0,
-    generations: int = 3,
-    countdown_between_pages: int = 5,
+        self,
+        start_page: int,
+        end_page: int,
+        max_dogs_per_page: int = 10,
+        delay: float = 2.0,
+        generations: int = 3,
+        countdown_between_pages: int = 5,
 ) -> Dict:
     """Диспатчит import_hybrid_page_task для каждой страницы из диапазона."""
     dispatched = 0
@@ -850,6 +792,7 @@ def import_hybrid_range_task(
         'end_page': end_page, 'total_pages': total, 'dispatched': dispatched,
     }
 
+
 @shared_task(
     base=BaseImportTask,
     name='dogs_module.import_hybrid_dog',
@@ -869,12 +812,12 @@ def import_hybrid_dog_task(self, zooportal_id: str, generations: int = 3) -> Dic
         with BrowserManager() as browser:
             pending = collect_hybrid_page_data(
                 browser=browser,
-                page_num=None,          # не нужна страница-список
+                page_num=None,  # не нужна страница-список
                 max_dogs=1,
                 generations=generations,
                 delay=0,
                 deadline=None,
-                zooportal_ids=[zooportal_id],   # передаём конкретный id
+                zooportal_ids=[zooportal_id],  # передаём конкретный id
             )
     except Exception as e:
         logger.error(f"❌ Фаза 1 ({zooportal_id}): {e}")
@@ -908,5 +851,3 @@ def import_hybrid_dog_task(self, zooportal_id: str, generations: int = 3) -> Dic
     except Exception as e:
         logger.error(f"❌ Фаза 2 ({zooportal_id}): {e}")
         return {'status': 'error', 'error': str(e), 'processing_time': time.time() - start_time}
-
-
