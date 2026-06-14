@@ -56,6 +56,15 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'Key not found'}, status=404)
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def site_banner(request):
+    obj = models.SiteBannerSettings.objects.order_by("-updated_at").first()
+    if not obj:
+        return Response({"is_enabled": False, "message": "", "updated_at": None})
+    return Response(SiteBannerSettingsSerializer(obj).data)
+
+
 # ============================================
 # ПУБЛИЧНЫЕ API
 # ============================================
@@ -152,6 +161,41 @@ class EventReportViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = EventReportSerializer
     permission_classes = [AllowAny]
 
+
+class SeasonViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.Season.objects.all().prefetch_related("races").order_by("start_date")
+    serializer_class = SportsSeasonSerializer
+    permission_classes = [AllowAny]
+
+
+class RaceViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = models.Race.objects.select_related("season").all().order_by("date")
+    serializer_class = RaceSerializer
+    permission_classes = [AllowAny]
+
+    @action(detail=True, methods=["get"], url_path="results")
+    def results(self, request, pk=None):
+        race = self.get_object()
+
+        if not race.results_file:
+            return Response({"race": {"rows": []}})
+
+        file_path = Path(race.results_file.path)
+
+        if not file_path.exists():
+            return Response(
+                {"error": "Results file not found", "race": {"rows": []}},
+                status=404,
+            )
+
+        try:
+            data = json.loads(file_path.read_text(encoding="utf-8"))
+            return Response(data)
+        except Exception as e:
+            return Response(
+                {"error": f"Invalid JSON: {str(e)}", "race": {"rows": []}},
+                status=500,
+            )
 
 class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     """API судей"""
@@ -433,3 +477,22 @@ def activity_feed(request):
         return Response({"results": []})
 
     return Response({"results": data})
+
+
+@api_view(["GET"])
+def active_president(request):
+    president = (
+        models.President.objects
+        .filter(is_active=True)
+        .prefetch_related("badges", "achievements")
+        .first()
+    )
+
+    if not president:
+        return Response(
+            {"detail": "Активный президент не найден"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    serializer = PresidentSerializer(president)
+    return Response(serializer.data)

@@ -30,6 +30,8 @@ router.register(r'me/kennels', MyKennelViewSet, basename='my-kennels')
 router.register(r'me/litters', MyLitterViewSet, basename='my-litters')
 router.register(r'me/applications', MyApplicationViewSet, basename='my-applications')
 router.register(r'me/achievements', MyAchievementViewSet, basename='my-achievements')
+router.register(r"sports-seasons", SeasonViewSet, basename="sports-seasons")
+router.register(r"sports-races", RaceViewSet, basename="sports-races")
 
 urlpatterns = [
 
@@ -39,6 +41,9 @@ urlpatterns = [
     
     # Home
     path('home/', home_api, name='home'),
+
+    # Site banner
+    path("site-banner/", site_banner, name="site-banner"),
     
     # Profile
     path('me/', MyProfileViewSet.as_view({'get': 'me'}), name='profile'),
@@ -52,6 +57,9 @@ urlpatterns = [
 
     # сообщения из тг-группы
     path("activity-feed/", activity_feed, name="activity-feed"),
+
+    # президент
+    path("president/active/", active_president, name="active_president"),
 
 ]
 

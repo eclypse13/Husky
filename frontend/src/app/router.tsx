@@ -24,6 +24,7 @@ import Judges from "@/pages/Judges/Judges";
 import DogDetail from "@/pages/DogDetail/DogDetail";
 import BreedingPage from "@/pages/Breeding/Breeding";
 import Stats from "@/pages/Stats/Stats";
+import Sports from "@pages/Sports/Sports.tsx";
 
 
 export const router = createBrowserRouter([
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
             { path: "archive/dog/:id", element: <DogDetail /> },
             { path: "breeding", element: <BreedingPage /> },
             { path: "stats", element: <Stats /> },
+            { path: "sports", element: <Sports/> },
         ],
     },
 ]);

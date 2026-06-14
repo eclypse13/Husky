@@ -15,12 +15,14 @@ from .models import (
     ContentDictionary, ContentRevision,
     User, News, Page, Gallery,
     Judge, JudgeDetails, FastLink,
-    Event, EventReport, Seminar,
+    Event, EventReport, Season,
+    Race, Seminar,
     EventReportPhoto, EventReportVideo,
     BreedStandard, BreedArticle,
     ClubDocument, ClubStats,
-    BoardMember, WorkingGroup,
-    MembershipPlan,
+    BoardMember, President,
+    PresidentBadge, PresidentAchievement,
+    WorkingGroup, MembershipPlan,
     Kennel, Dog, Litter,
     Application,
     Achievement, MembershipPayment,
@@ -359,9 +361,20 @@ class EventReportAdmin(MongoModelAdmin):
     list_filter = ['created_at']
     search_fields = ['event__title_key']
     ordering = ['-created_at']
-
-    # чтобы не путались старые JSON поля (если пока оставляешь их в модели)
     exclude = ("photos", "videos")
+
+class SeasonAdmin(MongoModelAdmin):
+    list_display = ['name', 'start_date', 'end_date']
+    list_filter = ['name', 'start_date']
+    search_fields = ['name']
+    ordering = ['start_date']
+
+
+class RaceAdmin(MongoModelAdmin):
+    list_display = ['title', 'date', 'city']
+    list_filter = ['title', 'date', 'city']
+    search_fields = ['title', 'city']
+    ordering = ['date']
 
 
 class SeminarAdmin(MongoModelAdmin):
@@ -417,6 +430,39 @@ class BoardMemberAdmin(MongoModelAdmin):
     search_fields = ['name', 'position', 'email']
     ordering = ['order', 'name']
 
+class PresidentAdmin(MongoModelAdmin):
+    list_display = ["full_name","position","email","phone","is_active",]
+    list_filter = ["is_active"]
+    search_fields = ["full_name","position","subtitle","email","phone","socials",]
+    ordering = ["full_name"]
+
+    fieldsets = (
+        ("Основная информация", {"fields": ("full_name","position","subtitle","is_active",)}),
+        ("Основной текст", {"fields": ("main_text","highlight_text",)}),
+        ("Цитата", {"fields": ("quote",)}),
+        ("Контакты", {"fields": ("email","phone","reception_days","socials",)}),
+    )
+
+
+class PresidentBadgeAdmin(MongoModelAdmin):
+    list_display = ["text", "president", "is_primary", "sort_order"]
+    list_filter = ["is_primary"]
+    search_fields = ["text"]
+    ordering = ["sort_order"]
+
+    fieldsets = (
+        ("Бейдж", {"fields": ("president","icon","text","is_primary","sort_order",)}),
+    )
+
+
+class PresidentAchievementAdmin(MongoModelAdmin):
+    list_display = ["year", "title", "president", "sort_order"]
+    search_fields = ["year", "title", "text"]
+    ordering = ["sort_order", "year"]
+
+    fieldsets = (
+        ("Достижение", {"fields": ("president","year","title","text","sort_order",)}),
+    )
 
 class WorkingGroupAdmin(MongoModelAdmin):
     list_display = ['name']
@@ -523,12 +569,17 @@ ADMIN_REGISTRY = {
     EventReport: EventReportAdmin,
     EventReportPhoto: EventReportPhotoAdmin,
     EventReportVideo: EventReportVideoAdmin,
+    Season: SeasonAdmin,
+    Race: RaceAdmin,
     Seminar: SeminarAdmin,
     BreedStandard: BreedStandardAdmin,
     BreedArticle: BreedArticleAdmin,
     ClubDocument: ClubDocumentAdmin,
     ClubStats: ClubStatsAdmin,
     BoardMember: BoardMemberAdmin,
+    President: PresidentAdmin,
+    PresidentBadge: PresidentBadgeAdmin,
+    PresidentAchievement: PresidentAchievementAdmin,
     WorkingGroup: WorkingGroupAdmin,
     MembershipPlan: MembershipPlanAdmin,
     Kennel: KennelAdmin,
@@ -612,6 +663,7 @@ ADMIN_GROUPS = OrderedDict([
             'User',
             'Judge',
             'JudgeDetails',
+            'President',
             'BoardMember',
             'WorkingGroup',
         ]
@@ -639,6 +691,8 @@ ADMIN_GROUPS = OrderedDict([
         'models': [
             'Event',
             'EventReport',
+            'Season',
+            'Race',
             'Seminar',
         ]
     }),
@@ -726,6 +780,13 @@ class DefaultModelAdmin(admin.ModelAdmin):
     list_display = ['__str__']
 
 
+@admin.register(dj_models.SiteBannerSettings)
+class SiteBannerSettingsAdmin(admin.ModelAdmin):
+    list_display = ["id", "is_enabled", "updated_at"]
+    fields = ["is_enabled", "message"]
+    search_fields = ["message"]
+
+
 DJANGO_MODELS = [
     dj_models.ContentDictionary,
     dj_models.ContentRevision,
@@ -740,6 +801,8 @@ DJANGO_MODELS = [
     dj_models.EventReportPhoto,
     dj_models.EventReportVideo,
     dj_models.EventReport,
+    dj_models.Season,
+    dj_models.Race,
     dj_models.Seminar,
     dj_models.BreedStandard,
     dj_models.BreedArticle,
@@ -747,6 +810,9 @@ DJANGO_MODELS = [
     dj_models.ClubStats,
     dj_models.WorkingGroup,
     dj_models.BoardMember,
+    dj_models.President,
+    dj_models.PresidentBadge,
+    dj_models.PresidentAchievement,
     dj_models.MembershipPlan,
     dj_models.Kennel,
     dj_models.Dog,

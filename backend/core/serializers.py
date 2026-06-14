@@ -11,6 +11,12 @@ class ContentDictionarySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SiteBannerSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteBannerSettings
+        fields = ("is_enabled", "message", "updated_at")
+
+
 class NewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.News
@@ -35,13 +41,6 @@ class EventSerializer(serializers.ModelSerializer):
         model = models.Event
         fields = '__all__'
 
-
-# class EventReportSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = models.EventReport
-#         fields = '__all__'
-
-# serializers.py
 
 
 class EventReportSerializer(serializers.ModelSerializer):
@@ -85,6 +84,77 @@ class EventReportSerializer(serializers.ModelSerializer):
             urls.append(request.build_absolute_uri(url) if request else url)
         return urls
 
+
+class RaceSerializer(serializers.ModelSerializer):
+    tabLabel = serializers.SerializerMethodField()
+    club = serializers.CharField(source="organization", default="")
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = models.Race
+        fields = [
+            "id",
+            "tabLabel",
+            "title",
+            "date",
+            "location",
+            "club",
+            "organizers",
+            "judge",
+            "distances",
+            "status",
+            "status_display",
+        ]
+
+    def get_tabLabel(self, obj):
+        return f"🏁 «{obj.title}» — {obj.date.strftime('%d %b.')}"
+
+
+class SportsSeasonSerializer(serializers.ModelSerializer):
+    badge = serializers.CharField(source="name")
+    title = serializers.SerializerMethodField()
+    meta = serializers.SerializerMethodField()
+    stats = serializers.SerializerMethodField()
+    races = RaceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.Season
+        fields = [
+            "id",
+            "badge",
+            "title",
+            "meta",
+            "stats",
+            "races",
+        ]
+
+    def get_title(self, obj):
+        return f"Сезон {obj.name.lower()}"
+
+    def get_meta(self, obj):
+        races = obj.races.all()
+        participants = sum(r.participants_count or 0 for r in races)
+        cities = [r.city for r in races if r.city]
+        cities_text = " · ".join(dict.fromkeys(cities)) if cities else "—"
+
+        return [
+            f"📅 {obj.start_date.strftime('%d.%m.%Y')}–{obj.end_date.strftime('%d.%m.%Y')}",
+            f"🐕 {participants} участников",
+            f"📍 {cities_text}",
+        ]
+
+    def get_stats(self, obj):
+        races = obj.races.all()
+        participants = sum(r.participants_count or 0 for r in races)
+        judges = len(set(r.judge for r in races if r.judge))
+
+        return {
+            "races": str(races.count()),
+            "participants": str(participants),
+            "judges": str(judges),
+            "disciplines": "—",
+            "purebred": "100%",
+        }
 
 class JudgeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -151,6 +221,41 @@ class BoardMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.BoardMember
         fields = '__all__'
+
+
+class PresidentBadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PresidentBadge
+        fields = ("icon", "text", "is_primary", "sort_order")
+
+
+class PresidentAchievementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PresidentAchievement
+        fields = ("year", "title", "text", "sort_order")
+
+
+class PresidentSerializer(serializers.ModelSerializer):
+    badges = PresidentBadgeSerializer(many=True, read_only=True)
+    achievements = PresidentAchievementSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.President
+        fields = (
+            "id",
+            "full_name",
+            "position",
+            "subtitle",
+            "main_text",
+            "highlight_text",
+            "quote",
+            "email",
+            "phone",
+            "reception_days",
+            "socials",
+            "badges",
+            "achievements",
+        )
 
 
 class WorkingGroupSerializer(serializers.ModelSerializer):

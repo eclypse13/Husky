@@ -48,6 +48,12 @@ APPLICATION_STATUSES = [
     ('rejected', 'Отклонена'),
 ]
 
+RACE_STATUSES = [
+        ('planned', "Планируется"),
+        ('open', "Открыта регистрация"),
+        ('done', "Завершена"),
+    ]
+
 LITTER_STATUSES = [
     ('announced', 'announced'),
     ('born', 'born'),
@@ -342,6 +348,45 @@ class EventReportVideo(models.Model):
         verbose_name_plural = "Видео отчёта"
 
 
+class Season(models.Model):
+    name = models.CharField(max_length=100, verbose_name='Название сезона')  # Зима 2026
+    start_date = models.DateField(verbose_name='Начало')
+    end_date = models.DateField(verbose_name='Конец')
+
+    class Meta:
+        ordering = ["start_date"]
+        verbose_name = "Сезон"
+        verbose_name_plural = "Сезоны"
+
+    def __str__(self):
+        return self.name
+
+
+class Race(models.Model):
+    title = models.CharField(max_length=255, verbose_name="Название гонки")
+    date = models.DateField(verbose_name="Дата проведения")
+    location = models.CharField(max_length=255, verbose_name="Место проведения")
+    organization = models.CharField(max_length=255, blank=True, verbose_name="Организация")
+    organizers = models.CharField(max_length=255, blank=True, verbose_name="Организаторы")
+    judge = models.CharField(max_length=255, blank=True, verbose_name="Судья")
+    distances = models.CharField(max_length=255, blank=True, verbose_name="Дистанции (например: 4,2 км · 8,3 км)")
+    is_qualifying = models.BooleanField(default=True, verbose_name="Квалификационная гонка")
+    season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name="races", verbose_name="Сезон")
+    city = models.CharField(max_length=100, blank=True, verbose_name="Город")
+    participants_count = models.PositiveIntegerField(default=0, verbose_name="Количество участников")
+    status = models.CharField(max_length=20, choices=RACE_STATUSES, default='planned', verbose_name="Статус гонки")
+    results_file = models.FileField(upload_to="data/race_results/",blank=True,null=True,verbose_name="JSON-файл с результатами")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = "Гонка"
+        verbose_name_plural = "Гонки"
+
+    def __str__(self):
+        return f"{self.title} ({self.date})"
+
+
 class Seminar(models.Model):
     title_key = models.CharField(max_length=200)
     description_key = models.TextField(blank=True)
@@ -451,6 +496,71 @@ class WorkingGroup(models.Model):
         return self.name
 
 
+class President(models.Model):
+    full_name = models.CharField(verbose_name="ФИО", max_length=255)
+    position = models.CharField(verbose_name="Должность", max_length=255, default="Президент НКП")
+    subtitle = models.TextField(verbose_name="Краткое описание", blank=True)
+
+    main_text = models.TextField(verbose_name="Основной текст")
+    highlight_text = models.TextField(verbose_name="Текст выделенного блока", blank=True)
+
+    quote = models.TextField(verbose_name="Цитата", blank=True)
+
+    email = models.EmailField(verbose_name="Email", blank=True)
+    phone = models.CharField(verbose_name="Телефон", max_length=50, blank=True)
+    reception_days = models.CharField(verbose_name="Приёмные дни", max_length=255, blank=True)
+    socials = models.CharField(verbose_name="Соцсети", max_length=255, blank=True)
+
+    is_active = models.BooleanField(verbose_name="Активный президент", default=True)
+
+    class Meta:
+        verbose_name = "Президент"
+        verbose_name_plural = "Президент"
+
+    def __str__(self):
+        return self.full_name
+
+
+class PresidentBadge(models.Model):
+    president = models.ForeignKey(
+        President,
+        on_delete=models.CASCADE,
+        related_name="badges"
+    )
+    icon = models.CharField("Иконка", max_length=20, blank=True)
+    text = models.CharField("Текст", max_length=100)
+    is_primary = models.BooleanField("Основной бейдж", default=False)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Бейдж президента"
+        verbose_name_plural = "Бейджи президента"
+        ordering = ["sort_order"]
+
+    def __str__(self):
+        return f"{self.text}"
+
+
+class PresidentAchievement(models.Model):
+    president = models.ForeignKey(
+        President,
+        on_delete=models.CASCADE,
+        related_name="achievements"
+    )
+    year = models.CharField("Год", max_length=20)
+    title = models.CharField("Заголовок", max_length=255)
+    text = models.TextField("Описание", blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Достижение президента"
+        verbose_name_plural = "Достижения президента"
+        ordering = ["sort_order", "year"]
+
+    def __str__(self):
+        return f"{self.year} — {self.title}"
+
+
 class BoardMember(models.Model):
     name = models.CharField(max_length=200, verbose_name='Имя')
     position = models.CharField(max_length=200, blank=True, verbose_name='Должность')
@@ -459,7 +569,8 @@ class BoardMember(models.Model):
     email = models.EmailField(blank=True, verbose_name='Почта')
     phone = models.CharField(max_length=50, blank=True, verbose_name='Номер телефона')
     order = models.IntegerField(default=0, verbose_name='Порядок')
-    working_group = models.ForeignKey(WorkingGroup, on_delete=models.CASCADE, null=True, related_name='members', verbose_name="Рабочая группа")
+    working_group = models.ForeignKey(WorkingGroup, on_delete=models.CASCADE, null=True, related_name='members',
+                                      verbose_name="Рабочая группа")
 
     class Meta:
         ordering = ['order', 'name']
@@ -650,3 +761,16 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f'{self.action} by {self.user}'
+
+
+class SiteBannerSettings(models.Model):
+    is_enabled = models.BooleanField(default=True)
+    message = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройки баннера сайта"
+        verbose_name_plural = "Настройки баннера сайта"
+
+    def __str__(self):
+        return "Баннер сайта"
