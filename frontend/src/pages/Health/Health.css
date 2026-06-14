@@ -19,7 +19,7 @@
     transform: translateY(0);
 }
 
-.health-col>* {
+.health-col > * {
     min-width: 0;
 }
 
@@ -169,6 +169,97 @@
     display: grid;
     gap: .6rem;
     color: var(--text-dark);
+}
+
+/* Добавить в конец Health.css */
+
+.health-results-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.health-results-count {
+    color: var(--text-light);
+    font-size: .9rem;
+}
+
+.health-results-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-light);
+}
+
+.health-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+}
+
+.health-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+}
+
+.health-table th {
+    text-align: left;
+    padding: .65rem 1rem;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-light);
+    background: var(--arctic-gray);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.health-table td {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-dark);
+}
+
+.health-table tr:last-child td {
+    border-bottom: none;
+}
+
+.health-table tr:hover td {
+    background: var(--arctic-gray);
+}
+
+.health-table-link {
+    color: var(--bright-blue);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.health-table-link:hover {
+    text-decoration: underline;
+}
+
+.health-table-muted {
+    color: var(--text-light);
+    font-size: .88rem;
+}
+
+.health-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.health-pagination-label {
+    color: var(--text-light);
+    font-size: .9rem;
+}
+
+.health-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
 }
 
 @media (max-width: 1024px) {

@@ -58,6 +58,11 @@ h3,
     --dark-slate: #0f172a;
     --accent-cyan: #06b6d4;
     --accent-orange: #f59e0b;
+    --accent-red: rgba(239,68,68,1);
+    --accent-red-bg:    rgba(239, 68, 68, 0.1);
+    --accent-orange-bg: rgba(245, 158, 11, 0.15);
+    --caution-text: #92400e;
+    --danger-text: #7f1d1d;
     --text-dark: #1e293b;
     --text-light: #64748b;
     --border-light: #e2e8f0;

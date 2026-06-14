@@ -1,23 +1,6 @@
 # dogs_module/utils/cookie_refresher.py
 """
 Автоматическое обновление куков для Zooportal и BreedArchive.
-
-Алгоритм:
-  get_*_cookies()  →  Redis HIT → вернуть
-                   →  Redis MISS → залогиниться → сохранить → вернуть
-                   →  логин упал → fallback к значениям из .env
-
-  on_*_401()       →  удалить из Redis → залогиниться заново
-
-  ВАЖНО: оба логина используют Playwright в ThreadPoolExecutor.
-  Это необходимо потому что:
-  - Zoo: _set_cookies вызывается изнутри BrowserManager.__enter__,
-    где уже запущен sync_playwright() — вложенный вызов конфликтует через asyncio.
-  - BA: логин через HTTP POST /auth_user/perform_login (формат как у axios на сайте).
-  ThreadPoolExecutor даёт чистый тред без asyncio-loop, sync_playwright работает.
-
-  Redis-лок гарантирует что при одновременном 401 у N воркеров
-  реальный логин произойдёт только один раз.
 """
 
 from __future__ import annotations
@@ -29,23 +12,21 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-_KEY_BA_COOKIES  = "auth:ba:cookies"
+_KEY_BA_COOKIES = "auth:ba:cookies"
 _KEY_ZOO_COOKIES = "auth:zoo:cookies"
-_KEY_BA_LOCK     = "auth:ba:lock"
-_KEY_ZOO_LOCK    = "auth:zoo:lock"
-_COOKIE_TTL      = 20 * 3600  # 20ч — запас до истечения 24ч-сессии
+_KEY_BA_LOCK = "auth:ba:lock"
+_KEY_ZOO_LOCK = "auth:zoo:lock"
+_COOKIE_TTL = 20 * 3600  # 20ч
 
 
-# ── Redis helpers ─────────────────────────────────────────────────────────────
+# Redis helpers
 
 def _cache():
-    """Alias 'parsers' — тот же что используется в cache.py."""
     from django.core.cache import caches
     return caches['parsers']
 
 
 def _acquire_lock(key: str, ttl: int) -> bool:
-    """cache.add() атомарен — стандартный Redis-лок без lua-скриптов."""
     try:
         return bool(_cache().add(key, "1", timeout=ttl))
     except Exception as e:
@@ -73,10 +54,6 @@ def _wait_for_lock_release(key: str, timeout: int = 90) -> None:
 
 
 def _run_in_thread(fn, timeout: int):
-    """
-    Запускает fn() в отдельном треде и возвращает результат.
-    Нужно для sync_playwright — он требует чистый тред без asyncio event loop.
-    """
     with ThreadPoolExecutor(max_workers=1) as ex:
         future = ex.submit(fn)
         try:
@@ -86,7 +63,7 @@ def _run_in_thread(fn, timeout: int):
             return None
 
 
-# ── BreedArchive ──────────────────────────────────────────────────────────────
+# BreedArchive
 
 def get_ba_cookies() -> Dict[str, str]:
     """Redis → автологин → .env fallback."""
@@ -95,32 +72,30 @@ def get_ba_cookies() -> Dict[str, str]:
         if hit:
             return hit
     except Exception as e:
-        logger.warning(f"BA cookies: Redis недоступен ({e}), fallback к .env")
+        logger.warning(f"BA cookies: Redis недоступен ({e})")
         return _ba_env_cookies()
 
-    fresh = _do_ba_login()
+    fresh = do_ba_login()
     return fresh if fresh else _ba_env_cookies()
 
 
 def on_ba_401() -> None:
-    """Вызывать в 401-ветках breedarchive.py."""
     logger.warning("BA 401 — инвалидируем куки, логинимся заново")
     try:
         _cache().delete(_KEY_BA_COOKIES)
     except Exception:
         pass
-    _do_ba_login()
+    do_ba_login()
 
 
 def _ba_env_cookies() -> Dict[str, str]:
     from ..config import BREEDARCHIVE_COOKIES
     cookies = {k: v for k, v in BREEDARCHIVE_COOKIES.items() if v}
-    logger.warning(f"BA: fallback к .env ({len(cookies)} куков) — могут быть устаревшими")
+    logger.warning(f"BA: fallback к .env ({len(cookies)} куков)")
     return cookies
 
 
-def _do_ba_login() -> Optional[Dict[str, str]]:
-    """Логин через Playwright в отдельном треде (избегаем конфликта asyncio)."""
+def do_ba_login() -> Optional[Dict[str, str]]:
     from ..config import BREEDARCHIVE_EMAIL, BREEDARCHIVE_PASSWORD
 
     if not BREEDARCHIVE_EMAIL or not BREEDARCHIVE_PASSWORD:
@@ -136,34 +111,23 @@ def _do_ba_login() -> Optional[Dict[str, str]]:
             return None
 
     try:
-        return _run_in_thread(_ba_playwright_login, timeout=120)
+        return _run_in_thread(_ba_http_login, timeout=60)
     finally:
         _release_lock(_KEY_BA_LOCK)
 
 
-def _ba_playwright_login() -> Optional[Dict[str, str]]:
-    """
-    Выполняется в отдельном треде.
-
-    Из HTML страницы BA видно что форма логина отправляет данные через
-    axios POST /auth_user/perform_login с JSON {credentials: {username, password}}.
-    Это можно сделать через requests без Playwright — быстрее и надёжнее.
-
-    Шаги:
-      1. GET /auth_user/login — получаем CSRF-куку и заголовки сессии
-      2. POST /auth_user/perform_login — передаём credentials как JSON
-      3. Из jar сессии забираем session_tba_v3
-    """
+def _ba_http_login() -> Optional[Dict[str, str]]:
+    """HTTP POST логин BA через /auth_user/perform_login."""
     from ..config import (
         BREEDARCHIVE_BASE_URL, BREEDARCHIVE_EMAIL,
         BREEDARCHIVE_PASSWORD, BREEDARCHIVE_HEADERS,
+        BREEDARCHIVE_LOGIN_URL,
     )
     import requests
 
-    login_page_url   = f"{BREEDARCHIVE_BASE_URL}/auth_user/login"
     perform_login_url = f"{BREEDARCHIVE_BASE_URL}/auth_user/perform_login"
 
-    logger.info("BA: HTTP логин через /auth_user/perform_login...")
+    logger.info("BA: HTTP логин...")
     try:
         session = requests.Session()
         session.headers.update(BREEDARCHIVE_HEADERS)
@@ -172,16 +136,14 @@ def _ba_playwright_login() -> Optional[Dict[str, str]]:
             'Accept': 'application/json, text/plain, */*',
             'Content-Type': 'application/json',
             'Origin': BREEDARCHIVE_BASE_URL,
-            'Referer': login_page_url,
+            'Referer': BREEDARCHIVE_LOGIN_URL,
         })
 
-        # Шаг 1: GET страницы логина — получаем сессионные куки (CSRF и т.д.)
-        r = session.get(login_page_url, timeout=30)
+        r = session.get(BREEDARCHIVE_LOGIN_URL, timeout=30)
         if r.status_code != 200:
             logger.error(f"BA логин GET: HTTP {r.status_code}")
             return None
 
-        # Шаг 2: POST credentials — формат как у axios в Vue-компоненте LoginTemplate
         payload = {
             "credentials": {
                 "username": BREEDARCHIVE_EMAIL,
@@ -193,24 +155,20 @@ def _ba_playwright_login() -> Optional[Dict[str, str]]:
         r2 = session.post(perform_login_url, json=payload, timeout=30, allow_redirects=True)
 
         if r2.status_code not in (200, 302):
-            logger.error(f"BA логин POST: HTTP {r2.status_code} — {r2.text[:300]}")
+            logger.error(f"BA логин POST: HTTP {r2.status_code}")
             return None
 
-        # Проверяем ответ — Vue-компонент смотрит data.errorMessages
         try:
-            resp_data = r2.json()
-            if resp_data.get('errorMessages'):
-                logger.error(f"BA логин: ошибка в ответе — {resp_data['errorMessages']}")
+            resp = r2.json()
+            if resp.get('errorMessages'):
+                logger.error(f"BA логин: ошибка — {resp['errorMessages']}")
                 return None
         except Exception:
-            pass  # ответ не JSON — редирект, это ок
+            pass
 
         fresh = dict(session.cookies)
         if not fresh.get('session_tba_v3'):
-            logger.error(
-                f"BA логин: session_tba_v3 не получена. "
-                f"Куки в jar: {list(fresh.keys())}"
-            )
+            logger.error(f"BA логин: session_tba_v3 не получена. Куки: {list(fresh.keys())}")
             return None
 
         _cache().set(_KEY_BA_COOKIES, fresh, timeout=_COOKIE_TTL)
@@ -222,7 +180,7 @@ def _ba_playwright_login() -> Optional[Dict[str, str]]:
         return None
 
 
-# ── Zooportal ─────────────────────────────────────────────────────────────────
+# Zooportal
 
 def get_zoo_cookies() -> Dict[str, str]:
     """Redis → автологин → .env fallback."""
@@ -231,32 +189,34 @@ def get_zoo_cookies() -> Dict[str, str]:
         if hit:
             return hit
     except Exception as e:
-        logger.warning(f"Zoo cookies: Redis недоступен ({e}), fallback к .env")
+        logger.warning(f"Zoo cookies: Redis недоступен ({e})")
         return _zoo_env_cookies()
 
-    fresh = _do_zoo_login()
+    fresh = do_zoo_login()
     return fresh if fresh else _zoo_env_cookies()
 
 
 def on_zoo_session_expired() -> None:
-    """Вызывать если обнаружен редирект на /auth/."""
     logger.warning("Zoo: сессия истекла — инвалидируем и логинимся заново")
     try:
         _cache().delete(_KEY_ZOO_COOKIES)
     except Exception:
         pass
-    _do_zoo_login()
+    do_zoo_login()
 
 
 def _zoo_env_cookies() -> Dict[str, str]:
     from ..config import ZOOPORTAL_COOKIES
     cookies = {k: v for k, v in ZOOPORTAL_COOKIES.items() if v}
-    logger.warning(f"Zoo: fallback к .env ({len(cookies)} куков) — могут быть устаревшими")
+    logger.warning(f"Zoo: fallback к .env ({len(cookies)} куков)")
     return cookies
 
 
-def _do_zoo_login() -> Optional[Dict[str, str]]:
-    """Логин через Playwright в отдельном треде (избегаем конфликта с BrowserManager)."""
+def do_zoo_login() -> Optional[Dict[str, str]]:
+    """
+    Сначала пробует HTTP логин (быстро),
+    если не получил PHPSESSID — fallback на Playwright.
+    """
     from ..config import ZOOPORTAL_LOGIN, ZOOPORTAL_PASSWORD
 
     if not ZOOPORTAL_LOGIN or not ZOOPORTAL_PASSWORD:
@@ -272,54 +232,152 @@ def _do_zoo_login() -> Optional[Dict[str, str]]:
             return None
 
     try:
-        return _run_in_thread(_zoo_playwright_login, timeout=120)
+        # Сначала HTTP — быстро, без Playwright
+        result = _run_in_thread(_zoo_http_login, timeout=60)
+        if result and result.get('PHPSESSID'):
+            return result
+
+        logger.info("Zoo: HTTP не дал PHPSESSID, пробуем Playwright...")
+        result = _run_in_thread(_zoo_playwright_login, timeout=120)
+        return result
+
     finally:
         _release_lock(_KEY_ZOO_LOCK)
 
 
+def _zoo_http_login() -> Optional[Dict[str, str]]:
+    """
+    HTTP POST логин Zooportal.
+    Использует J-куки из .env для прохождения anti-bot защиты.
+    """
+    from ..config import (
+        ZOOPORTAL_BASE_URL, ZOOPORTAL_LOGIN,
+        ZOOPORTAL_PASSWORD, USER_AGENT,
+        ZOOPORTAL_COOKIES, ZOOPORTAL_AUTH_PAGE_URL,
+        ZOOPORTAL_AUTH_POST_URL,
+    )
+    import requests
+
+    logger.info("Zoo: HTTP логин...")
+    try:
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9',
+            'Origin': ZOOPORTAL_BASE_URL,
+            'Referer': ZOOPORTAL_AUTH_PAGE_URL,
+        })
+
+        # GET — получаем начальные куки сервера
+        r = session.get(ZOOPORTAL_AUTH_PAGE_URL, timeout=30)
+        if r.status_code != 200:
+            logger.error(f"Zoo HTTP GET: {r.status_code}")
+            return None
+
+        # Добавляем J-куки из .env — нужны для anti-bot проверки
+        for key in ['__jhash_', '__js_p_', '__jua_', '__lhash_', '__hash_',
+                    'BITRIX_SM_GUEST_ID', 'BITRIX_SM_NCC']:
+            val = ZOOPORTAL_COOKIES.get(key, '')
+            if val:
+                session.cookies.set(key, val, domain='zooportal.pro')
+
+        # POST формы
+        payload = {
+            'AUTH_FORM': 'Y',
+            'TYPE': 'AUTH',
+            'backurl': '/auth/?auth=yes',
+            'USER_LOGIN': ZOOPORTAL_LOGIN,
+            'USER_PASSWORD': ZOOPORTAL_PASSWORD,
+            'USER_REMEMBER': 'Y',
+            'Login': 'Войти',
+        }
+        r2 = session.post(ZOOPORTAL_AUTH_POST_URL, data=payload, timeout=30, allow_redirects=True)
+        fresh = dict(session.cookies)
+
+        if not fresh.get('PHPSESSID'):
+            logger.warning(f"Zoo HTTP: PHPSESSID не получен. Куки: {list(fresh.keys())}")
+            return None
+
+        if fresh.get('BITRIX_SM_UIDH'):
+            logger.info(f"✅ Zoo HTTP: полная авторизация ({len(fresh)} куков)")
+        else:
+            logger.info(f"✅ Zoo HTTP: сессия без UIDH ({len(fresh)} куков) — достаточно для парсинга")
+
+        _cache().set(_KEY_ZOO_COOKIES, fresh, timeout=_COOKIE_TTL)
+        return fresh
+
+    except Exception as e:
+        logger.error(f"Zoo HTTP логин ошибка: {e}", exc_info=True)
+        return None
+
+
 def _zoo_playwright_login() -> Optional[Dict[str, str]]:
-    """Выполняется в отдельном треде. Логин через Bitrix-форму."""
+    """
+    Playwright логин Zooportal — fallback если HTTP не сработал.
+    PHPSESSID достаточно для парсинга — BITRIX_SM_UIDH не обязателен.
+    """
     from ..config import (
         ZOOPORTAL_LOGIN_URL, ZOOPORTAL_LOGIN, ZOOPORTAL_PASSWORD,
         PLAYWRIGHT_HEADLESS, PLAYWRIGHT_BROWSER_ARGS, USER_AGENT,
     )
     from playwright.sync_api import sync_playwright
 
-    logger.info("Zoo: Playwright логин (Bitrix)...")
+    logger.info("Zoo: Playwright логин...")
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=PLAYWRIGHT_HEADLESS, args=PLAYWRIGHT_BROWSER_ARGS)
-            context = browser.new_context(viewport={'width': 1920, 'height': 1080}, user_agent=USER_AGENT)
+            browser = pw.chromium.launch(
+                headless=PLAYWRIGHT_HEADLESS,
+                args=PLAYWRIGHT_BROWSER_ARGS,
+            )
+            context = browser.new_context(
+                viewport={'width': 1440, 'height': 900},
+                user_agent=USER_AGENT,
+                locale='ru-RU',
+                timezone_id='Europe/Moscow',
+                extra_http_headers={'Accept-Language': 'ru-RU,ru;q=0.9'},
+            )
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            )
+
             page = context.new_page()
+            fresh = {}
+
             try:
-                page.goto(ZOOPORTAL_LOGIN_URL, wait_until='networkidle', timeout=60_000)
+                page.goto(ZOOPORTAL_LOGIN_URL, wait_until='load', timeout=60_000)
+                page.wait_for_selector('form[name="form_auth"]', timeout=15_000)
+
+                time.sleep(0.5)
                 page.fill('input[name="USER_LOGIN"]', ZOOPORTAL_LOGIN)
+                time.sleep(0.3)
                 page.fill('input[name="USER_PASSWORD"]', ZOOPORTAL_PASSWORD)
-                page.click('input[type="submit"], button[type="submit"]')
+                time.sleep(0.3)
 
                 try:
-                    page.wait_for_url(
-                        lambda url: '/auth/' not in url,
-                        timeout=20_000,
-                    )
+                    with page.expect_navigation(wait_until='load', timeout=30_000):
+                        page.click('input[name="Login"]')
                 except Exception:
-                    page.wait_for_load_state('networkidle', timeout=20_000)
+                    page.wait_for_timeout(3000)
 
+                page.wait_for_timeout(1000)
                 fresh = {c['name']: c['value'] for c in context.cookies()}
+
             finally:
                 page.close()
                 context.close()
                 browser.close()
 
         if not fresh.get('PHPSESSID'):
-            logger.error(
-                f"Zoo логин: PHPSESSID не получен. "
-                f"URL={page.url}, куки={list(fresh.keys())}"
-            )
+            logger.error(f"Zoo Playwright: PHPSESSID не получен. Куки: {list(fresh.keys())}")
             return None
 
+        if fresh.get('BITRIX_SM_UIDH'):
+            logger.info(f"✅ Zoo Playwright: полная авторизация ({len(fresh)} куков)")
+        else:
+            logger.info(f"✅ Zoo Playwright: сессия без UIDH ({len(fresh)} куков)")
+
         _cache().set(_KEY_ZOO_COOKIES, fresh, timeout=_COOKIE_TTL)
-        logger.info(f"✅ Zoo: куки обновлены ({len(fresh)} шт.)")
         return fresh
 
     except Exception as e:

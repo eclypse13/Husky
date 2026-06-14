@@ -3,14 +3,10 @@ import re
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..models import Dog, Title
-
 logger = logging.getLogger(__name__)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # СТРАНЫ
-# ──────────────────────────────────────────────────────────────────────────────
 
 _COUNTRY_CODES: Dict[str, str] = {
     'RU': 'RUS', 'RUS': 'RUS', 'RF': 'RUS', 'РФ': 'RUS',
@@ -120,34 +116,33 @@ def extract_country_code(raw_title: str) -> Optional[str]:
     return None
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+
 # ПАРСИНГ ОДНОГО ТИТУЛА
-# ──────────────────────────────────────────────────────────────────────────────
 
 _ZP_PATTERNS = {
-    'grch':           ('GrCH',  'Гранд Чемпион', True),
-    'grand champion': ('GrCH',  'Гранд Чемпион', True),
-    'гранд чемпион':  ('GrCH',  'Гранд Чемпион', True),
-    'ch.cl':          ('CH.CL', 'Чемпион Национального клуба породы', True),
-    'нкп':            ('CH.CL', 'Чемпион Национального клуба породы', True),
-    'jch':            ('JCH',   'Юниор Чемпион', True),
-    'юниор':          ('JCH',   'Юниор Чемпион', True),
-    'junior':         ('JCH',   'Юниор Чемпион', True),
-    'vch':            ('VCH',   'Ветеран Чемпион', True),
-    'ветеран':        ('VCH',   'Ветеран Чемпион', True),
-    'int':            ('INT',   'Интернациональный Чемпион', True),
-    'интер':          ('INT',   'Интернациональный Чемпион', True),
-    'eu':             ('EU',    'Европейский Чемпион', True),
-    'world':          ('WORLD', 'Чемпион Мира', True),
-    'мир':            ('WORLD', 'Чемпион Мира', True),
-    'bch':            ('BCH',   'Чемпион породы', True),
-    'cacib':          ('CACIB', 'Сертификат международной выставки', False),
-    'cac':            ('CAC',   'Сертификат соответствия породе', False),
-    'чк':             ('ЧК',    'Чемпион клуба', False),
-    'кчк':            ('КЧК',   'Кандидат в чемпионы клуба', False),
-    'ch':             ('CH',    'Чемпион', True),
-    'чемпион':        ('CH',    'Чемпион', True),
-    'champion':       ('CH',    'Чемпион', True),
+    'grch': ('GrCH', 'Гранд Чемпион', True),
+    'grand champion': ('GrCH', 'Гранд Чемпион', True),
+    'гранд чемпион': ('GrCH', 'Гранд Чемпион', True),
+    'ch.cl': ('CH.CL', 'Чемпион Национального клуба породы', True),
+    'нкп': ('CH.CL', 'Чемпион Национального клуба породы', True),
+    'jch': ('JCH', 'Юниор Чемпион', True),
+    'юниор': ('JCH', 'Юниор Чемпион', True),
+    'junior': ('JCH', 'Юниор Чемпион', True),
+    'vch': ('VCH', 'Ветеран Чемпион', True),
+    'ветеран': ('VCH', 'Ветеран Чемпион', True),
+    'int': ('INT', 'Интернациональный Чемпион', True),
+    'интер': ('INT', 'Интернациональный Чемпион', True),
+    'eu': ('EU', 'Европейский Чемпион', True),
+    'world': ('WORLD', 'Чемпион Мира', True),
+    'мир': ('WORLD', 'Чемпион Мира', True),
+    'bch': ('BCH', 'Чемпион породы', True),
+    'cacib': ('CACIB', 'Сертификат международной выставки', False),
+    'cac': ('CAC', 'Сертификат соответствия породе', False),
+    'чк': ('ЧК', 'Чемпион клуба', False),
+    'кчк': ('КЧК', 'Кандидат в чемпионы клуба', False),
+    'ch': ('CH', 'Чемпион', True),
+    'чемпион': ('CH', 'Чемпион', True),
+    'champion': ('CH', 'Чемпион', True),
 }
 
 
@@ -156,6 +151,19 @@ def _extract_winner_year(text: str) -> Tuple[Optional[int], bool]:
     if m:
         return int(m.group()), True
     return None, False
+
+
+# Типы BA-титулов: keyword → (short_name, long_name, is_prefix)
+# Вынесено на уровень модуля — не создаётся заново при каждом вызове.
+_BA_TITLE_TYPES = {
+    'CH': ('CH', 'Чемпион', True),
+    'JCH': ('JCH', 'Юниор Чемпион', True),
+    'J.CH': ('JCH', 'Юниор Чемпион', True),
+    'GRCH': ('GrCH', 'Гранд Чемпион', True),
+    'GR.CH': ('GrCH', 'Гранд Чемпион', True),
+    'VCH': ('VCH', 'Ветеран Чемпион', True),
+    'V.CH': ('VCH', 'Ветеран Чемпион', True),
+}
 
 
 def _parse_zooportal_title(raw: str) -> Optional[Dict[str, Any]]:
@@ -226,17 +234,8 @@ def _parse_breedarchive_title(raw: str) -> Optional[Dict[str, Any]]:
             }
 
         if cc:
-            _ba_types = {
-                'CH':    ('CH',   'Чемпион',        True),
-                'JCH':   ('JCH',  'Юниор Чемпион',  True),
-                'J.CH':  ('JCH',  'Юниор Чемпион',  True),
-                'GRCH':  ('GrCH', 'Гранд Чемпион',  True),
-                'GR.CH': ('GrCH', 'Гранд Чемпион',  True),
-                'VCH':   ('VCH',  'Ветеран Чемпион', True),
-                'V.CH':  ('VCH',  'Ветеран Чемпион', True),
-            }
-            if title_word in _ba_types:
-                short, base_long, is_prefix = _ba_types[title_word]
+            if title_word in _BA_TITLE_TYPES:
+                short, base_long, is_prefix = _BA_TITLE_TYPES[title_word]
                 long_name = f"{base_long} {get_country_display_name(cc)}"
                 winner_year, has_winner_year = _extract_winner_year(raw)
                 return {
@@ -252,9 +251,8 @@ def _parse_breedarchive_title(raw: str) -> Optional[Dict[str, Any]]:
     return _parse_zooportal_title(raw)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+
 # ПУБЛИЧНЫЙ ПАРСЕР ТЕКСТОВОЙ СТРОКИ ТИТУЛОВ
-# ──────────────────────────────────────────────────────────────────────────────
 
 def parse_titles_from_text(text: str, source: str = 'zooportal') -> List[Dict[str, Any]]:
     """
@@ -279,70 +277,37 @@ def parse_titles_from_text(text: str, source: str = 'zooportal') -> List[Dict[st
     return result
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# СОХРАНЕНИЕ В БД
-# ──────────────────────────────────────────────────────────────────────────────
 
-def save_dog_titles(
-    dog: Dog,
-    prefix_text: Optional[str],
-    suffix_text: Optional[str],
-    source: str,
-) -> None:
+# СОХРАНЕНИЕ В БД
+
+
+def build_title_entries(
+        prefix_text: Optional[str],
+        suffix_text: Optional[str],
+        source: str,
+) -> List[Dict[str, Any]]:
     """
-    Парсит строки prefix/suffix-титулов и сохраняет в таблицу Title.
-    Использует get_or_create по (dog, short_name, country) — дублей не создаёт.
-    Пустые short_name пропускаются.
+    Парсит prefix/suffix-строки титулов в нормализованные записи (без БД).
+    Пустые short_name отбрасываются. Сохранение — в services/title_service.py.
     """
-    if not dog or not dog.pk:
-        return
+    raw_entries: List[Dict[str, Any]] = []
+    if prefix_text:
+        raw_entries.extend(parse_titles_from_text(prefix_text, source))
+    if suffix_text:
+        raw_entries.extend(parse_titles_from_text(suffix_text, source))
 
     entries: List[Dict[str, Any]] = []
-    if prefix_text:
-        entries.extend(parse_titles_from_text(prefix_text, source))
-    if suffix_text:
-        entries.extend(parse_titles_from_text(suffix_text, source))
-
-    if not entries:
-        return
-
-    saved = failed = 0
-    for entry in entries:
+    for entry in raw_entries:
         short_name = (entry.get('short_name') or '').strip().lower()
         if not short_name:
-            failed += 1
             continue
-
-        country = (entry.get('country') or '').lower() or None
         long_name = entry.get('long_name')
-        if long_name:
-            long_name = long_name[:500]
-
-        try:
-            _, created = Title.objects.using('dogs_db').get_or_create(
-                dog=dog,
-                short_name=short_name,
-                country=country,
-                defaults={
-                    'long_name': long_name,
-                    'is_prefix': entry.get('is_prefix', True),
-                    'has_winner_year': entry.get('has_winner_year', False),
-                    'winner_year': entry.get('winner_year'),
-                },
-            )
-            saved += 1
-            if not created:
-                # Обновляем long_name если появилась более полная информация
-                Title.objects.using('dogs_db').filter(
-                    dog=dog, short_name=short_name, country=country
-                ).update(
-                    long_name=long_name or '',
-                    is_prefix=entry.get('is_prefix', True),
-                    has_winner_year=entry.get('has_winner_year', False),
-                    winner_year=entry.get('winner_year'),
-                )
-        except Exception as exc:
-            failed += 1
-            logger.warning(f"Ошибка сохранения титула '{short_name}' для dog.id={dog.pk}: {exc}")
-
-    logger.info(f"Титулы dog.id={dog.pk}: сохранено {saved}, ошибок {failed}")
+        entries.append({
+            'short_name': short_name,
+            'country': (entry.get('country') or '').lower() or None,
+            'long_name': long_name[:500] if long_name else '',
+            'is_prefix': entry.get('is_prefix', True),
+            'has_winner_year': entry.get('has_winner_year', False),
+            'winner_year': entry.get('winner_year'),
+        })
+    return entries

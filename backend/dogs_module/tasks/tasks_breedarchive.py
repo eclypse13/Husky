@@ -1,5 +1,5 @@
 # dogs_module/tasks/tasks_breedarchive.py
-"""Celery задачи для синхронизации данных из BreedArchive."""
+"""Celery задачи для синхронизации данных из BreedArchive (1 задача для обновления куки)."""
 
 import logging
 import time
@@ -37,10 +37,10 @@ class BaseBATask(Task):
 def fetch_breedarchive_dog_task(self, uuid: str, force_update: bool = False) -> Dict:
     """Загружает собаку из BA по UUID — только 5 поколений предков (быстро)."""
     start_time = time.time()
-    from ..models import Dog
+    from ..repositories import dog_repository as dog_repo
 
     if not force_update:
-        existing = Dog.objects.using('dogs_db').filter(uuid=uuid).first()
+        existing = dog_repo.get_by_uuid(uuid)
         if existing:
             logger.info(f"♻️ Уже в БД: {existing.registered_name}")
             return {'status': 'exists', 'dog_id': existing.id, 'name': existing.registered_name,
@@ -115,7 +115,7 @@ def fetch_full_pedigree_task(self, uuid: str, force_update: bool = False) -> Dic
     time_limit=2100,
 )
 def sync_breedarchive_recent_task(
-    self, pages_count: int = 1, start_page: int = 0, is_full_sync: bool = False,
+        self, pages_count: int = 1, start_page: int = 0, is_full_sync: bool = False,
 ) -> Dict:
     """Загружает список последних обновлений из BA и диспатчит задачи на каждую собаку."""
     start_time = time.time()
@@ -321,11 +321,11 @@ def import_hybrid_full_range_task(
 )
 def refresh_cookies_task(self) -> Dict:
     """Превентивное обновление куков BA и Zoo. Запускается через beat каждые 20ч."""
-    from ..utils.cookie_refresher import _do_ba_login, _do_zoo_login
+    from ..utils.cookie_refresher import do_ba_login, do_zoo_login
     results = {}
-    ba = _do_ba_login()
+    ba = do_ba_login()
     results['ba'] = f"ok ({len(ba)} cookies)" if ba else "failed"
-    zoo = _do_zoo_login()
+    zoo = do_zoo_login()
     results['zoo'] = f"ok ({len(zoo)} cookies)" if zoo else "failed"
     logger.info(f"Cookie refresh: {results}")
     return results

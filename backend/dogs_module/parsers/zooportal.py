@@ -26,13 +26,9 @@ from ..utils.text import normalize_dog_name
 
 logger = logging.getLogger(__name__)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# КЕШ-КОНСТАНТЫ И УТИЛИТЫ
-# ══════════════════════════════════════════════════════════════════════════════
-
-_TTL_SEARCH = 1 * 24 * 3600   # 24 часа — страницы поиска обновляются часто
-_TTL_DOG    = 1 * 24 * 3600  # 24 часа  — данные конкретной собаки меняются редко
+# Кеш
+_TTL_SEARCH = 1 * 24 * 3600  # 24 часа
+_TTL_DOG = 1 * 24 * 3600  # 24 часа
 
 
 def _cache():
@@ -52,10 +48,7 @@ def _key_dog(dog_id: str, generations: int) -> str:
     return f"zoo:dog:{dog_id}:{generations}"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# МЕНЕДЖЕР БРАУЗЕРА
-# ══════════════════════════════════════════════════════════════════════════════
-
+# Менеджер браузера
 class BrowserManager:
     """
     Контекстный менеджер для Playwright.
@@ -82,8 +75,8 @@ class BrowserManager:
 
     def __exit__(self, *args):
         for obj, label, method in [
-            (self.context,    'Context',    'close'),
-            (self.browser,    'Browser',    'close'),
+            (self.context, 'Context', 'close'),
+            (self.browser, 'Browser', 'close'),
             (self.playwright, 'Playwright', 'stop'),
         ]:
             if obj:
@@ -188,20 +181,45 @@ class BrowserManager:
 
         raise RuntimeError(f"Не удалось загрузить {url} после {retries} попыток")
 
+    def download_photo_bytes(self, photo_url: str) -> Optional[bytes]:
+        """
+        Скачивает фото Zoo через Playwright контекст (уже авторизован).
+        Вызывается сразу после fetch_page — контекст с куками открыт.
+        Возвращает bytes или None при ошибке.
+        """
+        if not photo_url:
+            return None
+        try:
+            response = self.context.request.get(
+                photo_url,
+                headers={
+                    "Referer": f"{ZOOPORTAL_BASE_URL}/pedigree/",
+                    "Accept": "image/*,*/*;q=0.8",
+                },
+                timeout=30000,
+            )
+            if response.status != 200:
+                logger.warning(f"Zoo photo: HTTP {response.status} для {photo_url}")
+                return None
+            if "text/html" in response.headers.get("content-type", ""):
+                logger.warning(f"Zoo photo: вернул HTML для {photo_url}")
+                return None
+            body = response.body()
+            logger.info(f"Zoo photo: скачано {len(body)}b для {photo_url}")
+            return body
+        except Exception as e:
+            logger.warning(f"Zoo photo download error: {e}")
+            return None
 
-# ══════════════════════════════════════════════════════════════════════════════
+
 # ПАРСЕР ZOOPORTAL
-# ══════════════════════════════════════════════════════════════════════════════
+
 
 class ZooportalParser:
-    """Парсер Zooportal — не хранит состояние, thread-safe."""
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # ПУБЛИЧНЫЕ МЕТОДЫ (с кешированием)
-    # ──────────────────────────────────────────────────────────────────────────
+    """Парсер Zooportal"""
 
     def parse_search_page_with_browser(
-        self, browser: BrowserManager, page_num: int = 1
+            self, browser: BrowserManager, page_num: int = 1
     ) -> List[Dict[str, Any]]:
         """
         Парсит страницу поиска Zooportal.
@@ -246,7 +264,7 @@ class ZooportalParser:
         return dogs
 
     def parse_dog_page_with_browser(
-        self, browser: BrowserManager, dog_id: str, generations: int = 3
+            self, browser: BrowserManager, dog_id: str, generations: int = 3
     ) -> Optional[Dict[str, Any]]:
         """
         Парсит страницу конкретной собаки.
@@ -266,16 +284,24 @@ class ZooportalParser:
         data = self._parse_dog_html(html, dog_id)
         logger.info(f"💾 {data.get('registered_name')}")
 
+        # Скачиваем фото сразу — пока Playwright контекст авторизован.
+        # Zoo блокирует прямые запросы без сессии, через контекст работает.
+        if data and data.get('photo_url'):
+            photo_bytes = browser.download_photo_bytes(data['photo_url'])
+            if photo_bytes:
+                data['photo_bytes'] = photo_bytes
+                logger.info(f"📷 Фото скачано при парсинге ({len(photo_bytes)}b)")
+
         if data and data.get('registered_name'):
-            c.set(key, data, timeout=_TTL_DOG)
+            # Не кешируем photo_bytes — большие данные, не нужны при повторе
+            cache_data = {k: v for k, v in data.items() if k != 'photo_bytes'}
+            c.set(key, cache_data, timeout=_TTL_DOG)
             logger.debug(f"💾 Кеш SET zoo:dog:{dog_id}:{generations} "
                          f"({data['registered_name']}, TTL=6ч)")
 
         return data
 
-    # ──────────────────────────────────────────────────────────────────────────
     # ИНВАЛИДАЦИЯ
-    # ──────────────────────────────────────────────────────────────────────────
 
     def invalidate_dog_cache(self, dog_id: str, generations: int = 3) -> None:
         """Сбрасывает кеш страницы собаки. Вызывать если данные обновлены."""
@@ -287,9 +313,7 @@ class ZooportalParser:
         _cache().delete(_key_search(page_num))
         logger.info(f"🗑️ Кеш удалён: zoo:search:{page_num}")
 
-    # ──────────────────────────────────────────────────────────────────────────
     # ПАРСИНГ HTML
-    # ──────────────────────────────────────────────────────────────────────────
 
     def _parse_search_html(self, html: str) -> List[Dict[str, Any]]:
         soup = BeautifulSoup(html, 'html.parser')
@@ -367,9 +391,7 @@ class ZooportalParser:
             logger.error(f"❌ Ошибка парсинга {dog_id}: {e}")
             return None
 
-    # ──────────────────────────────────────────────────────────────────────────
     # ИЗВЛЕЧЕНИЕ ПОЛЕЙ
-    # ──────────────────────────────────────────────────────────────────────────
 
     def _extract_name(self, soup) -> Optional[str]:
         h1 = soup.find('h1')
@@ -463,9 +485,7 @@ class ZooportalParser:
     def _extract_titles_structured(self, soup) -> List[Dict]:
         return []
 
-    # ──────────────────────────────────────────────────────────────────────────
     # BREEDER / OWNER
-    # ──────────────────────────────────────────────────────────────────────────
 
     def _extract_breeder_info(self, soup) -> Dict[str, Optional[str]]:
         info: Dict[str, Optional[str]] = {
@@ -494,7 +514,8 @@ class ZooportalParser:
                     if klink:
                         info['kennel'] = klink.get_text(strip=True)
                         khref = klink.get('href', '')
-                        info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{khref}" if khref and not khref.startswith('http') else khref
+                        info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{khref}" if khref and not khref.startswith(
+                            'http') else khref
             break
         return info
 
@@ -525,13 +546,12 @@ class ZooportalParser:
                     if klink:
                         info['kennel'] = klink.get_text(strip=True)
                         khref = klink.get('href', '')
-                        info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{khref}" if khref and not khref.startswith('http') else khref
+                        info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{khref}" if khref and not khref.startswith(
+                            'http') else khref
             break
         return info
 
-    # ──────────────────────────────────────────────────────────────────────────
     # РОДОСЛОВНАЯ
-    # ──────────────────────────────────────────────────────────────────────────
 
     def _parse_pedigree(self, soup, dog_id: str) -> Dict[str, Any]:
         """
@@ -661,8 +681,5 @@ class ZooportalParser:
         return ' '.join([d.get_text(' ', strip=True) for d in infos]).strip()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ГЛОБАЛЬНЫЙ ЭКЗЕМПЛЯР
-# ══════════════════════════════════════════════════════════════════════════════
-
+# Глобальный экземпляр
 zooportal_parser = ZooportalParser()

@@ -98,6 +98,7 @@ export default function Header() {
               <li><NavLink to="/breed" className="site-header__nav-link">О породе</NavLink></li>
               <li><NavLink to="/events" className="site-header__nav-link">Мероприятия</NavLink></li>
               <li><NavLink to="/archive" className="site-header__nav-link">Архив</NavLink></li>
+              <li><NavLink to="/breeding" className="site-header__nav-link">Вязка</NavLink></li>
               <li><Link to="/join" className="site-header__cta-button">Стать членом</Link></li>
             </ul>
           </nav>

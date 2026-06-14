@@ -46,7 +46,7 @@ export default function Footer() {
             <li><Link to="/archive">Родословные</Link></li>
             <li><Link to="/health">Здоровье породы</Link></li>
             <li><Link to="/stats">Статистика</Link></li>
-            <li><Link to="/ratings">Рейтинги</Link></li>
+            <li><Link to="/rating">Рейтинги</Link></li>
           </ul>
         </div>
 

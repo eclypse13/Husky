@@ -4,13 +4,11 @@
 """
 
 import re
-from typing import List, Optional
+import unicodedata
+from typing import List
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # НОРМАЛИЗАЦИЯ ИМЁН
-# ──────────────────────────────────────────────────────────────────────────────
-
 def normalize_dog_name(name: str) -> str:
     """
     Нормализует имя собаки в title.
@@ -22,6 +20,8 @@ def normalize_dog_name(name: str) -> str:
         return ""
     return " ".join(name.split()).title()
 
+def normalize_yo(s: str) -> str:
+    return s.replace('ё', 'е').replace('Ё', 'Е')
 
 def normalize_name_title_case(name: str) -> str:
     """
@@ -36,9 +36,8 @@ def normalize_name_title_case(name: str) -> str:
     return " ".join(w.capitalize() for w in name.strip().split())
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # РАБОТА С ТИТУЛАМИ В ИМЕНАХ
-# ──────────────────────────────────────────────────────────────────────────────
+
 
 # Полный список титульных приставок (используется при поиске в BA и нормализации)
 TITLE_PREFIXES: List[str] = [
@@ -88,10 +87,7 @@ def remove_titles_from_name(name: str) -> str:
     return ' '.join(result.split())
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ПОЛ
-# ──────────────────────────────────────────────────────────────────────────────
-
 def parse_sex(text: str) -> int:
     """
     Парсит пол из текста.
@@ -114,10 +110,7 @@ def parse_sex(text: str) -> int:
     return 0
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ОЧИСТКА ТЕКСТА
-# ──────────────────────────────────────────────────────────────────────────────
-
 def clean_text(text: str) -> str:
     """
     Очищает текст от лишних символов.
@@ -133,11 +126,49 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
+def color_stem(word: str) -> str:
+    word = normalize_yo(word.strip('-').strip())
+    if len(word) > 6:
+        return word[:-2]
+    if len(word) > 4:
+        return word[:-1]
+    return word
 
-# ──────────────────────────────────────────────────────────────────────────────
+def build_color_filter(qs, color: str):
+    from django.db.models import Q, Value, F
+    from django.db.models.functions import Replace
+
+    color = color.strip().lstrip('-').strip()
+    if not color:
+        return qs
+
+    color_norm = normalize_yo(color)
+
+    qs = qs.annotate(
+        _color_norm=Replace(
+            Replace(F('color'), Value('ё'), Value('е')),
+            Value('Ё'), Value('Е'),
+        )
+    )
+
+    stop_words = {'с', 'и', 'а', 'со'}
+    parts = [
+        p.strip() for p in re.split(r'[-\s]+', color_norm)
+        if p.strip() and p.strip().lower() not in stop_words
+    ]
+
+    if len(parts) >= 2:
+        stems = [_color_stem(p) for p in parts if len(p) >= 3]
+        q = Q()
+        for stem in stems:
+            q &= Q(_color_norm__icontains=stem)
+        q |= Q(_color_norm__icontains=color_norm)
+    else:
+        q = Q(_color_norm__icontains=color_norm)
+
+    return qs.filter(q)
+
 # НОМЕР РОДОСЛОВНОЙ
-# ──────────────────────────────────────────────────────────────────────────────
-
 def extract_registration_number(text: str) -> str:
     """
     Извлекает номер родословной из текста.
@@ -156,29 +187,26 @@ def extract_registration_number(text: str) -> str:
     return text.strip()
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ТРАНСЛИТЕРАЦИЯ
-# ──────────────────────────────────────────────────────────────────────────────
-
 _RU_TO_EN: dict = {
-    'а': 'a',  'б': 'b',  'в': 'v',  'г': 'g',  'д': 'd',
-    'е': 'e',  'ё': 'yo', 'ж': 'zh', 'з': 'z',  'и': 'i',
-    'й': 'y',  'к': 'k',  'л': 'l',  'м': 'm',  'н': 'n',
-    'о': 'o',  'п': 'p',  'р': 'r',  'с': 's',  'т': 't',
-    'у': 'u',  'ф': 'f',  'х': 'h',  'ц': 'ts', 'ч': 'ch',
-    'ш': 'sh', 'щ': 'sch', 'ъ': '',  'ы': 'y',  'ь': '',
-    'э': 'e',  'ю': 'yu', 'я': 'ya',
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd',
+    'е': 'e', 'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i',
+    'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n',
+    'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't',
+    'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch',
+    'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '',
+    'э': 'e', 'ю': 'yu', 'я': 'ya',
 }
 
 # Длинные паттерны первыми — порядок важен
 _EN_TO_RU: list = [
     ('sch', 'щ'), ('zh', 'ж'), ('ts', 'ц'), ('ch', 'ч'),
-    ('sh', 'ш'),  ('yu', 'ю'), ('ya', 'я'), ('yo', 'ё'),
-    ('a', 'а'),   ('b', 'б'),  ('v', 'в'),  ('g', 'г'),
-    ('d', 'д'),   ('e', 'е'),  ('z', 'з'),  ('i', 'и'),
-    ('y', 'й'),   ('k', 'к'),  ('l', 'л'),  ('m', 'м'),
-    ('n', 'н'),   ('o', 'о'),  ('p', 'п'),  ('r', 'р'),
-    ('s', 'с'),   ('t', 'т'),  ('u', 'у'),  ('f', 'ф'),
+    ('sh', 'ш'), ('yu', 'ю'), ('ya', 'я'), ('yo', 'ё'),
+    ('a', 'а'), ('b', 'б'), ('v', 'в'), ('g', 'г'),
+    ('d', 'д'), ('e', 'е'), ('z', 'з'), ('i', 'и'),
+    ('y', 'й'), ('k', 'к'), ('l', 'л'), ('m', 'м'),
+    ('n', 'н'), ('o', 'о'), ('p', 'п'), ('r', 'р'),
+    ('s', 'с'), ('t', 'т'), ('u', 'у'), ('f', 'ф'),
     ('h', 'х'),
 ]
 
@@ -206,11 +234,18 @@ def transliterate_en_to_ru(text: str) -> str:
     return result
 
 
-def build_photo_url(photo_path: Optional[str]) -> Optional[str]:
-    """Строит полный URL фото из относительного пути BreedArchive."""
-    if not photo_path:
-        return None
-    # Убираем суффикс маленького превью _s
-    # "photo.b123ca419507eff9_s.jpg" → "photo.b123ca419507eff9.jpg"
-    clean_path = re.sub(r'_s(\.[^.]+)$', r'\1', photo_path)
-    return f"https://siberianhusky.breedarchive.com/resource/{clean_path}"
+def normalize_for_similarity(name: str) -> str:
+    """
+    Жёсткая нормализация ТОЛЬКО для нечёткого сравнения имён (не для хранения).
+    Снимает титулы, регистр, апострофы/кавычки, диакритику; схлопывает разделители.
+    'CH Pain Babe' / "Pain Babe" / 'Раин Babe' → 'pain babe'
+    """
+    if not name:
+        return ""
+    s = remove_titles_from_name(name)
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
+    for ch in ("'", "\u2019", "\u2018", "`", "\u02bc", "\u00b4", '"', "\u201c", "\u201d"):
+        s = s.replace(ch, "")
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return " ".join(s.split())

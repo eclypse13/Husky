@@ -5,14 +5,10 @@ import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
 import { searchDogs, getDogStats } from "@/api/dogs";
 import type { DogListItem, DogStats, DogSearchParams } from "@/types/dog";
 import "./Archive.css";
+import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
 
 // Хелперы
 const sexLabel = (sex: number) => (sex === 1 ? "♂ Кобель" : sex === 2 ? "♀ Сука" : "—");
-
-const PLACEHOLDER_URLS = ["https://zooportal.pro/images/logo1.png"];
-const DEFAULT_DOG_IMG = "/no-image-dog.png";
-const dogPhoto = (url: string | null | undefined): string =>
-  url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_DOG_IMG;
 
 const titleBadges = (dog: DogListItem) => {
   const badges: string[] = [];
@@ -82,14 +78,28 @@ export default function Archive() {
   // Начальная загрузка + реакция на URL
   useEffect(() => {
     const params: DogSearchParams = {};
-    const q = searchParams.get("q");
-    const sex = searchParams.get("sex");
-    const color = searchParams.get("color");
-    const page = Number(searchParams.get("page")) || 1;
+    const q        = searchParams.get("q");
+    const sex      = searchParams.get("sex");
+    const color    = searchParams.get("color");
+    const kennel   = searchParams.get("kennel");
+    const country  = searchParams.get("country");
+    const yearFrom = searchParams.get("year_from");
+    const yearTo   = searchParams.get("year_to");
+    const page     = Number(searchParams.get("page")) || 1;
 
-    if (q) params.q = q;
-    if (sex) params.sex = sex;
-    if (color) params.color = color;
+    if (q)        params.q         = q;
+    if (sex)      params.sex       = sex;
+    if (color)    params.color     = color;
+    if (kennel)   params.kennel    = kennel;
+    if (country)  params.country   = country;
+    if (yearFrom) params.year_from = yearFrom;
+    if (yearTo)   params.year_to   = yearTo;
+
+    // Синхронизируем состояние полей с URL (восстановление при reload/back)
+    if (kennel)   setAdvKennel(kennel);
+    if (country)  setAdvCountry(country);
+    if (yearFrom) setAdvYearFrom(yearFrom);
+    if (yearTo)   setAdvYearTo(yearTo);
 
     doSearch(params, page);
   }, [searchParams, doSearch]);
@@ -100,9 +110,13 @@ export default function Archive() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const p = new URLSearchParams();
-    if (query) p.set("q", query);
-    if (sexFilter) p.set("sex", sexFilter);
-    if (colorFilter) p.set("color", colorFilter);
+    if (query)       p.set("q",        query);
+    if (sexFilter)   p.set("sex",      sexFilter);
+    if (colorFilter) p.set("color",    colorFilter);
+    if (advKennel)   p.set("kennel",   advKennel);
+    if (advCountry)  p.set("country",  advCountry);
+    if (advYearFrom) p.set("year_from", advYearFrom);
+    if (advYearTo)   p.set("year_to",  advYearTo);
     p.set("page", "1");
     setSearchParams(p);
   };
@@ -270,16 +284,14 @@ export default function Archive() {
               <div className="archive-dogs">
                 {dogs.map((d) => (
                   <article key={d.id} className="archive-dog-card">
-                    <div className="archive-dog-avatar">
-                      <img
-                        src={dogPhoto(d.photo_url)}
-                        alt={d.display_name}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
+                    <DogAvatar
+                      dog_photo={d.dog_photo}
+                      photo_url={d.photo_url}
+                      alt={d.call_name ?? ""}
+                      wrapClassName="archive-dog-avatar"
+                    />
                     <div className="archive-dog-info">
-                      <h4 className="archive-dog-name">{d.display_name}</h4>
+                      <h4 className="archive-dog-name">{d.registered_name}</h4>
                       <div className="archive-dog-meta">
                         <span className="archive-dog-meta-item">{sexLabel(d.sex)}</span>
                         {d.color && <span className="archive-dog-meta-item capitalize-text">{d.color}</span>}
@@ -365,9 +377,9 @@ export default function Archive() {
                 <h3 className="archive-sidebar-title">🚀 Быстрые ссылки</h3>
                 <nav className="archive-ql">
                   {[
-                    { icon: "📊", t: "Породный рейтинг", s: "Топ собаки породы", to: "#" },
-                    { icon: "🏆", t: "Чемпионы", s: "Новые титулы", to: "#" },
-                    { icon: "📈", t: "Статистика породы", s: "Аналитика", to: "#" },
+                    { icon: "📊", t: "Породный рейтинг", s: "Топ собаки породы", to: "/rating" },
+                    { icon: "🩺", t: "Здоровье породы", s: "Медицинские тесты", to: "/health" },
+                    { icon: "📈", t: "Статистика породы", s: "Аналитика", to: "/stats" },
                   ].map((i) => (
                     <Link to={i.to} key={i.t} className="archive-ql-item">
                       <div className="archive-ql-icon">{i.icon}</div>

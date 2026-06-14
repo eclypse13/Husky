@@ -1,32 +1,12 @@
 # dogs_module/urls.py
 """
 URL маршруты для модуля собак
-
-МАРШРУТЫ:
-- /api/dogs/ - DogViewSet (CRUD)
-- /api/breeders/ - BreederViewSet
-- /api/owners/ - OwnerViewSet
-- /api/titles/ - TitleViewSet
-- /api/litters/ - LitterViewSet
-- /api/medical-records/ - MedicalRecordViewSet
-
-МАРШРУТЫ (Zooportal):
-- /api/dogs/import/zooportal/dog/ - Импорт одной собаки
-- /api/dogs/import/zooportal/page/ - Импорт страницы поиска
-- /api/dogs/import/zooportal/range/ - Импорт диапазона страниц
-- /api/dogs/import/status/<task_id>/ - Статус задачи
-
-МАРШРУТЫ (BreedArchive):
-- POST /api/dogs/import/breedarchive/dog/ - Импорт одной собаки по UUID
-- POST /api/dogs/import/breedarchive/recent/ - Импорт последних обновлений (API)
-- POST /api/dogs/import/breedarchive/browse/ - Импорт через browse-страницу (Playwright)
 """
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    # Существующие ViewSets
     DogViewSet,
     BreederViewSet,
     OwnerViewSet,
@@ -48,8 +28,39 @@ from .views import (
     ImportHybridFullDogView,
     ImportHybridFullPageView,
     ImportHybridFullRangeView,
-)
 
+    ImportOFADogView,
+    ImportOFABulkByRegView,
+    ImportOFABulkByNameView,
+    OFABreedingStatsSHView,
+    BreedingPredictView,
+
+    ShowEventViewSet,
+    ImportShowListView,
+    ImportShowResultsView,
+    ImportShowDateRangeView,
+    RecalculateRatingsView,
+    LinkShowResultsView,
+    ImportShowsFullView,
+    ImportResultsForDateRangeView,
+    HealthSearchView,
+    HealthRegistriesView,
+    HealthStatsView,
+    DogHealthRecordsView,
+
+    PhotoStatsView,
+    PhotoUploadBulkView,
+    PhotoUploadSingleView,
+    PhotoSyncFromYaDiskView,
+    PhotoFetchZooSingleView,
+    PhotoFetchZooBulkView,
+    PhotoDeleteSingleView,
+    PhotoBackfillHashesView,
+    PhotoCleanupPlaceholdersView,
+
+    PopulationStatsView,
+    PhotoBackfillHashesFromSourceView,
+)
 
 router = DefaultRouter()
 router.register(r'dogs', DogViewSet, basename='dog')
@@ -58,7 +69,7 @@ router.register(r'owners', OwnerViewSet, basename='owner')
 router.register(r'titles', TitleViewSet, basename='title')
 router.register(r'litters', LitterViewSet, basename='litter')
 router.register(r'medical-records', MedicalRecordViewSet, basename='medical-record')
-
+router.register(r'shows', ShowEventViewSet, basename='show-event')
 
 urlpatterns = [
     # Существующие маршруты (ViewSets)
@@ -138,11 +149,100 @@ urlpatterns = [
         name='import-hybrid-full-range',
     ),
 
-    # COI
-   path(
-     'dogs/coi/recalculate/',
-       RecalculateAllCoiView.as_view(),
-       name='coi-recalculate-all'
-   ),
+    # OFA
+    path(
+        'dogs/import/ofa/dog/',
+        ImportOFADogView.as_view(),
+        name='import-ofa-dog'
+    ),
+    path(
+        'dogs/import/ofa/bulk/reg/',
+        ImportOFABulkByRegView.as_view(),
+        name='import-ofa-bulk-reg'
+    ),
+    path(
+        'dogs/import/ofa/bulk/name/',
+        ImportOFABulkByNameView.as_view(),
+        name='import-ofa-bulk-name'
+    ),
+    path(
+        'dogs/import/ofa/stats/siberian-husky/',
+        OFABreedingStatsSHView.as_view(),
+        name='breeding-stats'
+    ),
 
+    # COI
+    path(
+        'dogs/coi/recalculate/',
+        RecalculateAllCoiView.as_view(),
+        name='coi-recalculate-all'
+    ),
+    path(
+        'dogs/breeding/predict/',
+        BreedingPredictView.as_view(),
+        name='breeding-predict'
+    ),
+
+    # ZOOPORTAL Shows (мероприятия)
+    path('dogs/import/shows/list/', ImportShowListView.as_view(), name='import-show-list'),
+    path('dogs/import/shows/results/', ImportShowResultsView.as_view(), name='import-show-results'),
+    path('dogs/import/shows/range/', ImportShowDateRangeView.as_view(), name='import-show-range'),
+    path('dogs/shows/recalculate-ratings/', RecalculateRatingsView.as_view(), name='recalculate-ratings'),
+    path('dogs/shows/link-results/', LinkShowResultsView.as_view(), name='link-show-results'),
+    path('dogs/import/shows/full/', ImportShowsFullView.as_view(), name='import-shows-full'),
+    path(
+        'dogs/import/shows/results/range/',
+        ImportResultsForDateRangeView.as_view(),
+        name='import-show-results-range',
+    ),
+
+    # Health поиск тестов
+    path('dogs/health/search/', HealthSearchView.as_view(), name='health-search'),
+    path('dogs/health/registries/', HealthRegistriesView.as_view(), name='health-registries'),
+    path('dogs/health/stats/', HealthStatsView.as_view(), name='health-stats'),
+    path('dogs/health/records/', DogHealthRecordsView.as_view(), name='dog-health-records'),
+
+    # Yandex Disk Photo
+    path('dogs/photos/stats/',
+         PhotoStatsView.as_view(),
+         name='photos-stats'),
+
+    path('dogs/photos/upload/bulk/',
+         PhotoUploadBulkView.as_view(),
+         name='photos-upload-bulk'),
+
+    path('dogs/photos/upload/<int:dog_id>/',
+         PhotoUploadSingleView.as_view(),
+         name='photos-upload-single'),
+
+    path('dogs/photos/sync-from-yadisk/',
+         PhotoSyncFromYaDiskView.as_view(),
+         name='photos-sync-from-yadisk'),
+    # Yandex Disk Photo Zoo фото через Playwright
+    path(
+        'dogs/photos/fetch-zoo/<int:dog_id>/',
+        PhotoFetchZooSingleView.as_view(),
+        name='photos-fetch-zoo-single',
+    ),
+    path(
+        'dogs/photos/fetch-zoo/bulk/',
+        PhotoFetchZooBulkView.as_view(),
+        name='photos-fetch-zoo-bulk',
+    ),
+    path('dogs/photos/delete/<int:dog_id>/',
+         PhotoDeleteSingleView.as_view(),
+         name='photos-delete-single'),
+    path('dogs/photos/backfill-hashes/',
+         PhotoBackfillHashesView.as_view(),
+         name='photos-backfill-hashes'),
+    path('dogs/photos/cleanup-placeholders/',
+         PhotoCleanupPlaceholdersView.as_view(),
+         name='photos-cleanup-placeholders'),
+
+    path('dogs/photos/backfill-hashes-from-source/',
+         PhotoBackfillHashesFromSourceView.as_view(),
+         name='photos-backfill-hashes-from-source'),
+
+    # dog breed stats
+    path('dogs/stats/population/', PopulationStatsView.as_view(), name='population-stats'),
 ]
