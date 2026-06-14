@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 # ЧТЕНИЕ: одиночные объекты
-
 def get_by_id(dog_id: int) -> Optional["Dog"]:
     from ..models import Dog
     try:
@@ -779,7 +778,7 @@ def search_filtered(
         country: str = None,
 ):
     from ..models import Dog
-    from backend.dogs_module.utils.text import build_color_filter
+    from ..utils.text import build_color_filter
     qs = (
         Dog.objects.using('dogs_db')
         .order_by('-id')
