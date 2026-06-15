@@ -978,6 +978,7 @@ function KennelsMap() {
 export default function Home() {
   const [homeNews, setHomeNews] = useState<HomeNewsItem[]>([]);
   const [breederCount, setBreederCount] = useState(350);
+  const [dogCount, setDogCount] = useState(1250);
   const [heroDog, setHeroDog] = useState<HeroDog | null | "loading">("loading");
 
   const visibleNews = useMemo(() => {
@@ -993,6 +994,7 @@ export default function Home() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.breeders != null) setBreederCount(data.breeders);
+        if (data?.total != null) setDogCount(data.total);
       })
       .catch(() => {});
   }, []);
@@ -1051,7 +1053,7 @@ export default function Home() {
   }, []);
 
   const stats = [
-    { label: "Членов клуба", value: 1250,        plus: true },
+    { label: "Собак в базе", value: dogCount,        plus: true },
     { label: "Питомников",   value: breederCount, plus: true },
     { label: "Лет работы",   value: 15,           plus: true },
   ];
