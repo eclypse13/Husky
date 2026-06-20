@@ -235,8 +235,9 @@ PUT    /api/me/profile/      # Обновление профиля
 
 ```
 GET    /api/home/                    # Главная страница
+GET    /api/dogs/hero/               # Собака-звезда для hero-карточки на главной странице
 GET    /api/dict/                    # Контент-справочник
-GET    /api/dict/by_key/?key=...    # Получить по ключу
+GET    /api/dict/by_key/?key=...     # Получить по ключу
 GET    /api/news/                    # Новости
 GET    /api/pages/{slug}/            # Страница по slug
 GET    /api/galleries/               # Галереи
