@@ -1028,6 +1028,7 @@ function KennelsMap() {
 export default function Home() {
     const [homeNews, setHomeNews] = useState<HomeNewsItem[]>([]);
     const [breederCount, setBreederCount] = useState(350);
+    const [dogCount, setDogCount] = useState(1250);
     const [heroDog, setHeroDog] = useState<HeroDog | null | "loading">("loading");
 
     const visibleNews = useMemo(() => {
@@ -1037,18 +1038,19 @@ export default function Home() {
     const featured = visibleNews[0] ?? news[0];
     const others = featured ? visibleNews.slice(1) : visibleNews;
 
-    // Загружаем кол-во питомников (заводчиков) из БД
+    // ── Загружаем кол-во питомников и собак из БД ────────────────────────────────
     useEffect(() => {
         fetch("/api/dogs/stats/")
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (data?.breeders != null) setBreederCount(data.breeders);
+                if (data?.total != null) setDogCount(data.total);
             })
             .catch(() => {
             });
     }, []);
 
-    // Загружаем собаку-звезду для hero-карточки
+    // ── Загружаем собаку-звезду для hero-карточки ────────────────────────────────
     useEffect(() => {
         fetch("/api/dogs/hero/")
             .then(r => r.ok ? r.json() : null)
@@ -1102,7 +1104,7 @@ export default function Home() {
     }, []);
 
     const stats = [
-        {label: "Членов клуба", value: 1250, plus: true},
+        {label: "Собак в базе", value: dogCount, plus: true},
         {label: "Питомников", value: breederCount, plus: true},
         {label: "Лет работы", value: 15, plus: true},
     ];
@@ -1304,4 +1306,3 @@ export default function Home() {
         </div>
     );
 }
-
