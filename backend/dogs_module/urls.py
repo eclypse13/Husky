@@ -11,7 +11,7 @@ from .views import (
     BreederViewSet,
     OwnerViewSet,
     TitleViewSet,
-    LitterViewSet,
+    # LitterViewSet,
     MedicalRecordViewSet,
 
     ImportZooportalDogView,
@@ -67,7 +67,7 @@ router.register(r'dogs', DogViewSet, basename='dog')
 router.register(r'breeders', BreederViewSet, basename='breeder')
 router.register(r'owners', OwnerViewSet, basename='owner')
 router.register(r'titles', TitleViewSet, basename='title')
-router.register(r'litters', LitterViewSet, basename='litter')
+# router.register(r'litters', LitterViewSet, basename='litter')
 router.register(r'medical-records', MedicalRecordViewSet, basename='medical-record')
 router.register(r'shows', ShowEventViewSet, basename='show-event')
 

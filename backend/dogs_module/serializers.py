@@ -2,7 +2,7 @@ from typing import Optional
 
 from rest_framework import serializers
 from .models import (
-    Dog, Breeder, Owner, Title, MedicalRecord, Litter,
+    Dog, Breeder, Owner, Title, MedicalRecord,
     ShowEvent, ShowResult,
 )
 
@@ -74,13 +74,13 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         fields = ['id', 'registry', 'test_date', 'conclusion', 'ofa_number', 'source']
 
 
-class LitterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Litter
-        fields = [
-            'id', 'date_of_birth',
-            'litter_male_count', 'litter_female_count', 'litter_undef_count'
-        ]
+# class LitterSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Litter
+#         fields = [
+#             'id', 'date_of_birth',
+#             'litter_male_count', 'litter_female_count', 'litter_undef_count'
+#         ]
 
 
 class DogParentSerializer(serializers.ModelSerializer):
@@ -145,7 +145,7 @@ class DogDetailSerializer(serializers.ModelSerializer):
     owners = OwnerSerializer(many=True, read_only=True)
     titles = TitleSerializer(many=True, read_only=True)
     medical_records = MedicalRecordSerializer(many=True, read_only=True)
-    birth_litter = LitterSerializer(read_only=True)
+    # birth_litter = LitterSerializer(read_only=True)
 
     class Meta:
         model = Dog
@@ -166,7 +166,8 @@ class DogDetailSerializer(serializers.ModelSerializer):
             'dam', 'sire',
             'breeders', 'owners',
             'titles', 'medical_records',
-            'birth_litter', 'dog_photo',
+            'dog_photo',
+            # 'birth_litter',
         ]
 
     def get_display_name(self, obj): return obj.display_name

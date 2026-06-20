@@ -157,14 +157,8 @@ class Dog(models.Model):
     sire_name = models.CharField(max_length=500, blank=True, null=True)
     sire_link_name = models.CharField(max_length=500, blank=True, null=True)
 
-    # Помёт рождения
-    birth_litter = models.ForeignKey(
-        'Litter',
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        related_name='puppies'
-    )
+    # Помёт рождения (зарезервировано для будущего использования)
+    birth_litter = models.IntegerField(blank=True, null=True, db_column='birth_litter_id')
 
     # ManyToMany связи
     breeders = models.ManyToManyField(
@@ -235,36 +229,36 @@ class Dog(models.Model):
         return self.date_of_death is None
 
 
-class Litter(models.Model):
-    date_of_birth = models.DateTimeField(blank=True, null=True)
-    litter_male_count = models.IntegerField(blank=True, null=True)
-    litter_female_count = models.IntegerField(blank=True, null=True)
-    litter_undef_count = models.IntegerField(blank=True, null=True)
-    sire = models.ForeignKey(
-        Dog, on_delete=models.SET_NULL, blank=True, null=True,
-        related_name='litters_as_sire'
-    )
-    dam = models.ForeignKey(
-        Dog, on_delete=models.SET_NULL, blank=True, null=True,
-        related_name='litters_as_dam'
-    )
-    mating_partner = models.ForeignKey(
-        Dog, on_delete=models.SET_NULL, blank=True, null=True,
-        related_name='litters_as_mating_partner'
-    )
-
-    class Meta:
-        managed = True
-        db_table = 'litter'
-        app_label = 'dogs_module'
-        verbose_name = 'Помёт'
-        verbose_name_plural = 'Помёты'
-
-    def __str__(self):
-        dam_name = self.dam.display_name if self.dam else '?'
-        sire_name = self.sire.display_name if self.sire else '?'
-        date = self.date_of_birth.strftime('%d.%m.%Y') if self.date_of_birth else '?'
-        return f'{dam_name} × {sire_name} ({date})'
+# class Litter(models.Model):
+#     date_of_birth = models.DateTimeField(blank=True, null=True)
+#     litter_male_count = models.IntegerField(blank=True, null=True)
+#     litter_female_count = models.IntegerField(blank=True, null=True)
+#     litter_undef_count = models.IntegerField(blank=True, null=True)
+#     sire = models.ForeignKey(
+#         Dog, on_delete=models.SET_NULL, blank=True, null=True,
+#         related_name='litters_as_sire'
+#     )
+#     dam = models.ForeignKey(
+#         Dog, on_delete=models.SET_NULL, blank=True, null=True,
+#         related_name='litters_as_dam'
+#     )
+#     mating_partner = models.ForeignKey(
+#         Dog, on_delete=models.SET_NULL, blank=True, null=True,
+#         related_name='litters_as_mating_partner'
+#     )
+#
+#     class Meta:
+#         managed = True
+#         db_table = 'litter'
+#         app_label = 'dogs_module'
+#         verbose_name = 'Помёт'
+#         verbose_name_plural = 'Помёты'
+#
+#     def __str__(self):
+#         dam_name = self.dam.display_name if self.dam else '?'
+#         sire_name = self.sire.display_name if self.sire else '?'
+#         date = self.date_of_birth.strftime('%d.%m.%Y') if self.date_of_birth else '?'
+#         return f'{dam_name} × {sire_name} ({date})'
 
 
 class Dogbreederlink(models.Model):

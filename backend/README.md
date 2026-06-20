@@ -275,7 +275,6 @@ POST   /api/dogs/{id}/calculate_coi/                   # Расчёт коэфф
 GET    /api/breeders/                                   # Заводчики
 GET    /api/owners/                                      # Владельцы
 GET    /api/titles/                                       # Титулы
-GET    /api/litters/                                        # Помёты
 GET    /api/medical-records/                                 # Медицинские записи
 GET    /api/shows/                                             # Выставочные мероприятия
 GET    /api/dogs/stats/population/                                # Популяционная аналитика

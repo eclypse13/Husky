@@ -11,14 +11,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .config import HUSKY_REGISTRIES
-from .models import Dog, Breeder, Owner, Title, Litter, MedicalRecord, ShowEvent, ShowResult
+from .models import Dog, Breeder, Owner, Title, MedicalRecord, ShowEvent, ShowResult
 from .serializers import (
     DogListSerializer,
     DogDetailSerializer,
     BreederSerializer,
     OwnerSerializer,
     TitleSerializer,
-    LitterSerializer,
+    # LitterSerializer,
     PedigreeSerializer,
     MedicalRecordSerializer,
     ShowEventSerializer,
@@ -214,9 +214,9 @@ class TitleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TitleSerializer
 
 
-class LitterViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Litter.objects.using('dogs_db').none()
-    serializer_class = LitterSerializer
+# class LitterViewSet(viewsets.ReadOnlyModelViewSet):
+#     queryset = Litter.objects.using('dogs_db').none()
+#     serializer_class = LitterSerializer
 
 
 class MedicalRecordViewSet(viewsets.ReadOnlyModelViewSet):
