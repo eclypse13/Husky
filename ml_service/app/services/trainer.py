@@ -14,7 +14,6 @@ from ..config import settings, FEATURE_COLS, TARGETS
 logger = logging.getLogger(__name__)
 
 
-# Обучает CatBoost для одной болезни
 def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
     from catboost import CatBoostClassifier, Pool
 
@@ -29,7 +28,6 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
 
     logger.info(f"trainer {name}: {total} записей, позитивных: {positive} ({rate:.1%})")
 
-    # Кросс-валидация
     n_splits = min(5, positive)
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
     auc_scores = []
@@ -56,7 +54,6 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
         proba = fold_model.predict_proba(X_val)[:, 1]
         auc_scores.append(roc_auc_score(y_val, proba))
 
-    # Финальная модель на всех данных
     final_model = CatBoostClassifier(
         iterations=settings.catboost_iterations,
         learning_rate=settings.catboost_learning_rate,
@@ -69,7 +66,6 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
     )
     final_model.fit(Pool(X, y))
 
-    # Сохраняем через model_store
     save_model(final_model, name)
 
     auc_mean = round(float(np.mean(auc_scores)), 3)
@@ -101,8 +97,7 @@ def train(dataset: list[dict]) -> dict:
     df = pd.DataFrame(clean)
 
     # reindex (не df[FEATURE_COLS]): недостающие колонки → NaN вместо KeyError.
-    # Защита от рассинхрона набора фич между Django и ML.
-    X = df.reindex(columns=FEATURE_COLS)
+    X_full = df.reindex(columns=FEATURE_COLS)
 
     results = {"dataset_size": len(df), "models": {}}
 
@@ -114,11 +109,22 @@ def train(dataset: list[dict]) -> dict:
             }
             continue
 
-        y = df[col].fillna(0).astype(int)
-        result = _train_one(X, y, short_name)
+        # Берём только строки с непустой меткой для этой модели
+        mask = df[col].notna()
+        X_subset = X_full[mask]
+        y = df.loc[mask, col].astype(int)
+
+        if len(y) == 0:
+            results["models"][short_name] = {
+                "skipped": True,
+                "reason": "нет размеченных примеров",
+            }
+            continue
+
+        result = _train_one(X_subset, y, short_name)
+        result["labeled_samples"] = len(y)  # сколько строк фактически в обучении
         results["models"][short_name] = result
 
-        # Сбрасываем кэш чтобы predictor подхватил новую модель
         if not result.get("skipped"):
             invalidate_cache(short_name)
 

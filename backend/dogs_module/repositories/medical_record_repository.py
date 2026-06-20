@@ -17,16 +17,24 @@ def filter_records(dog_id=None, source: str = None):
     return qs.order_by('-test_date')
 
 
+# def get_ofa_records_for_dogs_values(dog_ids) -> list:
+#     from ..models import MedicalRecord
+#     if not dog_ids:
+#         return []
+#     return list(
+#         MedicalRecord.objects.using('dogs_db')
+#         .filter(dog_id__in=dog_ids, source='ofa')
+#         .values('dog_id', 'registry', 'conclusion', 'test_date')
+#     )
 def get_ofa_records_for_dogs_values(dog_ids) -> list:
     from ..models import MedicalRecord
     if not dog_ids:
         return []
     return list(
         MedicalRecord.objects.using('dogs_db')
-        .filter(dog_id__in=dog_ids, source='ofa')
+        .filter(dog_id__in=dog_ids)
         .values('dog_id', 'registry', 'conclusion', 'test_date')
     )
-
 
 def get_ofa_hips_for_dogs_values(dog_ids) -> list:
     from ..models import MedicalRecord
