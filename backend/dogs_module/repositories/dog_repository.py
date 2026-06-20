@@ -23,13 +23,12 @@ def get_detail(dog_id) -> "Dog | None":
     try:
         return (
             Dog.objects.using('dogs_db')
-            .select_related('dam', 'sire', 'birth_litter')
+            .select_related('dam', 'sire')
             .prefetch_related('breeders', 'owners', 'titles', 'medical_records')
             .get(pk=dog_id)
         )
     except Dog.DoesNotExist:
         return None
-
 
 # Из списка zooportal_id возвращает те, которых нет в БД
 def get_missing_zoo_ids(zoo_ids: list) -> list:
