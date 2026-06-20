@@ -166,7 +166,7 @@ CELERY_TASK_ACKS_LATE = True
 
 CELERY_TASK_ROUTES = {
 
-    # ── playwright: задачи которые физически открывают браузер ───────────────
+    # playwright: задачи которые физически открывают браузер
     # Только эти задачи идут в worker с concurrency=1
     'dogs_module.import_zooportal_dog': {'queue': 'playwright'},
     'dogs_module.import_zooportal_page': {'queue': 'playwright'},
@@ -177,7 +177,7 @@ CELERY_TASK_ROUTES = {
     'dogs_module.photo_fetch_zoo_via_playwright': {'queue': 'playwright'},
     'dogs_module.refresh_cookies': {'queue': 'playwright'},
 
-    # ── celery: диспетчеры (только раздают задачи, Playwright не открывают) ──
+    # celery: диспетчеры (только раздают задачи, Playwright не открывают)
     'dogs_module.import_zooportal_range': {'queue': 'celery'},
     'dogs_module.import_hybrid_full_range': {'queue': 'celery'},
     'dogs_module.import_shows_full': {'queue': 'celery'},
@@ -190,23 +190,23 @@ CELERY_TASK_ROUTES = {
     'dogs_module.recalculate_show_ratings': {'queue': 'celery'},
     'dogs_module.finalize_shows': {'queue': 'celery'},
 
-    # ── ofa: HTTP к ofa.org ───────────────────────────────────────────────────
+    # ofa: HTTP к ofa.org
     'dogs_module.fetch_ofa_dog_task': {'queue': 'ofa'},
     'dogs_module.fetch_ofa_bulk_by_reg_task': {'queue': 'ofa'},
     'dogs_module.fetch_ofa_bulk_by_name_task': {'queue': 'ofa'},
     'dogs_module.refresh_ofa_sh_breed_stats': {'queue': 'ofa'},
 
-    # ── ba: HTTP к breedarchive.com ───────────────────────────────────────────
+    # ba: HTTP к breedarchive.com
     'dogs_module.fetch_breedarchive_dog': {'queue': 'ba'},
     'dogs_module.fetch_full_pedigree': {'queue': 'ba'},
     'dogs_module.sync_breedarchive_recent': {'queue': 'ba'},
     # browse через Playwright но без проблем (антибота) работает
     'dogs_module.sync_breedarchive_browse': {'queue': 'ba'},
 
-    # ── coi: CPU-интенсивный расчёт ───────────────────────────────────────────
+    # coi: CPU-интенсивный расчёт
     'dogs_module.recalculate_all_coi': {'queue': 'coi'},
 
-    # ── photos: HTTP к Яндекс.Диску + DB ─────────────────────────────────────
+    # photos: HTTP к Яндекс.Диску + DB
     'dogs_module.photo_upload_one': {'queue': 'photos'},
     'dogs_module.photo_sync_yadisk_to_db': {'queue': 'photos'},
     'dogs_module.photo_stats': {'queue': 'photos'},
@@ -214,7 +214,7 @@ CELERY_TASK_ROUTES = {
     'dogs_module.photo_backfill_hashes': {'queue': 'photos'},
     'dogs_module.photo_cleanup_placeholders': {'queue': 'photos'},
 
-    # ── ml: HTTP к ML-сервису ─────────────────────────────────────────────────
+    # ml: HTTP к ML-сервису
     'dogs_module.train_ml_model_task': {'queue': 'celery'},
     'dogs_module.predict_breeding_task': {'queue': 'celery'},
 }

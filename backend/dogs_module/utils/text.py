@@ -1,4 +1,3 @@
-# dogs_module/utils/text.py
 """
 Утилиты для работы с текстом
 """
@@ -8,35 +7,22 @@ import unicodedata
 from typing import List
 
 
-# НОРМАЛИЗАЦИЯ ИМЁН
+# Нормализует имя собаки в title
 def normalize_dog_name(name: str) -> str:
-    """
-    Нормализует имя собаки в title.
-
-    ПРИМЕР:
-    "  all about orinoco  " → "All About Orinoco"
-    """
     if not name:
         return ""
     return " ".join(name.split()).title()
 
+
 def normalize_yo(s: str) -> str:
     return s.replace('ё', 'е').replace('Ё', 'Е')
 
-def normalize_name_title_case(name: str) -> str:
-    """
-    Приводит имя к Title Case для поиска в BreedArchive.
 
-    ПРИМЕРЫ:
-    - "LODGEPOLES LIFE" → "Lodgepoles Life"
-    - "lodgepoles life" → "Lodgepoles Life"
-    """
+# Приводит имя к Title Case для поиска в BreedArchive
+def normalize_name_title_case(name: str) -> str:
     if not name:
         return ""
     return " ".join(w.capitalize() for w in name.strip().split())
-
-
-# РАБОТА С ТИТУЛАМИ В ИМЕНАХ
 
 
 # Полный список титульных приставок (используется при поиске в BA и нормализации)
@@ -59,20 +45,8 @@ _DOTTED_TITLE_RE = re.compile(
 )
 
 
+# Удаляет титульные приставки из имени собаки
 def remove_titles_from_name(name: str) -> str:
-    """
-    Удаляет титульные приставки из имени собаки.
-
-    Обрабатывает оба формата:
-    - Пробельный:  "CH Lodgepole..."       → "Lodgepole..."
-    - Точечный:    "CH.RUS ALL ABOUT..."   → "ALL ABOUT..."
-    - Смешанный:   "JCH.RUS, CH.RKF FOXFIRE" → "FOXFIRE"
-
-    ПРИМЕРЫ:
-    - "CH.RUS ALL ABOUT ORINOCO"     → "ALL ABOUT ORINOCO"
-    - "JCH.RUS, CH.RKF FOXFIRE"      → "FOXFIRE"
-    - "MULTI CH Lodgepoles Life"     → "Lodgepoles Life"
-    """
     if not name:
         return ""
 
@@ -89,14 +63,6 @@ def remove_titles_from_name(name: str) -> str:
 
 # ПОЛ
 def parse_sex(text: str) -> int:
-    """
-    Парсит пол из текста.
-
-    ВОЗВРАЩАЕТ:
-    - 1 = кобель (male)
-    - 2 = сука (female)
-    - 0 = неизвестно
-    """
     if not text:
         return 0
 
@@ -112,19 +78,13 @@ def parse_sex(text: str) -> int:
 
 # ОЧИСТКА ТЕКСТА
 def clean_text(text: str) -> str:
-    """
-    Очищает текст от лишних символов.
-
-    ПРИМЕРЫ:
-    - "   Text  with\\n\\nnewlines   " → "Text with newlines"
-    - "Text\\t\\twith\\ttabs"          → "Text with tabs"
-    """
     if not text:
         return ""
 
     text = re.sub(r'[\n\r\t]+', ' ', text)
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
+
 
 def color_stem(word: str) -> str:
     word = normalize_yo(word.strip('-').strip())
@@ -133,6 +93,7 @@ def color_stem(word: str) -> str:
     if len(word) > 4:
         return word[:-1]
     return word
+
 
 def build_color_filter(qs, color: str):
     from django.db.models import Q, Value, F
@@ -168,15 +129,9 @@ def build_color_filter(qs, color: str):
 
     return qs.filter(q)
 
+
 # НОМЕР РОДОСЛОВНОЙ
 def extract_registration_number(text: str) -> str:
-    """
-    Извлекает номер родословной из текста.
-
-    ПРИМЕРЫ:
-    - "РКФ 6145419"            → "РКФ 6145419"
-    - "RKF 4832047 grey&white" → "RKF 4832047"
-    """
     if not text:
         return ""
 
@@ -212,34 +167,18 @@ _EN_TO_RU: list = [
 
 
 def transliterate_ru_to_en(text: str) -> str:
-    """
-    Транслитерация RU → EN.
-
-    ПРИМЕРЫ:
-    - "Сибирский" → "Sibirskiy"
-    """
     return ''.join(_RU_TO_EN.get(c.lower(), c) for c in text)
 
 
 def transliterate_en_to_ru(text: str) -> str:
-    """
-    Транслитерация EN → RU.
-
-    ПРИМЕРЫ:
-    - "Sibirskiy" → "Сибирский"
-    """
     result = text.lower()
     for en, ru in _EN_TO_RU:
         result = result.replace(en, ru)
     return result
 
 
+# Жёсткая нормализация ТОЛЬКО для нечёткого сравнения имён
 def normalize_for_similarity(name: str) -> str:
-    """
-    Жёсткая нормализация ТОЛЬКО для нечёткого сравнения имён (не для хранения).
-    Снимает титулы, регистр, апострофы/кавычки, диакритику; схлопывает разделители.
-    'CH Pain Babe' / "Pain Babe" / 'Раин Babe' → 'pain babe'
-    """
     if not name:
         return ""
     s = remove_titles_from_name(name)

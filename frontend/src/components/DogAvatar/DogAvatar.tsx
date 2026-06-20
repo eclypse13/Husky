@@ -1,75 +1,72 @@
-// src/components/DogAvatar/DogAvatar.tsx
-import type { CSSProperties, MouseEvent, SyntheticEvent } from "react";
-import { dogPhoto, DEFAULT_DOG_IMG } from "@/utils/dogPhoto";
+import type {CSSProperties, MouseEvent, SyntheticEvent} from "react";
+import {DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
 
 export interface DogAvatarProps {
-  /** Приоритетное фото (поле dog_photo из API) */
-  dog_photo?: string | null;
-  /** Запасное фото (поле photo_url из API) */
-  photo_url?: string | null;
-  alt?: string;
-  /**
-   * Если передан wrapClassName — size применяется к wrapper-div,
-   * img растягивается через CSS.
-   * Если wrapper нет — size применяется к img напрямую.
-   */
-  size?: number;
-  /** CSS-класс на тег <img> */
-  className?: string;
-  /** Инлайн-стили на тег <img> */
-  style?: CSSProperties;
-  /**
-   * Если указан — img оборачивается в <div className={wrapClassName}>.
-   * Используй, когда в CSS уже есть стили для этой обёртки
-   * (object-fit, border-radius и т.д.).
-   */
-  wrapClassName?: string;
-  loading?: "lazy" | "eager";
-  /** Event передаётся, чтобы можно было вызвать e.stopPropagation() в lightbox */
-  onClick?: (e: MouseEvent<HTMLImageElement>) => void;
+    /** Приоритетное фото из API (поле dog_photo — теперь это прокси-ссылка на ЯД) */
+    dog_photo?: string | null;
+    /** Запасное фото из API (поле photo_url — исходник BreedArchive/Zooportal) */
+    photo_url?: string | null;
+    alt?: string;
+    size?: number;
+    className?: string;
+    style?: CSSProperties;
+    wrapClassName?: string;
+    loading?: "lazy" | "eager";
+    onClick?: (e: MouseEvent<HTMLImageElement>) => void;
 }
 
 export function DogAvatar({
-  dog_photo,
-  photo_url,
-  alt = "",
-  size,
-  className,
-  style,
-  wrapClassName,
-  loading = "lazy",
-  onClick,
-}: DogAvatarProps) {
-  const handleError = (e: SyntheticEvent<HTMLImageElement>) => {
-    (e.target as HTMLImageElement).src = DEFAULT_DOG_IMG;
-  };
-
-  const img = (
-    <img
-      src={dogPhoto(dog_photo ?? null, photo_url ?? null)}
-      alt={alt}
-      loading={loading}
-      className={className}
-      style={{
-        ...(!wrapClassName && size ? { width: size, height: size } : {}),
-        ...style,
-      }}
-      onError={handleError}
-      onClick={onClick}
-    />
-  );
-
-  if (wrapClassName) {
-    return (
-      <div
-        className={wrapClassName}
-        style={size ? { width: size, height: size } : undefined}
-      >
-        {img}
-      </div>
+                              dog_photo,
+                              photo_url,
+                              alt = "",
+                              size,
+                              className,
+                              style,
+                              wrapClassName,
+                              loading = "lazy",
+                              onClick,
+                          }: DogAvatarProps) {
+    // порядок показа: прокси (ЯД) → исходник → заглушка; дубликаты убираем
+    const candidates = Array.from(
+        new Set([dog_photo, photo_url].filter(Boolean) as string[])
     );
-  }
+    const initialSrc = candidates[0] ?? DEFAULT_DOG_IMG;
 
-  return img;
+    const handleError = (e: SyntheticEvent<HTMLImageElement>) => {
+        const el = e.currentTarget;
+        if (el.dataset.done === "1") return;          // заглушка тоже не загрузилась — стоп
+        const next = Number(el.dataset.idx ?? "0") + 1;
+        if (next < candidates.length) {
+            el.dataset.idx = String(next);
+            el.src = candidates[next];                  // следующий кандидат (исходник)
+        } else {
+            el.dataset.done = "1";
+            el.src = DEFAULT_DOG_IMG;                    // всё перебрали — заглушка, без зацикливания
+        }
+    };
+
+    const img = (
+        <img
+            src={initialSrc}
+            data-idx="0"
+            alt={alt}
+            loading={loading}
+            className={className}
+            style={{
+                ...(!wrapClassName && size ? {width: size, height: size} : {}),
+                ...style,
+            }}
+            onError={handleError}
+            onClick={onClick}
+        />
+    );
+
+    if (wrapClassName) {
+        return (
+            <div className={wrapClassName} style={size ? {width: size, height: size} : undefined}>
+                {img}
+            </div>
+        );
+    }
+    return img;
 }
-

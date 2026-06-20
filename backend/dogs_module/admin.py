@@ -1,5 +1,4 @@
-# dogs_module/admin.py
-"""Django Admin — панель управления импортом."""
+"""Django Admin. Панель управления импортом."""
 
 import logging
 from django import forms
@@ -58,10 +57,7 @@ from .tasks.tasks_coi import recalculate_all_coi_task
 logger = logging.getLogger(__name__)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ФОРМЫ
-# ══════════════════════════════════════════════════════════════════════════════
-
 class ZooportalDogForm(forms.Form):
     zooportal_id = forms.CharField(
         label='Zooportal ID', max_length=20,
@@ -220,7 +216,7 @@ class ShowRecalculateRatingsForm(forms.Form):
     )
 
 
-# ── Формы для фото / Яндекс.Диск ─────────────────────────────────────────────
+# Формы для фото / Яндекс.Диск
 
 class PhotoStatsForm(forms.Form):
     """
@@ -356,7 +352,7 @@ class PhotoCleanupPlaceholdersForm(forms.Form):
     pass
 
 
-# ── Формы OFA ─────────────────────────────────────────────
+# Формы OFA
 
 
 class OFADogForm(forms.Form):
@@ -398,7 +394,7 @@ class OFABulkByRegForm(forms.Form):
     only_without_ofa = forms.BooleanField(label='Только без OFA записей', required=False, initial=True)
 
 
-# ── Формы ML ─────────────────────────────────────────────
+# Формы ML
 class MLTrainForm(forms.Form):
     """
     Обучение ML модели на данных из БД.
@@ -431,7 +427,7 @@ class MLPredictForm(forms.Form):
     )
 
 
-# ── Формы COI ─────────────────────────────────────────────
+# Формы COI
 
 class COIRecalculateForm(forms.Form):
     """
@@ -453,10 +449,7 @@ class COIRecalculateForm(forms.Form):
     )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ACTIONS ДЛЯ МОДЕЛИ DOG
-# ══════════════════════════════════════════════════════════════════════════════
-
 @admin.action(description="🐾 BA: загрузить полную родословную (все поколения)")
 def sync_full_pedigree_action(modeladmin, request, queryset):
     dispatched = skipped = 0
@@ -506,10 +499,7 @@ def sync_hybrid_full_pedigree_action(modeladmin, request, queryset):
         )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # ADMIN: Панель импорта
-# ══════════════════════════════════════════════════════════════════════════════
-
 @admin.register(ImportTaskProxy)
 class ImportPanelAdmin(admin.ModelAdmin):
 
@@ -864,7 +854,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'message': f"Hybrid Full диапазон {d['start_page']}–{d['end_page']} (все поколения) запущен",
         }
 
-    # ── Фото / Яндекс.Диск ───────────────────────────────────────────────────────
+    # Фото / Яндекс.Диск
 
     def _photo_stats(self, request):
         """Статистика: сколько в БД, на ЯД, осталось."""
@@ -1174,10 +1164,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
         }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # РЕГИСТРАЦИЯ Dog с actions
-# ══════════════════════════════════════════════════════════════════════════════
-
 @admin.action(description="📷 ЯД: загрузить фото выбранных собак")
 def upload_photos_to_yadisk_action(modeladmin, request, queryset):
     dispatched = no_url = 0
@@ -1198,7 +1185,6 @@ def upload_photos_to_yadisk_action(modeladmin, request, queryset):
         modeladmin.message_user(request, f"📷 Запущена загрузка {dispatched} фото на ЯД", messages.SUCCESS)
     if no_url:
         modeladmin.message_user(request, f"⚠️ У {no_url} собак нет photo_url", messages.WARNING)
-
 
 
 @admin.action(description="🔢 ЯД: посчитать hash фото выбранных собак")

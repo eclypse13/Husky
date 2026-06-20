@@ -1,6 +1,5 @@
-# dogs_module/services/photo_service.py
 """
-Бизнес-логика работы с фотографиями собак и Яндекс.Диском.
+Сервис работы с фотографиями собак и Яндекс.Диском.
 """
 import hashlib
 import logging
@@ -19,31 +18,27 @@ from . import yadisk_client as yd
 
 logger = logging.getLogger(__name__)
 
-# in-memory кеш public_key папки (не меняется во время работы сервиса)
 _PUBLIC_KEY_CACHE: dict = {}
 
 
-# Утилиты
 def _ext(url: str) -> str:
     ext = os.path.splitext(urlparse(url).path)[-1].lower()
     return ext if ext in ALLOWED_PHOTO_EXT else ".jpg"
 
 
+# Канонический путь файла на ЯД для данной собаки
 def yadisk_path_for(dog_id: int, photo_url: str) -> str:
-    """Канонический путь файла на ЯД для данной собаки."""
     return f"{YADISK_FOLDER}/{dog_id}{_ext(photo_url)}"
 
 
 # Публичный реэкспорт для обратной совместимости
 # tasks_photos.py и integration.py зовут yadisk_ensure_folder напрямую
 def yadisk_ensure_folder() -> None:
-    """Создаёт dogs/ и dogs/photos/ на ЯД если их нет."""
     yd.ensure_photos_folder()
 
 
-# Скачивание с источника
+# Скачивание BA фото
 def _download_with_ba_cookies(url: str) -> Optional[bytes]:
-    """Скачивает BA фото через httpx с retry."""
     import ssl
     import httpx
 
@@ -100,8 +95,8 @@ def _download_with_ba_cookies(url: str) -> Optional[bytes]:
         return None
 
 
+# Скачивание Zoo фото
 def _download_with_zoo_cookies(url: str) -> Optional[bytes]:
-    """Fallback: скачивает Zoo фото с авторизацией + Referer."""
     try:
         import httpx
         from ..utils.cookie_refresher import get_zoo_cookies
@@ -139,10 +134,6 @@ def _download_with_zoo_cookies(url: str) -> Optional[bytes]:
 
 
 def download_from_source(url: str) -> Optional[bytes]:
-    """
-    BA  → httpx через _download_with_ba_cookies
-    Zoo → httpx, при блокировке — с куками
-    """
     try:
         if "breedarchive" in url:
             return _download_with_ba_cookies(url)
@@ -174,14 +165,34 @@ def download_from_source(url: str) -> Optional[bytes]:
         return None
 
 
-# Основная логика
+# Свежий одноразовый download-href ЯД по dog_id
+def get_fresh_download_href(dog_id: int) -> Optional[str]:
+    from django.core.cache import cache
+    from ..repositories import dog_repository as dog_repo
+
+    ckey = f"dogphoto:href:{dog_id}"
+    href = cache.get(ckey)
+    if href:
+        return href
+
+    dog = dog_repo.get_by_id(dog_id)
+    path = getattr(dog, "photo_yadisk_path", None) if dog else None
+    if not path:
+        return None
+
+    href = yd.get_download_href(path)  # см. ниже
+    if href:
+        cache.set(ckey, href, timeout=120)
+    return href
+
+
+# Скачивает фото и грузит на ЯД только если оно реально изменилось
 def sync_photo_to_yadisk(
         dog_id: int,
         photo_url: str,
         current_yadisk_path: Optional[str],
         current_hash: Optional[str] = None,
 ) -> Dict:
-    """Скачивает фото и грузит на ЯД только если оно реально изменилось (по хэшу)."""
     yadisk_path = current_yadisk_path or yadisk_path_for(dog_id, photo_url)
 
     # Дешёвый префильтр: явная заглушка по URL — не тратим трафик
@@ -196,11 +207,9 @@ def sync_photo_to_yadisk(
     return _store_or_skip(dog_id, yadisk_path, data, current_hash)
 
 
+# Скачивает Zoo-фото через Playwright заливает на ЯД.
 def fetch_zoo_photo_via_playwright(dog_id: int, zooportal_id: str, photo_url: str,
                                    current_hash: Optional[str] = None, ) -> Dict:
-    """
-    Скачивает Zoo-фото через Playwright (обходит hotlink защиту) и заливает на ЯД.
-    """
     from ..parsers.zooportal import BrowserManager
     from ..config import ZOOPORTAL_BASE_URL, ZOOPORTAL_DOG_PATH
 
@@ -220,24 +229,18 @@ def fetch_zoo_photo_via_playwright(dog_id: int, zooportal_id: str, photo_url: st
     return upload_photo_bytes_to_yadisk(dog_id, photo_url, photo_bytes, current_hash)
 
 
+# Заливает уже скачанные байты (Zoo/Playwright) с дедупом и фильтром заглушек.
 def upload_photo_bytes_to_yadisk(
         dog_id: int,
         photo_url: str,
         photo_bytes: bytes,
         current_hash: Optional[str] = None,
 ) -> Dict:
-    """Заливает уже скачанные байты (Zoo/Playwright) с дедупом и фильтром заглушек."""
     yadisk_path = yadisk_path_for(dog_id, photo_url)
     return _store_or_skip(dog_id, yadisk_path, photo_bytes, current_hash)
 
 
-# Оркестраторы
-
 def process_dog_photo(dog_id: int):
-    """
-    Полный цикл загрузки фото одной собаки на ЯД.
-    Zoo-фото перенаправляет на Playwright — возвращает (result, redirect_to_zoo=True).
-    """
     from ..repositories import dog_repository as dog_repo
 
     dog = dog_repo.get_photo_fields(dog_id, with_zooportal=True)
@@ -276,7 +279,6 @@ def process_dog_photo(dog_id: int):
 
 
 def process_zoo_dog_photo(dog_id: int) -> Dict:
-    """Полный цикл загрузки Zoo-фото через Playwright + запись путей в БД."""
     from ..repositories import dog_repository as dog_repo
 
     dog = dog_repo.get_photo_fields(dog_id, with_zooportal=True)
@@ -310,11 +312,8 @@ def process_zoo_dog_photo(dog_id: int) -> Dict:
     return result
 
 
+# Cканирует disk:/dogs/photos/, по имени файла, обновляет photo_yadisk_path в БД.
 def sync_yadisk_to_db() -> Dict:
-    """
-    ЯД → БД: сканирует disk:/dogs/photos/, по имени файла
-    (12345.jpg → dog_id=12345) обновляет photo_yadisk_path в БД.
-    """
     from ..repositories import dog_repository as dog_repo
 
     files = yd.list_files()
@@ -354,7 +353,6 @@ def sync_yadisk_to_db() -> Dict:
 
 
 def get_photo_stats() -> Dict:
-    """Статистика по фото: сколько в БД, сколько на ЯД."""
     from ..repositories import dog_repository as dog_repo
 
     counts = dog_repo.get_photo_coverage_counts()
@@ -379,13 +377,13 @@ def get_photo_stats() -> Dict:
     }
 
 
+# Выбирает собак с photo_url для bulk-синхронизации
 def get_dogs_for_bulk_sync(
         id_from: int = 1,
         id_to: Optional[int] = None,
         limit: int = 500,
         only_without_yadisk: bool = True,
 ) -> List[Dict]:
-    """Выбирает собак с photo_url для bulk-синхронизации."""
     from ..repositories import dog_repository as dog_repo
     return dog_repo.get_dogs_with_photo_url(
         id_from=id_from, id_to=id_to, limit=limit,
@@ -394,7 +392,6 @@ def get_dogs_for_bulk_sync(
 
 
 def get_yadisk_public_key() -> Optional[str]:
-    """Возвращает public_key папки dogs/photos. Кешируется в памяти."""
     if _PUBLIC_KEY_CACHE.get("key"):
         return _PUBLIC_KEY_CACHE["key"]
     key = yd.get_public_key()
@@ -405,10 +402,6 @@ def get_yadisk_public_key() -> Optional[str]:
 
 
 def get_public_photo_url(yadisk_path: str) -> Optional[str]:
-    """
-    Постоянная публичная ссылка на файл в папке dogs/photos.
-    URL = YADISK_PUBLIC_DOWNLOADER/{public_key}/{filename}
-    """
     if not yadisk_path:
         return None
     filename = os.path.basename(yadisk_path)
@@ -419,9 +412,7 @@ def get_public_photo_url(yadisk_path: str) -> Optional[str]:
 
 
 # Отпечаток фото (хэш + детекция заглушек)
-
 def photo_hash(data: bytes) -> str:
-    """Контентный хэш изображения. Основа сравнения и дедупликации."""
     return hashlib.sha256(data).hexdigest()
 
 
@@ -440,14 +431,9 @@ def _store_or_skip(
         data: bytes,
         current_hash: Optional[str],
 ) -> Dict:
-    """
-    Единое ядро решения для уже полученных байт.
-
-    status: uploaded | skipped | skipped_placeholder | error
-    """
     new_hash = photo_hash(data)
 
-    # 1. Дефолтная картинка сайта — у сотни собак она одинаковая, не плодим копии
+    # 1. Дефолтная картинка сайта у сотни собак она одинаковая, не плодим копии
     if _is_placeholder_hash(new_hash):
         logger.info(f"dog {dog_id}: дефолтное фото сайта (hash={new_hash[:12]}), на ЯД не грузим")
         return {"status": "skipped_placeholder", "hash": new_hash,
@@ -476,16 +462,12 @@ def _store_or_skip(
             "size": len(data), "hash": new_hash}
 
 
-# Для тех, у которых есть yandex path
+# Для тех, у которых есть yandex path но без hash.
 def backfill_photo_hashes(
         limit: int = 1000,
         id_from: int = 1,
         id_to: int = None,
 ) -> Dict:
-    """
-    Считает photo_hash для собак с фото на ЯД но без hash.
-    Для Zoo-собак скачивает через Playwright (нужен hotlink обход).
-    """
     from ..repositories import dog_repository as dog_repo
 
     dogs = dog_repo.get_dogs_with_yadisk_without_hash(
@@ -527,10 +509,6 @@ def backfill_hashes_from_source(
         id_from: int = 1,
         id_to: int = None,
 ) -> Dict:
-    """
-    Считает photo_hash из оригинального photo_url (не с ЯД).
-    Для BA собак — HTTP, для Zoo — нужен Playwright (пропускаем).
-    """
     from ..repositories import dog_repository as dog_repo
 
     dogs = dog_repo.get_dogs_with_url_without_hash(
@@ -539,7 +517,6 @@ def backfill_hashes_from_source(
     done = skipped = 0
 
     for dog in dogs:
-        # Zoo требует Playwright — пропускаем здесь
         if 'zooportal' in (dog.get('photo_url') or ''):
             skipped += 1
             logger.info(f"Processing dog {dog['id']}: {dog.get('photo_url')}")
@@ -559,16 +536,12 @@ def backfill_hashes_from_source(
 
 
 def find_placeholder_candidates(min_count: int = 5, top: int = 20) -> List[Dict]:
-    """
-    Группирует фото по хэшу и возвращает самые частые.
-    Дефолтная серая заглушка всплывёт с count в сотни — её хэш переносите в DEFAULT_PHOTO_HASHES.
-    """
     from ..repositories import dog_repository as dog_repo
     return dog_repo.count_dogs_by_photo_hash(min_count=min_count, top=top)
 
 
+# Удаляет с ЯД уже залитые заглушки
 def cleanup_placeholder_photos() -> Dict:
-    """Удаляет с ЯД уже залитые заглушки (по DEFAULT_PHOTO_HASHES) и чистит поля."""
     from ..repositories import dog_repository as dog_repo
     from ..config.yadisk import DEFAULT_PHOTO_HASHES
     dogs = dog_repo.get_dogs_by_photo_hash(list(DEFAULT_PHOTO_HASHES))  # написать в репо
@@ -582,8 +555,8 @@ def cleanup_placeholder_photos() -> Dict:
     return {"status": "done", "cleaned": len(dogs), "deleted_from_yadisk": deleted}
 
 
+# Удаляет фото собаки с ЯД и обнуляет photo_yadisk_path/url/hash в БД
 def delete_dog_photo(dog_id: int) -> Dict:
-    """Удаляет фото собаки с ЯД и обнуляет photo_yadisk_path/url/hash в БД."""
     from ..repositories import dog_repository as dog_repo
 
     dog = dog_repo.get_photo_fields(dog_id)

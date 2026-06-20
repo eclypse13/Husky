@@ -1,10 +1,9 @@
-# dogs_module/services/synthetic_generator.py
 """
 Генератор синтетических данных для обучения ML модели.
 
 Данные генерируются на основе реальной статистики OFA по породе Siberian Husky.
 
-ВАЖНО:
+Важно:
   • Синтетика существует только в памяти и не сохраняется в БД.
   • Метка «дисплазия» = Borderline+ (порог 3, как HIP_PROBLEM_THRESHOLD),
     т.е. редкое событие (~3% протестированных у хаски). Вероятности ниже
@@ -61,23 +60,23 @@ P_HAS_ELBOW_TEST = 0.15
 P_HAS_DM_TEST = 0.10
 P_HAS_PRA_TEST = 0.04
 
-# COI по породе, ПРОЦЕНТЫ
+# COI по породе, проценты
 COI_MEAN = 4.5
 COI_STD = 3.0
 COI_MIN = 0.5
 COI_MAX = 25.0
 
 
+# Случайный результат по распределению
 def _sample(distribution: dict) -> int:
-    """Случайный результат по распределению."""
     return random.choices(
         distribution["scores"],
         weights=distribution["probabilities"],
     )[0]
 
 
+# Случайный COI (%) из усечённого нормального распределения
 def _sample_coi() -> float:
-    """Случайный COI (%) из усечённого нормального распределения."""
     u1 = max(random.random(), 1e-10)
     u2 = random.random()
     z = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
@@ -85,20 +84,16 @@ def _sample_coi() -> float:
     return round(max(COI_MIN, min(COI_MAX, coi)), 2)
 
 
+# Вероятность дисплазии у потомка
 def _offspring_hip_prob(sire_hips: int, dam_hips: int, pair_coi: float) -> float:
-    """
-    Вероятность ДИСПЛАЗИИ (Borderline+) у потомка.
-    Перекалибровано под редкое событие: базовый риск низкий, растёт с баллами
-    родителей и инбридингом. pair_coi — проценты.
-    """
     avg_score = (sire_hips + dam_hips) / 2
     base_risk = 0.015 + avg_score * 0.030
     coi_factor = 1.0 + (pair_coi / 100) * 2.5
     return min(base_risk * coi_factor, 0.60)
 
 
+# Вероятность патологии глаз у потомка
 def _offspring_eye_prob(sire_eyes, dam_eyes, pair_coi) -> float:
-    """Вероятность патологии глаз у потомка. pair_coi — проценты."""
     base = 0.04
     if sire_eyes == 1:
         base += 0.15
@@ -108,12 +103,8 @@ def _offspring_eye_prob(sire_eyes, dam_eyes, pair_coi) -> float:
     return min(base * coi_factor, 0.70)
 
 
+# Генерирует синтетические пары для обучения ML
 def generate_synthetic_dataset(n_samples: int = 3000, seed: int = 42) -> list[dict]:
-    """
-    Генерирует синтетические пары для обучения ML.
-    Каждая запись помечена '_synthetic': True. Формат совпадает с dataset_builder
-    (включая агрегаты по предкам — пустые, т.к. родословной нет).
-    """
     random.seed(seed)
     dataset = []
 
@@ -141,7 +132,7 @@ def generate_synthetic_dataset(n_samples: int = 3000, seed: int = 42) -> list[di
         if sire_hips is not None and dam_hips is not None:
             avg_hip = (sire_hips + dam_hips) / 2
 
-        # ── Результат потомка (None → дефолт для расчёта вероятности) ─────────
+        # Результат потомка
         sh = sire_hips if sire_hips is not None else 1
         dh = dam_hips if dam_hips is not None else 1
         se = sire_eyes if sire_eyes is not None else 0

@@ -1,4 +1,3 @@
-# dogs_module/utils/parser_utils.py
 """
 Утилиты для парсинга данных
 """
@@ -33,11 +32,8 @@ _EN_MONTHS = {
 }
 
 
+# Парсит даты вида 'Apr 23 1980', 'April 23, 1980', '23 Apr 1980'
 def _parse_english_month_date(date_str: str) -> Optional[datetime]:
-    """
-    Парсит даты вида 'Apr 23 1980', 'April 23, 1980', '23 Apr 1980'.
-    Возвращает naive datetime или None.
-    """
     # Нормализуем пробелы и удаляем запятые
     s = re.sub(r'\s+', ' ', date_str.strip()).replace(',', '')
     parts = s.split()
@@ -82,18 +78,8 @@ def _parse_english_month_date(date_str: str) -> Optional[datetime]:
     return None
 
 
+# Парсит дату из разных форматов.
 def parse_date(date_str: Union[str, date, datetime, None]) -> Optional[datetime]:
-    """
-    Парсит дату из разных форматов.
-    Всегда возвращает timezone-aware datetime (или None).
-
-    ПОДДЕРЖИВАЕТ:
-    - ISO: 2025-02-08
-    - DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY, YYYY.MM.DD
-    - DD Month YYYY (полное или сокращённое название месяца на английском)
-    - Month DD, YYYY
-    - Четырёхзначный год
-    """
     if not date_str:
         return None
 
@@ -109,7 +95,7 @@ def parse_date(date_str: Union[str, date, datetime, None]) -> Optional[datetime]
     # Нормализуем: убираем лишние пробелы, табуляции, переносы
     s = re.sub(r'\s+', ' ', date_str.strip())
 
-    # Сначала пробуем форматы с числами (не зависят от локали)
+    # Сначала пробуем форматы с числами
     numeric_formats = [
         '%d.%m.%Y',  # 08.02.2025
         '%Y-%m-%d',  # 2025-02-08
@@ -126,12 +112,11 @@ def parse_date(date_str: Union[str, date, datetime, None]) -> Optional[datetime]
             continue
 
     # Пробуем парсить даты с английскими названиями месяцев
-    # покрывает "Apr 23 1980", "April 23, 1980", "23 Apr 1980", "23 April 1980"
     naive = _parse_english_month_date(s)
     if naive:
         return make_aware(naive)
 
-    # Форматы с полным названием месяца (на случай, если локаль английская)
+    # Форматы с полным названием месяца
     locale_formats = [
         '%d %B %Y',  # 08 February 2025
         '%B %d, %Y',  # February 08, 2025
@@ -156,16 +141,8 @@ def parse_date(date_str: Union[str, date, datetime, None]) -> Optional[datetime]
     return None
 
 
+# Безопасный парсинг целого числа
 def parse_int(value: Union[str, int, float, None], default: int = 0) -> int:
-    """
-    Безопасный парсинг целого числа.
-
-    ПРИМЕРЫ:
-    - "123"    → 123
-    - "123.45" → 123
-    - "abc"    → 0 (default)
-    - None     → 0 (default)
-    """
     if value is None:
         return default
     if isinstance(value, int):
@@ -180,15 +157,8 @@ def parse_int(value: Union[str, int, float, None], default: int = 0) -> int:
     return default
 
 
+# Безопасный парсинг дробного числа
 def parse_float(value: Union[str, int, float, None], default: float = 0.0) -> float:
-    """
-    Безопасный парсинг дробного числа.
-
-    ПРИМЕРЫ:
-    - "123.45" → 123.45
-    - "123,45" → 123.45
-    - "abc"    → 0.0 (default)
-    """
     if value is None:
         return default
     if isinstance(value, (int, float)):
@@ -201,15 +171,8 @@ def parse_float(value: Union[str, int, float, None], default: float = 0.0) -> fl
     return default
 
 
+# Извлекает год из разных форматов
 def parse_year(value: Union[str, int, date, datetime, None]) -> Optional[int]:
-    """
-    Извлекает год из разных форматов.
-
-    ПРИМЕРЫ:
-    - "2025"            → 2025
-    - "08.02.2025"      → 2025
-    - date(2025, 2, 8)  → 2025
-    """
     if not value:
         return None
     if isinstance(value, int):
@@ -227,7 +190,6 @@ def parse_year(value: Union[str, int, date, datetime, None]) -> Optional[int]:
 
 
 # Словарь нормализации окраса
-
 _COLOR_MAP: dict = {
     # серо-белый
     'серо-белый': 'серо-белый',
@@ -382,11 +344,8 @@ _COLOR_MAP: dict = {
 }
 
 
+# Fallback-нормализация для окрасов которых нет в _COLOR_MAP. Переводит английские/испанские слова в русские и унифицирует разделители
 def _normalize_unknown_color(color: str) -> str:
-    """
-    Fallback-нормализация для окрасов которых нет в _COLOR_MAP.
-    Переводит английские/испанские слова в русские и унифицирует разделители.
-    """
     color = color.replace('gray', 'серый').replace('grey', 'серый')
     color = color.replace('black', 'чёрный').replace('white', 'белый')
     color = color.replace('fawn', 'палевый').replace('red', 'рыжий')
@@ -397,21 +356,8 @@ def _normalize_unknown_color(color: str) -> str:
     return ' '.join(color.split())
 
 
+# Нормализует название окраса к единому русскому стандарту
 def parse_color(color_str: str) -> str:
-    """
-    Нормализует название окраса к единому русскому стандарту.
-
-    СТАНДАРТНЫЕ ЗНАЧЕНИЯ:
-      серо-белый, палево-белый, чёрно-белый, серебристо-белый,
-      медно-белый, рыже-белый, чёрный, белый, рыжий, агути, пегий
-
-    ПРИМЕРЫ:
-    - "gray&white"   → "серо-белый"
-    - "с-б"          → "серо-белый"
-    - "black&white"  → "чёрно-белый"
-    - "agouti"       → "агути"
-    - "бел."         → "белый"
-    """
     if not color_str:
         return ""
 
@@ -423,15 +369,8 @@ def parse_color(color_str: str) -> str:
     return _normalize_unknown_color(lookup)
 
 
+# Парсит коэффициент инбридинга (COI), возвращает в процентах
 def parse_coi(coi_str: Union[str, float, None]) -> Optional[float]:
-    """
-    Парсит коэффициент инбридинга (COI), возвращает в процентах.
-
-    ПРИМЕРЫ:
-    - "12.5%" → 12.5
-    - "0.125" → 12.5
-    - 0.125   → 12.5
-    """
     if not coi_str:
         return None
 
@@ -446,12 +385,8 @@ def parse_coi(coi_str: Union[str, float, None]) -> Optional[float]:
     return None
 
 
+# Собирает дату-строку из разрозненных полей year/month/day
 def assemble_partial_date(data: dict, kind: str) -> str | None:
-    """
-    Собирает дату-строку из разрозненных полей year/month/day.
-    kind = 'birth' | 'death'
-    """
-
     def _i(v) -> int | None:
         try:
             return int(v) if v is not None else None
@@ -474,8 +409,8 @@ def assemble_partial_date(data: dict, kind: str) -> str | None:
     return None
 
 
+# Строит полный URL фото из относительного пути BreedArchive
 def build_BA_photo_url(photo_path: Optional[str]) -> Optional[str]:
-    """Строит полный URL фото из относительного пути BreedArchive."""
     if not photo_path:
         return None
     # Убираем суффикс маленького превью _s

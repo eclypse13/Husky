@@ -1,4 +1,3 @@
-# dogs_module/management/commands/create_api_token.py
 """
 Создание API токена для импорта.
 
@@ -42,12 +41,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Токен уже существует:'))
 
         self.stdout.write('')
-        self.stdout.write(f'  Username: {user.username}')
-        self.stdout.write(f'  Token:    {token.key}')
-        self.stdout.write(f'  Staff:    {user.is_staff}')
+        self.stdout.write(f' Username: {user.username}')
+        self.stdout.write(f' Token: {token.key}')
+        self.stdout.write(f' Staff: {user.is_staff}')
         self.stdout.write('')
         self.stdout.write('Использование в curl:')
-        self.stdout.write(f'  curl -X POST http://localhost:8000/api/dogs/import/search-page/ \\')
-        self.stdout.write(f'       -H "Authorization: Token {token.key}" \\')
-        self.stdout.write(f'       -H "Content-Type: application/json" \\')
-        self.stdout.write(f'       -d \'{{"page": 1, "max_dogs": 5}}\'')
+        self.stdout.write(f' curl -X POST http://localhost:8000/api/dogs/import/search-page/ \\')
+        self.stdout.write(f' -H "Authorization: Token {token.key}" \\')
+        self.stdout.write(f' -H "Content-Type: application/json" \\')
+        self.stdout.write(f' -d \'{{"page": 1, "max_dogs": 5}}\'')

@@ -48,7 +48,9 @@ h3,
     letter-spacing: -0.01em;
 }
 
-.section-title--no-underline::after { display: none; }
+.section-title--no-underline::after {
+    display: none;
+}
 
 :root {
     --bright-blue: #3b82f6;
@@ -58,8 +60,8 @@ h3,
     --dark-slate: #0f172a;
     --accent-cyan: #06b6d4;
     --accent-orange: #f59e0b;
-    --accent-red: rgba(239,68,68,1);
-    --accent-red-bg:    rgba(239, 68, 68, 0.1);
+    --accent-red: rgba(239, 68, 68, 1);
+    --accent-red-bg: rgba(239, 68, 68, 0.1);
     --accent-orange-bg: rgba(245, 158, 11, 0.15);
     --caution-text: #92400e;
     --danger-text: #7f1d1d;
@@ -93,11 +95,11 @@ body {
     padding-inline: var(--page-pad);
 }
 
-.content-grid>*,
-.leadership-grid>*,
-.membership-types>*,
-.stats-grid>*,
-.terms-grid>* {
+.content-grid > *,
+.leadership-grid > *,
+.membership-types > *,
+.stats-grid > *,
+.terms-grid > * {
     min-width: 0;
 }
 

@@ -1,4 +1,3 @@
-# dogs_module/tasks/tasks_ofa.py
 """
 OFA таски.
 """
@@ -100,11 +99,9 @@ def fetch_ofa_bulk_by_name_task(
     return {"dispatched": len(task_ids), "task_ids": task_ids}
 
 
+# Обновляет кэш статистики OFA в Redis
 @shared_task(bind=True, name="dogs_module.refresh_ofa_sh_breed_stats")
 def refresh_ofa_sh_breed_stats(self) -> dict:
-    """
-    Обновляет кэш статистики OFA в Redis.
-    """
     from ..services.ofa_service import get_breed_ofa_stats, invalidate_stats_cache
     invalidate_stats_cache()
     stats = get_breed_ofa_stats()

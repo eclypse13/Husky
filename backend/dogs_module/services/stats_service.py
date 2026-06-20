@@ -1,4 +1,3 @@
-# dogs_module/services/stats_service.py
 """
 Сервис популяционной аналитики.
 """
@@ -23,13 +22,12 @@ def _current_year() -> int:
     return date.today().year
 
 
-# YEAR_TO вычисляется динамически — не устаревает при смене года
 def _year_to() -> int:
     return _current_year()
 
 
+# Все статистики одним словарём
 def get_population_stats() -> dict:
-    """Все статистики одним словарём. Кэш на 6 часов."""
     cached = cache.get(CACHE_KEY)
     if cached:
         return cached
@@ -55,7 +53,6 @@ def invalidate_stats_cache() -> None:
 
 
 # Интерпретация сырых данных репозитория
-
 def _get_overview() -> dict:
     return repo.get_overview_counts()
 

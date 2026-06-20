@@ -1,4 +1,3 @@
-# dogs_module/config/browser.py
 """Настройки Playwright-браузера."""
 
 HEADLESS = True

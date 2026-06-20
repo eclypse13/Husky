@@ -1,4 +1,3 @@
-# dogs_module/parsers/ofa.py
 """
 OFA парсер.
 """
@@ -44,15 +43,13 @@ _SEX_MAP = {1: "M", 2: "F"}
 
 
 # Сессия
-
 def _make_session() -> requests.Session:
     session = requests.Session()
     session.headers.update(OFA_HEADERS)
 
-    # Ретраи на сетевых сбоях и 5xx: 3 попытки с экспоненциальным бэкоффом
     retry = Retry(
         total=3,
-        backoff_factor=2,           # паузы: 2s, 4s, 8s
+        backoff_factor=2,  # паузы: 2s, 4s, 8s
         status_forcelist=(500, 502, 503, 504),
         allowed_methods=frozenset(["GET", "POST"]),
         raise_on_status=False,
@@ -68,8 +65,8 @@ def _make_session() -> requests.Session:
         logger.warning(f"OFA: ошибка инициализации сессии: {e}")
     return session
 
-# Шаг 1: поиск → (appnum, reg_num)
 
+# Шаг 1: поиск → (appnum, reg_num)
 def _search_animals(
         session, *, reg_name=None, reg_num=None, ofa_num=None, expected_sex=None,
 ) -> dict:
@@ -203,8 +200,6 @@ def _parse_csv_grouped(csv_text: str) -> list:
     return list(groups.values())
 
 
-# Публичный API
-
 def fetch_ofa_breed_stats(breed_code: str = BREED_CODE) -> Optional[dict]:
     """
     Получает статистику здоровья породы с OFA.
@@ -216,7 +211,6 @@ def fetch_ofa_breed_stats(breed_code: str = BREED_CODE) -> Optional[dict]:
         "Referer": f"{OFA_BROWSE_BY_BREED_CHOOSE_BREED_PATH}{breed_code}",
     })
 
-    # Шаг 1 — инициализация сессии
     try:
         session.get(
             f"{OFA_BB_URL}?a=/chic-programs/browse-by-breed/&breed={breed_code}",
@@ -225,7 +219,6 @@ def fetch_ofa_breed_stats(breed_code: str = BREED_CODE) -> Optional[dict]:
     except requests.RequestException as e:
         logger.warning(f"OFA stats: ошибка инициализации: {e}")
 
-    # Шаг 2 — запрос статистики (кнопка Statistics)
     files = {
         "api_action": (None, ""),
         "api_key": (None, ""),
@@ -247,11 +240,8 @@ def fetch_ofa_breed_stats(breed_code: str = BREED_CODE) -> Optional[dict]:
     return _parse_breed_stats(resp.text)
 
 
+# Парсинг таблицы статистики OFA по породе.
 def _parse_breed_stats(html: str) -> Optional[dict]:
-    """
-    Парсит таблицу статистики OFA по породе.
-    Ищет таблицу с колонками Registry / Total / Normal.
-    """
     soup = BeautifulSoup(html, "html.parser")
     stats = {}
 
@@ -299,9 +289,9 @@ def _parse_breed_stats(html: str) -> Optional[dict]:
     return stats or None
 
 
+# Ищет собаку в OFA. Возвращает {"candidates": [...]} по кандидату на животное
 def fetch_ofa_data(*, registered_name=None, registration_number=None, ofa_number=None,
                    expected_sex=None, expected_year=None) -> dict:
-    """Ищет собаку в OFA. Возвращает {"candidates": [...]} — по кандидату на животное."""
     if not any([registered_name, registration_number, ofa_number]):
         raise ValueError("Нужен хотя бы один параметр поиска")
 
@@ -323,10 +313,6 @@ def fetch_ofa_data(*, registered_name=None, registration_number=None, ofa_number
         return {"candidates": []}
 
     grouped = _parse_csv_grouped(csv_text)
-
-    # CSV полнее поиска (поиск отдаёт максимум ~20, CSV — всех по фильтру).
-    # Поэтому кандидаты = ВСЕ группы CSV. found используем лишь чтобы
-    # добрать regnum и пометить, кто реально был в выдаче поиска.
     for c in grouped:
         if not c.get("registration_number") and found.get(c["appnum"]):
             c["registration_number"] = found[c["appnum"]]
@@ -334,4 +320,3 @@ def fetch_ofa_data(*, registered_name=None, registration_number=None, ofa_number
 
     logger.info(f"OFA: кандидатов={len(grouped)} (в выдаче поиска={len(found)})")
     return {"candidates": grouped}
-

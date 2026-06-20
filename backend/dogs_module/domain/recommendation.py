@@ -1,4 +1,3 @@
-# dogs_module/domain/recommendation.py
 """
 Правила итоговой рекомендации по вязке.
 
@@ -13,14 +12,13 @@ from .coi_interpretation import get_coi_comment
 COI_NOT_RECOMMENDED = 12.5
 COI_CAUTION = 6.25
 
-# Пороги ML-рисков, доля 0..1
+# Пороги ML-рисков
 HIP_RISK_NOT_RECOMMENDED = 0.35
 HIP_RISK_CAUTION = 0.20
 EYE_RISK_CAUTION = 0.30
 
 
 def get_breeding_recommendation(result: dict, offspring_coi: float | None) -> dict:
-    """Дополняет result итоговой рекомендацией. Мутирует и возвращает result."""
     result["coi_info"] = get_coi_comment(offspring_coi)
 
     # COI — главный приоритет

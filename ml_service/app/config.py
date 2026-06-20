@@ -1,4 +1,3 @@
-# ml_service/app/config.py
 """
 Конфигурация ML сервиса.
 """
@@ -28,18 +27,7 @@ settings = Settings()
 # Создание папки для моделей при старте
 settings.models_dir.mkdir(parents=True, exist_ok=True)
 
-# КОНТРАКТ ПРИЗНАКОВ
-#
-# FEATURE_COLS — единственный источник правды о наборе/порядке признаков на
-# стороне ML. Django (feature_builder.build_feature_row) формирует строку с
-# ТЕМИ ЖЕ ключами. Если Django пришлёт лишний ключ — он игнорируется; если
-# какого-то ключа нет — он становится NaN (см. reindex в trainer/predictor).
-# Это защищает от рассинхрона между двумя сервисами.
-#
-# ВАЖНО: любое изменение этого списка (или ANCESTOR_DEPTH в Django) требует
-# ПЕРЕОБУЧЕНИЯ модели — иначе train/serve skew.
-
-
+# FEATURE_COLS — единственный источник правды о наборе/порядке признаков на стороне ML
 FEATURE_COLS = [
     # Прямые родители пары
     "sire_hips", "sire_eyes", "sire_elbows", "sire_dm", "sire_pra", "sire_coi",

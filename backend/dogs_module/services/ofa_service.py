@@ -1,8 +1,7 @@
-# dogs_module/services/ofa_service.py
 import re
 
 """
-OFA-специфичный сервис: сверка личности, сохранение записей, статистика породы.
+OFA сервис.
 """
 
 import logging
@@ -15,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 STATS_CACHE_KEY = "ofa_breed_stats_sh"
 STATS_CACHE_TTL = 3600 * 24  # 24 часа
-MAX_OFA_RECORDS_PER_DOG = 50  # реальная собака не имеет сотен записей; превышение = чужие данные
-# Рег. номера на кирилице или содержащие 'метрик'/'РКФ' — не OFA-совместимы
+MAX_OFA_RECORDS_PER_DOG = 50  # реальная собака не имеет сотен записей
+
 _INVALID_REG_PREFIX = re.compile(r'^[а-яёА-ЯЁ]')
 _INVALID_REG_SUBSTRINGS = ('метрик', 'РКФ')
 
+
 def _normalize_for_match(name: str) -> str:
-    """Жёсткая нормализация ТОЛЬКО для сверки имён."""
     if not name:
         return ""
     s = unicodedata.normalize("NFKD", name)
@@ -114,13 +113,11 @@ def _select_ofa_candidate(dog_id, candidates, expected_name, expected_reg) -> tu
 
 
 def should_save_date_of_birth(dog_id: int) -> bool:
-    """True если date_of_birth сейчас пустое — можно записать из OFA."""
     dog = dog_repo.get_by_id(dog_id)
     return bool(dog and dog.date_of_birth is None)
 
 
 def save_ofa_records(dog_id: int, records: list) -> tuple:
-    """Сохраняет медицинские записи OFA. → (saved_count, failed_count)."""
     dog = dog_repo.get_by_id(dog_id)
     if dog is None:
         logger.error(f"ofa_service: dog_id={dog_id} не найдена")
@@ -153,7 +150,6 @@ def save_ofa_records(dog_id: int, records: list) -> tuple:
 
 
 def get_breed_ofa_stats() -> dict:
-    """Статистика OFA для Siberian Husky. Кэш в Redis на 24ч."""
     from django.core.cache import cache
     from ..parsers.ofa import fetch_ofa_breed_stats
 
@@ -181,13 +177,12 @@ def invalidate_stats_cache() -> None:
 
 
 def _fallback_stats() -> dict:
-    """Статистика OFA из constants."""
     from ..constants.ofa_fallback import OFA_FALLBACK_STATS
     return OFA_FALLBACK_STATS
 
 
+# Обновляет пустые поля Dog из данных OFA
 def _update_dog_from_ofa(dog_id: int, dog_info: dict) -> bool:
-    """Обновляет пустые поля Dog из данных OFA."""
     updates = {}
     reg_num = (dog_info.get('registration_number') or '').strip()
     if reg_num:
@@ -200,7 +195,7 @@ def _update_dog_from_ofa(dog_id: int, dog_info: dict) -> bool:
     return dog_repo.update_fields_if_empty(dog_id, updates)
 
 
-# Публичный алиас — dog_service.py и внешний код могут импортировать напрямую
+# Публичный алиас
 def update_dog_from_ofa(dog_id: int, dog_info: dict) -> bool:
     return _update_dog_from_ofa(dog_id, dog_info)
 
@@ -211,12 +206,6 @@ def import_ofa_for_dog(
         registration_number: str = None,
         ofa_number: str = None,
 ) -> dict:
-    """
-    Полный цикл OFA-импорта для одной собаки.
-    Вынесено из fetch_ofa_dog_task — задача становится тонкой обёрткой.
-
-    Возвращает dict с ключами: dog_id, appnum, saved, failed, message.
-    """
     from ..parsers.ofa import fetch_ofa_data
 
     expected_sex = expected_year = None
@@ -279,7 +268,6 @@ def import_ofa_for_dog(
 
 
 # ФИЛЬТРАЦИЯ СОБАК ДЛЯ BULK OFA-ИМПОРТА
-
 def is_valid_ofa_reg(reg: str) -> bool:
     """True если рег. номер может быть использован для поиска на OFA."""
     if not reg:
@@ -291,16 +279,13 @@ def is_valid_ofa_reg(reg: str) -> bool:
     return True
 
 
+# Собаки с валидным OFA рег. номером для bulk-импорта
 def get_dogs_eligible_by_reg(
         id_from: int = 1,
         id_to: int = None,
         limit: int = 100,
         only_without_ofa: bool = True,
 ) -> list:
-    """
-    Собаки с валидным OFA рег. номером для bulk-импорта.
-    Применяет доменные фильтры поверх чистой выборки репозитория.
-    """
     dogs = dog_repo.get_dogs_with_reg_number(id_from=id_from, id_to=id_to, limit=limit * 3)
     dogs = [d for d in dogs if is_valid_ofa_reg(d.get('registration_number', ''))]
 
@@ -311,13 +296,13 @@ def get_dogs_eligible_by_reg(
     return dogs[:limit]
 
 
+# Собаки с валидным OFA name для bulk-импорта
 def get_dogs_eligible_by_name(
         id_from: int = 1,
         id_to: int = None,
         limit: int = 100,
         only_without_ofa: bool = True,
 ) -> list:
-    """Собаки с именем для bulk OFA-импорта по имени."""
     dogs = dog_repo.get_dogs_with_name(id_from=id_from, id_to=id_to, limit=limit * 2)
 
     if only_without_ofa:

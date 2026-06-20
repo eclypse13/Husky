@@ -1,4 +1,3 @@
-# dogs_module/repositories/stats_repository.py
 """
 Агрегатные выборки для популяционной статистики.
 """
@@ -27,10 +26,6 @@ def get_overview_counts() -> dict:
 
 
 def count_grouped_by(field: str, limit: int = None, exclude_empty: bool = True) -> list:
-    """
-    Группировка count по одному полю → [{field: значение, 'count': n}, ...].
-    Покрывает by_sex / by_year / by_country / by_color / top_kennels.
-    """
     from django.db.models import Count
     from ..models import Dog
 
@@ -45,8 +40,8 @@ def count_grouped_by(field: str, limit: int = None, exclude_empty: bool = True) 
     return list(qs)
 
 
+# Регистрации по годам рождения в диапазоне
 def count_by_year_range(year_from: int, year_to: int) -> list:
-    """Регистрации по годам рождения в диапазоне."""
     from django.db.models import Count
     from ..models import Dog
     qs = (
@@ -59,8 +54,8 @@ def count_by_year_range(year_from: int, year_to: int) -> list:
     return list(qs)
 
 
+# Топ кобелей по числу потомков
 def get_top_producers(limit: int = 10) -> list:
-    """Топ кобелей по числу потомков."""
     from django.db.models import Count
     from ..models import Dog
     qs = (
@@ -74,8 +69,8 @@ def get_top_producers(limit: int = 10) -> list:
     return list(qs)
 
 
+# avg/min/max + total по собакам с непустым COI
 def get_coi_aggregates() -> dict:
-    """avg/min/max + total по собакам с непустым COI."""
     from django.db.models import Avg, Min, Max
     from ..models import Dog
     qs = Dog.objects.using('dogs_db').filter(coi__isnull=False)
@@ -93,19 +88,16 @@ def count_coi_in_range(lo: float, hi: float) -> int:
     )
 
 
+# Принимает список бакетов с полем range, возвращает label: count для каждого бакета
 def get_coi_distribution(buckets: list) -> dict:
-    """
-    Принимает список бакетов с полем 'range': (lo, hi).
-    Возвращает {label: count} для каждого бакета.
-    """
     return {
         b['label']: count_coi_in_range(b['range'][0], b['range'][1])
         for b in buckets
     }
 
 
+# Сколько собак имеют непустое значение по полю
 def get_coverage_counts() -> dict:
-    """Сколько собак имеют непустое значение по каждому ключевому полю."""
     from ..models import Dog
     qs = Dog.objects.using('dogs_db')
 
@@ -113,7 +105,7 @@ def get_coverage_counts() -> dict:
         return qs.filter(**{f"{field}__isnull": False}).exclude(**{field: ''}).count()
 
     return {
-        "coi": qs.filter(coi__isnull=False).count(),  # числовое — без exclude('')
+        "coi": qs.filter(coi__isnull=False).count(),
         "color": _non_empty('color'),
         "origin": _non_empty('land_of_birth'),
         "photo": _non_empty('photo_url'),

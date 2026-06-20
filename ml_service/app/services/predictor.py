@@ -1,15 +1,5 @@
-# ml_service/app/services/predictor.py
 """
 Предсказание рисков для пары.
-
-Три метода:
-  "ml" — CatBoost модель (если обучена)
-  "rules" — ветеринарные правила OFA
-  "genetics" — законы Менделя (DM, PRA, PLL, LPP)
-
-ML-вектор признаков собирает Django (feature_builder). Здесь он
-НЕ пересобирается — только выравнивается по FEATURE_COLS. Сырые sire/dam нужны
-лишь для rules и Менделя.
 """
 
 import logging
@@ -35,17 +25,13 @@ THYROID_RISK = {0: 0.03, 1: 0.40}
 PATELLA_RISK = {0: 0.05, 1: 0.35}
 
 
+# Строит DataFrame из готовой строки признаков (req.features)
 def _features_df(req: BreedingPredictRequest) -> pd.DataFrame:
-    """
-    Строит DataFrame из ГОТОВОЙ строки признаков (req.features), собранной в Django.
-    reindex по FEATURE_COLS: недостающие колонки → NaN (CatBoost обрабатывает нативно),
-    лишние — отбрасываются. Один источник истины о наборе фич — config.FEATURE_COLS.
-    """
     return pd.DataFrame([req.features or {}]).reindex(columns=FEATURE_COLS)
 
 
+# Предсказывает через CatBoost
 def _ml_predict(name: str, features: pd.DataFrame) -> Optional[float]:
-    """Предсказывает через CatBoost. None если модель не обучена."""
     model = load_model(name)
     if model is None:
         return None
@@ -57,15 +43,15 @@ def _ml_predict(name: str, features: pd.DataFrame) -> Optional[float]:
         return None
 
 
+# Rule-based риск — среднее риска родителей × поправка на COI
 def _rule(sire, dam, table: dict, default: float, mult: float) -> float:
-    """Rule-based риск — среднее риска родителей × поправка на COI."""
     r = (table.get(sire, default) + table.get(dam, default)) / 2
     return round(min(r * mult, 0.99), 3)
 
 
+# Законы Менделя
 def _genetics(sire: Optional[int], dam: Optional[int]) -> float:
     """
-    Законы Менделя — аутосомно-рецессивное наследование.
     0=Clear, 1=Carrier, 2=Affected. Carrier × Carrier → 25% больных потомков.
     """
     s = min(sire if sire is not None else 0, 2)
@@ -85,11 +71,8 @@ def _genetics(sire: Optional[int], dam: Optional[int]) -> float:
     return round(affected[(s, d)] + 0.1 * carrier[(s, d)], 3)
 
 
+# Высокий COI увеличивает риск рецессивных болезней (coi  в процентах)
 def _coi_multiplier(coi: Optional[float]) -> float:
-    """
-    Высокий COI увеличивает риск рецессивных болезней.
-    COI в ПРОЦЕНТАХ.
-    """
     if not coi: return 1.0
     if coi > 12.5: return 1.4
     if coi > 6.25: return 1.2
@@ -105,8 +88,8 @@ def _make(risk: float, basis: str) -> DiseaseRisk:
     return DiseaseRisk(risk=risk, level=_level(risk), basis=basis)
 
 
+# Предсказывает риски для пары по всем болезням
 def predict(req: BreedingPredictRequest) -> BreedingPredictResponse:
-    """Предсказывает риски для пары по всем болезням."""
     s, d = req.sire, req.dam
     coi = req.expected_coi  # проценты
     mult = _coi_multiplier(coi)

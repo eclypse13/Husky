@@ -1,4 +1,3 @@
-# dogs_module/tasks/tasks_ml.py
 """
 ML таски.
 """
@@ -8,6 +7,7 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+# Собирает датасет и обучает ML модели
 @shared_task(bind=True, name="dogs_module.train_ml_model_task")
 def train_ml_model_task(
         self,
@@ -15,8 +15,6 @@ def train_ml_model_task(
         n_synthetic: int = 1000,
 ) -> dict:
     """
-    Собирает датасет и обучает ML модели.
-
     Параметры:
       augment — добавить синтетические данные
       n_synthetic — сколько синтетических записей

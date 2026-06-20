@@ -1,6 +1,5 @@
-# dogs_module/parsers/zooportal.py
 """
-Парсер Zooportal — получение данных собак с zooportal.pro
+Парсер Zooportal (для собак)
 """
 
 import re
@@ -32,11 +31,6 @@ _TTL_DOG = 1 * 24 * 3600  # 24 часа
 
 
 def _cache():
-    """
-    Возвращает Redis-кеш 'parsers' (DB 2).
-    IGNORE_EXCEPTIONS=True → при недоступном Redis возвращает None,
-    парсинг продолжается без кеша.
-    """
     return caches['parsers']
 
 
@@ -50,10 +44,6 @@ def _key_dog(dog_id: str, generations: int) -> str:
 
 # Менеджер браузера
 class BrowserManager:
-    """
-    Контекстный менеджер для Playwright.
-    """
-
     def __init__(self):
         self.playwright = None
         self.browser = None
@@ -88,13 +78,6 @@ class BrowserManager:
         logger.info("🔒 Playwright закрыт")
 
     def _recreate_context(self):
-        """
-        Пересоздаёт browser context после краша страницы.
-
-        После 'Page crashed' / 'Target crashed' текущий context сломан —
-        новые page.goto() в нём будут падать. Закрываем и создаём новый.
-        Browser и playwright остаются живыми — только context пересоздаём.
-        """
         if self.context:
             try:
                 self.context.close()
@@ -117,9 +100,6 @@ class BrowserManager:
             self.context.add_cookies(cookies)
 
     def fetch_page(self, url: str, retries: int = 5, wait_selector: Optional[str] = None) -> str:
-        """
-        Загружает HTML страницы через Playwright с retry и восстановлением после краша.
-        """
         _CRASH_ERRORS = ('crashed', 'ERR_SSL', 'net::', 'Target closed')
 
         for attempt in range(retries):
@@ -182,11 +162,6 @@ class BrowserManager:
         raise RuntimeError(f"Не удалось загрузить {url} после {retries} попыток")
 
     def download_photo_bytes(self, photo_url: str) -> Optional[bytes]:
-        """
-        Скачивает фото Zoo через Playwright контекст (уже авторизован).
-        Вызывается сразу после fetch_page — контекст с куками открыт.
-        Возвращает bytes или None при ошибке.
-        """
         if not photo_url:
             return None
         try:
@@ -212,21 +187,12 @@ class BrowserManager:
             return None
 
 
-# ПАРСЕР ZOOPORTAL
-
-
 class ZooportalParser:
-    """Парсер Zooportal"""
 
+    # Парсинг страницы поиска
     def parse_search_page_with_browser(
             self, browser: BrowserManager, page_num: int = 1
     ) -> List[Dict[str, Any]]:
-        """
-        Парсит страницу поиска Zooportal.
-
-        Используется при retry задач: если задача упала после парсинга
-        страницы, но до сохранения — повторный запуск не идёт в Playwright.
-        """
         c = _cache()
         key = _key_search(page_num)
 
@@ -301,8 +267,6 @@ class ZooportalParser:
 
         return data
 
-    # ИНВАЛИДАЦИЯ
-
     def invalidate_dog_cache(self, dog_id: str, generations: int = 3) -> None:
         """Сбрасывает кеш страницы собаки. Вызывать если данные обновлены."""
         _cache().delete(_key_dog(dog_id, generations))
@@ -312,8 +276,6 @@ class ZooportalParser:
         """Сбрасывает кеш страницы поиска."""
         _cache().delete(_key_search(page_num))
         logger.info(f"🗑️ Кеш удалён: zoo:search:{page_num}")
-
-    # ПАРСИНГ HTML
 
     def _parse_search_html(self, html: str) -> List[Dict[str, Any]]:
         soup = BeautifulSoup(html, 'html.parser')
@@ -390,8 +352,6 @@ class ZooportalParser:
         except Exception as e:
             logger.error(f"❌ Ошибка парсинга {dog_id}: {e}")
             return None
-
-    # ИЗВЛЕЧЕНИЕ ПОЛЕЙ
 
     def _extract_name(self, soup) -> Optional[str]:
         h1 = soup.find('h1')
@@ -485,8 +445,6 @@ class ZooportalParser:
     def _extract_titles_structured(self, soup) -> List[Dict]:
         return []
 
-    # BREEDER / OWNER
-
     def _extract_breeder_info(self, soup) -> Dict[str, Optional[str]]:
         info: Dict[str, Optional[str]] = {
             'name': None, 'url': None, 'kennel': None, 'kennel_url': None
@@ -551,25 +509,17 @@ class ZooportalParser:
             break
         return info
 
-    # РОДОСЛОВНАЯ
-
+    # Парсинг таблицы родословной
     def _parse_pedigree(self, soup, dog_id: str) -> Dict[str, Any]:
         """
-        Парсит таблицу родословной.
+        Возвращает:
+          ancestors: dict {node_key: ancestor_data}
+          relationships: list [{child_key, parent_key, relation}]
+          base_dogs: dict {base_key: {zooportal_id}}
+          parents: {sire: data, dam: data}
 
-        ВОЗВРАЩАЕТ:
-          ancestors:      dict {node_key: ancestor_data}
-          relationships:  list [{child_key, parent_key, relation}]
-          base_dogs:      dict {base_key: {zooportal_id}}
-          parents:        {sire: data, dam: data}
-
-        node_key = "{child_id}:{CODE}"   (напр. "12345:FATHER_MOTHER")
-        base_key = "{child_id}:"         (напр. "12345:")
-
-        ancestor_data['zooportal_id'] — это ID, который будет использоваться
-        при рекурсивном парсинге. Если он есть — можно вызвать
-        parse_dog_page_with_browser(browser, ancestor_data['zooportal_id'], gen)
-        и получить полную информацию о предке (включая его родословную).
+        node_key = "{child_id}:{CODE}" (напр. "12345:FATHER_MOTHER")
+        base_key = "{child_id}:" (напр. "12345:")
         """
         pedigree = {
             'parents': {'dam': None, 'sire': None},
@@ -681,5 +631,4 @@ class ZooportalParser:
         return ' '.join([d.get_text(' ', strip=True) for d in infos]).strip()
 
 
-# Глобальный экземпляр
 zooportal_parser = ZooportalParser()

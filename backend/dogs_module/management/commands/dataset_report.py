@@ -115,8 +115,8 @@ class Command(BaseCommand):
             eye_syn = sum(d["offspring_has_eye_problem"] for d in synthetic)
 
             self.stdout.write(f"Синтетических примеров: {n_syn_actual}")
-            self.stdout.write(f"  • Позитивов hip: {hip_syn} ({hip_syn / n_syn_actual:.1%})")
-            self.stdout.write(f"  • Позитивов eye: {eye_syn} ({eye_syn / n_syn_actual:.1%})")
+            self.stdout.write(f" • Позитивов hip: {hip_syn} ({hip_syn / n_syn_actual:.1%})")
+            self.stdout.write(f" • Позитивов eye: {eye_syn} ({eye_syn / n_syn_actual:.1%})")
 
             n_total = len(combined)
             hip_total = hip_pos + hip_syn

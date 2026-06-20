@@ -1,7 +1,5 @@
-# dogs_module/services/duplicate_service.py
 """
-Поиск и обработка вероятных дубликатов собак по нечёткому совпадению имени
-+ подтверждению (родители / год / пол).
+Поиск и обработка вероятных дубликатов собак.
 """
 import logging
 from typing import Optional
@@ -13,11 +11,10 @@ from ..config.matching import YEAR_WINDOW, CANDIDATE_LIMIT
 logger = logging.getLogger(__name__)
 
 
+# Ищет лучший дубль для собаки
 def find_duplicate(dog_fields: dict, exclude_pk: int = None) -> Optional[dict]:
     """
-    Ищет лучший дубль для собаки. dog_fields: registered_name, sex,
-    year_of_birth, sire_name, dam_name.
-    → {'dog': Dog, 'verdict': 'merge'|'flag', 'score': float, 'reason': str} или None.
+    dog_fields: registered_name, sex, year_of_birth, sire_name, dam_name
     """
     if not dog_fields.get("registered_name") or not dog_fields.get("sex"):
         return None
@@ -48,8 +45,8 @@ def find_duplicate(dog_fields: dict, exclude_pk: int = None) -> Optional[dict]:
     return best
 
 
+# Помечает собаку как возможный дубль
 def flag_possible_duplicate(dog_pk: int, dup_pk: int, score: float, reason: str) -> None:
-    """Помечает собаку как возможный дубль через поле conflicts (JSON)."""
     dog = dog_repo.get_by_id(dog_pk)
     if not dog:
         return
