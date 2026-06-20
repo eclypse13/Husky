@@ -1,4 +1,3 @@
-# dogs_module/tasks/tasks_coi.py
 """
 Celery-задача массового пересчёта COI.
 """
@@ -9,6 +8,7 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+# Массовый пересчёт COI.
 @shared_task(
     bind=True,
     name='dogs_module.recalculate_all_coi',
@@ -23,9 +23,6 @@ def recalculate_all_coi_task(
         only_missing: bool = True,
         use_ancestor_coi: bool = False,
 ) -> dict:
-    """
-    Массовый пересчёт COI.
-    """
     from ..services.coi_service import recalculate_all
 
     def _progress(meta: dict) -> None:

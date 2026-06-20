@@ -1,4 +1,3 @@
-# dogs_module/repositories/breeder_repository.py
 """
 Доступ к данным Breeder и связующей таблице Dogbreederlink.
 """
@@ -8,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Находит или создаёт Breeder
 def upsert_breeder(
         name: str,
         uuid: str = None,
@@ -16,12 +16,6 @@ def upsert_breeder(
         breeder_url: str = None,
         kennel_url: str = None,
 ):
-    """
-    Находит или создаёт Breeder.
-    Поиск: по uuid (если есть), иначе по name.
-    Если kennel пустой у существующей записи — дозаписывает.
-    Возвращает (breeder, created).
-    """
     from ..models import Breeder
 
     defaults = {
@@ -67,12 +61,12 @@ def upsert_breeder(
     return breeder, created
 
 
+# Создаёт связь Dog c Breeder если её ещё нет
 def link_to_dog(dog, breeder) -> None:
-    """Создаёт связь Dog ↔ Breeder если её ещё нет."""
     from ..models import Dogbreederlink
     Dogbreederlink.objects.using('dogs_db').get_or_create(dog=dog, breeder=breeder)
 
 
+# Проверка если у собаки уже есть хотя бы один заводчик
 def dog_has_breeders(dog) -> bool:
-    """True если у собаки уже есть хотя бы один заводчик."""
     return dog.breeders.using('dogs_db').exists()

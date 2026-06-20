@@ -1,5 +1,3 @@
-# ml_service/app/routers/breeding.py
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -15,20 +13,18 @@ class TrainRequest(BaseModel):
     dataset: list[dict]
 
 
+# Предсказывает риски для пары sire × dam
 @router.post("/predict", response_model=BreedingPredictResponse)
 def predict_breeding(req: BreedingPredictRequest):
-    """Предсказывает риски для пары sire × dam."""
     try:
         return predict(req)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Обучает модели на датасете
 @router.post("/train")
 def train_model(req: TrainRequest):
-    """
-    Обучает модели на датасете.
-    """
     if not req.dataset:
         raise HTTPException(status_code=400, detail="Пустой датасет")
     result = train(req.dataset)
@@ -37,9 +33,9 @@ def train_model(req: TrainRequest):
     return result
 
 
+# Статус сервиса и список обученных моделей
 @router.get("/health")
 def health():
-    """Статус сервиса и список обученных моделей."""
     return {
         "status": "ok",
         "models": list_trained_models(),

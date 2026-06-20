@@ -22,7 +22,6 @@ interface HealthResponse {
 }
 
 
-// Пагинация в стиле архива
 function Pagination({page, totalPages, onChange}: {
     page: number;
     totalPages: number;
@@ -160,12 +159,11 @@ export default function Health() {
         });
     }, []);
 
-    // pct_normal — доля нормальных результатов по всем группам
     const pctNormal = (() => {
         if (!stats?.by_group) return 0;
         const groups = Object.values(stats.by_group) as Array<{ total: number; normal: number }>;
         const totalNormal = groups.reduce((s, g) => s + (g.normal ?? 0), 0);
-        const totalAll   = groups.reduce((s, g) => s + (g.total  ?? 0), 0);
+        const totalAll = groups.reduce((s, g) => s + (g.total ?? 0), 0);
         return totalAll ? Math.round(totalNormal / totalAll * 100) : 0;
     })();
 
@@ -288,7 +286,11 @@ export default function Health() {
                                 {icon: "🧬", num: String(stats?.total_records ?? 0), label: "Проведено тестов"},
                                 {icon: "🐾", num: String(stats?.dogs_tested ?? 0), label: "Собак с результатами"},
                                 {icon: "🟢", num: String(pctNormal), suffix: "%", label: "Норм. результаты"},
-                                {icon: "🧪", num: String(Object.keys(stats?.by_group ?? {}).length), label: "Типов тестов"},
+                                {
+                                    icon: "🧪",
+                                    num: String(Object.keys(stats?.by_group ?? {}).length),
+                                    label: "Типов тестов"
+                                },
                             ].map((s) => (
                                 <article className="health-stat" key={s.label}>
                                     <div className="health-stat-icon">{s.icon}</div>

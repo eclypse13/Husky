@@ -1,10 +1,9 @@
-# ml_service/app/schemas/breeding.py
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
+# Данные здоровья одной собаки (сырые баллы — для rules и законов Менделя)
 class DogHealthData(BaseModel):
-    """Данные здоровья одной собаки (сырые баллы — для rules и законов Менделя)."""
     dog_id: int
 
     # Клинические тесты
@@ -24,10 +23,9 @@ class DogHealthData(BaseModel):
     coi: Optional[float] = None  # коэффициент инбридинга, ПРОЦЕНТЫ (0..100)
 
 
+# Запрос предсказания для пары
 class BreedingPredictRequest(BaseModel):
     """
-    Запрос предсказания для пары.
-
     sire / dam — сырые баллы для rules + законов Менделя.
     features — ГОТОВАЯ строка ML-признаков, собранная в Django
     (feature_builder.build_feature_row). ML её не пересобирает,
@@ -40,15 +38,15 @@ class BreedingPredictRequest(BaseModel):
     features: dict = {}  # {feature_name: value | None}
 
 
+# Риск по одной болезни
 class DiseaseRisk(BaseModel):
-    """Риск по одной болезни."""
     risk: float  # вероятность 0.0 - 1.0
     level: str  # low / medium / high
     basis: str  # ml / rules / genetics
 
 
+# Ответ ML сервиса — риски по всем болезням
 class BreedingPredictResponse(BaseModel):
-    """Ответ ML сервиса — риски по всем болезням."""
     model_config = ConfigDict(protected_namespaces=())
 
     # Клинические

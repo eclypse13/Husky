@@ -1,4 +1,3 @@
-# dogs_module/services/ml_dog_service.py
 """
 Сервис подготовки данных собаки для ML сервиса.
 """
@@ -11,7 +10,7 @@ from ..repositories import medical_record_repository as med_repo
 
 logger = logging.getLogger(__name__)
 
-# логическая группа теста → имя поля в payload (DogHealthData) для ML сервиса
+# логическая группа теста
 _GROUP_TO_FIELD = {
     "hips": "hips_score",
     "eyes": "eyes_score",
@@ -26,12 +25,8 @@ _GROUP_TO_FIELD = {
 }
 
 
+# Достаёт здоровье собаки из БД и маппит в формат DogHealthData
 def get_dog_health_data(dog_id: int) -> dict:
-    """
-    Достаёт здоровье собаки из БД и маппит в формат DogHealthData (сырые баллы
-    для rules + законов Менделя). Баллы считаются той же extract_scores, что и
-    в обучении.
-    """
     dog = dog_repo.get_by_id(dog_id)
     if dog is None:
         logger.error(f"ml_dog_service: dog_id={dog_id} не найдена")
@@ -51,20 +46,15 @@ def get_dog_health_data(dog_id: int) -> dict:
     return data
 
 
+# Формирует данные пары для ML сервиса
 def get_pair_data(sire_id: int, dam_id: int) -> dict:
-    """
-    Формирует данные пары для ML сервиса:
-      expected_coi — COI потомства в ПРОЦЕНТАХ (как в обучении, без деления на 100);
-      features     — готовая строка ML-признаков (та же build_feature_row, что и
-                     в обучении) с агрегатами по предкам.
-    """
     from .pedigree_service import calc_offspring_coi
     from .feature_builder import build_feature_row
     from .ancestor_features import collect_ancestor_ids, ANCESTOR_DEPTH
 
     offspring_coi = calc_offspring_coi(sire_id, dam_id)  # проценты
 
-    # Предки обеих сторон + сами родители — нужны их баллы для агрегатов.
+    # Предки обеих сторон + сами родители, нужны их баллы для агрегатов.
     need_ids = (
             collect_ancestor_ids(sire_id, ANCESTOR_DEPTH)
             | collect_ancestor_ids(dam_id, ANCESTOR_DEPTH)
@@ -87,7 +77,7 @@ def get_pair_data(sire_id: int, dam_id: int) -> dict:
         sire_id=sire_id,
         dam_id=dam_id,
         scores_by_dog=scores_by_dog,
-        parent_map=None,  # для одной пары тянем предков из БД (дёшево)
+        parent_map=None,  # для одной пары тянем предков из БД
     )
 
     return {
@@ -97,12 +87,6 @@ def get_pair_data(sire_id: int, dam_id: int) -> dict:
 
 
 def predict_pair(sire_id: int, dam_id: int) -> dict:
-    """
-    Полный бизнес-сценарий прогноза вязки пары:
-    данные родителей → ML-прогноз → COI потомства → рекомендация.
-    Возвращает результат ML с полями offspring_coi и recommendation,
-    либо {'error': ...} если ML недоступен.
-    """
     from .ml_client import predict_breeding
     from .pedigree_service import calc_offspring_coi
     from ..domain.recommendation import get_breeding_recommendation

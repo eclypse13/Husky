@@ -1,13 +1,5 @@
-# dogs_module/services/feature_builder.py
 """
-Единая сборка строки ML-признаков.
-
-И обучение (dataset_builder), и инференс (ml_dog_service) собирают вектор
-признаков ТОЛЬКО здесь — это гарантирует идентичность train/serve. Имена
-ключей должны совпадать с ml_service config.FEATURE_COLS (контракт между
-двумя сервисами; рассинхрон безопасно гасится reindex на стороне ML).
-
-Все COI — в процентах.
+Сборка строки ML-признаков.
 """
 
 from .ancestor_features import prefixed_side_features, empty_side_features, ANCESTOR_DEPTH

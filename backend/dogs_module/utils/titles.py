@@ -1,13 +1,10 @@
-# dogs_module/utils/titles.py
 import re
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-# СТРАНЫ
-
+# Коды стран
 _COUNTRY_CODES: Dict[str, str] = {
     'RU': 'RUS', 'RUS': 'RUS', 'RF': 'RUS', 'РФ': 'RUS',
     'RKF': 'RKF',
@@ -87,8 +84,8 @@ def get_country_display_name(code: str) -> str:
     return _COUNTRY_NAMES.get(code.upper(), code) if code else ''
 
 
+# Извлекает нормализованный код страны из строки титула
 def extract_country_code(raw_title: str) -> Optional[str]:
-    """Извлекает нормализованный код страны из строки титула."""
     upper = raw_title.upper()
 
     # Формат "GrCH.RUS", "CH.RKF"
@@ -116,9 +113,7 @@ def extract_country_code(raw_title: str) -> Optional[str]:
     return None
 
 
-
-# ПАРСИНГ ОДНОГО ТИТУЛА
-
+# Парсинг 1 титула
 _ZP_PATTERNS = {
     'grch': ('GrCH', 'Гранд Чемпион', True),
     'grand champion': ('GrCH', 'Гранд Чемпион', True),
@@ -153,8 +148,7 @@ def _extract_winner_year(text: str) -> Tuple[Optional[int], bool]:
     return None, False
 
 
-# Типы BA-титулов: keyword → (short_name, long_name, is_prefix)
-# Вынесено на уровень модуля — не создаётся заново при каждом вызове.
+# Типы BA-титулов
 _BA_TITLE_TYPES = {
     'CH': ('CH', 'Чемпион', True),
     'JCH': ('JCH', 'Юниор Чемпион', True),
@@ -166,8 +160,8 @@ _BA_TITLE_TYPES = {
 }
 
 
+# Парсит один Zooportal-титул вида GrCH.RUS, CH.RKF 2023
 def _parse_zooportal_title(raw: str) -> Optional[Dict[str, Any]]:
-    """Парсит один Zooportal-титул вида "GrCH.RUS", "CH.RKF 2023"."""
     if not raw:
         return None
 
@@ -197,8 +191,8 @@ def _parse_zooportal_title(raw: str) -> Optional[Dict[str, Any]]:
     }
 
 
+# Парсит один BA-титул вида "RU CH", "UA JCH"
 def _parse_breedarchive_title(raw: str) -> Optional[Dict[str, Any]]:
-    """Парсит один BA-титул вида "RU CH", "UA JCH", "RU Club CH"."""
     if not raw:
         return None
 
@@ -251,9 +245,7 @@ def _parse_breedarchive_title(raw: str) -> Optional[Dict[str, Any]]:
     return _parse_zooportal_title(raw)
 
 
-
 # ПУБЛИЧНЫЙ ПАРСЕР ТЕКСТОВОЙ СТРОКИ ТИТУЛОВ
-
 def parse_titles_from_text(text: str, source: str = 'zooportal') -> List[Dict[str, Any]]:
     """
     Разбивает строку титулов на структурированные записи.
@@ -277,19 +269,12 @@ def parse_titles_from_text(text: str, source: str = 'zooportal') -> List[Dict[st
     return result
 
 
-
-# СОХРАНЕНИЕ В БД
-
-
+# Парсит prefix/suffix-строки титулов в нормализованные записи
 def build_title_entries(
         prefix_text: Optional[str],
         suffix_text: Optional[str],
         source: str,
 ) -> List[Dict[str, Any]]:
-    """
-    Парсит prefix/suffix-строки титулов в нормализованные записи (без БД).
-    Пустые short_name отбрасываются. Сохранение — в services/title_service.py.
-    """
     raw_entries: List[Dict[str, Any]] = []
     if prefix_text:
         raw_entries.extend(parse_titles_from_text(prefix_text, source))

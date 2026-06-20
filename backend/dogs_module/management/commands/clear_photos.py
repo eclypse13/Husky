@@ -1,4 +1,3 @@
-# dogs_module/management/commands/clear_photos.py
 """
 Удаляет все фото с Яндекс.Диска и очищает поля photo_yadisk_* и photo_hash в БД.
 
@@ -40,7 +39,6 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING('DRY-RUN: изменения не применяются'))
 
-        # ── Яндекс.Диск ───────────────────────────────────────────────────────
         if not db_only:
             from ...services import yadisk_client as yd
 
@@ -71,7 +69,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.SUCCESS(f'Удалено с ЯД: {deleted}'))
 
-        # ── База данных ────────────────────────────────────────────────────────
+
         if not yadisk_only:
             from ...models import Dog
 

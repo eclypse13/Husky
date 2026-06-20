@@ -1,9 +1,7 @@
-# dogs_module/constants/ofa_fallback.py
 """
 Fallback-статистика OFA для породы Siberian Husky.
-Источник: ofa.org/diseases/statistics (данные 2023).
 
-Используется в ofa_service._fallback_stats() когда OFA сайт недоступен.
+Источник: ofa.org/diseases/statistics (данные 2023).
 """
 
 OFA_FALLBACK_STATS: dict = {

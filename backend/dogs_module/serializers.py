@@ -1,4 +1,3 @@
-# dogs_module/serializers.py
 from typing import Optional
 
 from rest_framework import serializers
@@ -9,15 +8,13 @@ from .models import (
 
 
 def _best_dog_photo_url(dog) -> Optional[str]:
-    """
-    Возвращает лучшую ссылку на фото.
-    Приоритет: ЯД (постоянная) → оригинал (Zoo/BA) → None.
-    """
-    return dog.photo_yadisk_url or dog.photo_url or None
+    """Ссылка для dog_photo: стабильный прокси на ЯД, иначе исходник."""
+    if dog.photo_yadisk_path:
+        return f"/api/dogs/photos/{dog.id}/raw/"
+    return dog.photo_url or None
 
 
-# ── Общие миксины валидации ───────────────────────────────────────────────────
-
+# Общие миксины валидации
 class IdRangeValidatorMixin:
     """Проверяет что id_to >= id_from (если оба заданы)."""
 
@@ -98,7 +95,6 @@ class DogParentSerializer(serializers.ModelSerializer):
             'registered_name', 'call_name',
             'sex', 'sex_display',
             'year_of_birth', 'color', 'photo_url', 'dog_photo',
-            # photo_url для обратной совместимости
         ]
 
     def get_display_name(self, obj): return obj.display_name
@@ -126,7 +122,6 @@ class DogListSerializer(serializers.ModelSerializer):
             'prefix_titles', 'suffix_titles',
             'breeder_names',
             'rating', 'dog_photo',
-            # photo_url для обратной совместимости
         ]
 
     def get_display_name(self, obj): return obj.display_name
@@ -172,7 +167,6 @@ class DogDetailSerializer(serializers.ModelSerializer):
             'breeders', 'owners',
             'titles', 'medical_records',
             'birth_litter', 'dog_photo',
-            # photo_url для обратной совместимости
         ]
 
     def get_display_name(self, obj): return obj.display_name
@@ -197,7 +191,6 @@ class PedigreeSerializer(serializers.ModelSerializer):
             'sex', 'year_of_birth', 'date_of_birth', 'photo_url', 'color',
             'land_of_birth', 'prefix_titles', 'suffix_titles', 'coi',
             'dam', 'sire', 'dog_photo',
-            # photo_url для обратной совместимости
         ]
 
     def get_display_name(self, obj):
@@ -225,7 +218,7 @@ class PedigreeSerializer(serializers.ModelSerializer):
         return None
 
 
-# ── ВЫСТАВКИ ─────────────────────────────────────────────────────────────────
+# ВЫСТАВКИ
 
 class ShowEventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -263,7 +256,7 @@ class ShowResultSerializer(serializers.ModelSerializer):
         ]
 
 
-# ── ИМПОРТ — ZOOPORTAL ───────────────────────────────────────────────────────
+# ИМПОРТ — ZOOPORTAL
 
 class ImportZooportalDogSerializer(serializers.Serializer):
     zooportal_id = serializers.CharField(required=True, min_length=1, max_length=20)
@@ -318,7 +311,7 @@ class TaskStatusResponseSerializer(serializers.Serializer):
         ref_name = 'TaskStatusResponse'
 
 
-# ── ИМПОРТ — BREEDARCHIVE ────────────────────────────────────────────────────
+# ИМПОРТ — BREEDARCHIVE
 
 class ImportBreedarchiveDogSerializer(serializers.Serializer):
     uuid = serializers.CharField()
@@ -340,7 +333,7 @@ class ImportBreedarchiveFullPedigreeSerializer(serializers.Serializer):
     force_update = serializers.BooleanField(default=False, required=False)
 
 
-# ── ИМПОРТ — HYBRID ──────────────────────────────────────────────────────────
+# ИМПОРТ — HYBRID
 
 class ImportHybridDogSerializer(serializers.Serializer):
     zooportal_id = serializers.CharField(required=True, max_length=20)
@@ -413,7 +406,7 @@ class ImportHybridFullRangeSerializer(serializers.Serializer):
         ref_name = 'ImportHybridFullRange'
 
 
-# ── ИМПОРТ — OFA ─────────────────────────────────────────────────────────────
+# ИМПОРТ — OFA
 
 class ImportOFADogSerializer(serializers.Serializer):
     dog_id = serializers.IntegerField(required=False, allow_null=True)
@@ -452,7 +445,7 @@ class ImportOFABulkByNameSerializer(_OFABulkBase):
     pass
 
 
-# ── ИМПОРТ — ВЫСТАВКИ ────────────────────────────────────────────────────────
+# ИМПОРТ — ВЫСТАВКИ
 
 class ImportShowListSerializer(serializers.Serializer):
     date_str = serializers.CharField(help_text='Дата в формате DD.MM.YYYY (например 07.01.2026)')
@@ -548,6 +541,7 @@ class PhotoBackfillHashesSerializer(serializers.Serializer):
         default=None,
         help_text="Конечный dog_id (включительно). Пусто = до конца",
     )
+
 
 class PhotoBackfillHashesFromSourceSerializer(serializers.Serializer):
     limit = serializers.IntegerField(

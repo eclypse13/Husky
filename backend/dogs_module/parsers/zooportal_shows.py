@@ -1,6 +1,5 @@
-# dogs_module/parsers/zooportal_shows.py
 """
-Парсер мероприятий Zooportal.
+Парсер мероприятий Zooportal (выставки, выступления).
 """
 
 import re
@@ -25,14 +24,13 @@ from ..utils.text import parse_sex
 logger = logging.getLogger(__name__)
 
 
+# Возвращает список мероприятий с Zooportal для указанной даты и породы
 def fetch_show_list(
         date_str: str,
         group_id: int = ZOOPORTAL_SHOW_FCI_5_GROUP_ID,
         breed_id: int = ZOOPORTAL_SHOW_SH_BREED_ID,
 ) -> list[dict]:
     """
-    Возвращает список мероприятий с Zooportal для указанной даты и породы.
-
     Возвращает list[dict]:
       {
         'zooportal_show_id': '17374482',
@@ -62,14 +60,13 @@ def fetch_show_list(
     return _parse_show_list_html(html)
 
 
+# Результаты собак на конкретной выставке.
 def fetch_show_results(
         show_id: str,
         group_id: int = ZOOPORTAL_SHOW_FCI_5_GROUP_ID,
         breed_id: int = ZOOPORTAL_SHOW_SH_BREED_ID,
 ) -> list[dict]:
     """
-    Возвращает результаты собак на конкретной выставке.
-
     Возвращает list[dict]:
       {
         'zooportal_dog_id': '16893363',
@@ -107,7 +104,7 @@ def _parse_show_list_html(html: str) -> list[dict]:
     # Каждый city-box содержит organizer-блок и вложенные events
     city_boxes = soup.select('.b1t-z-al-l .city-box')
     if not city_boxes:
-        # fallback — ищем organizer напрямую
+        # fallback ищем organizer напрямую
         city_boxes = soup.select('.b1t-z-al-l .organizer')
 
     for city_box in city_boxes:
@@ -174,23 +171,19 @@ def _parse_show_results_html(html: str) -> list[dict]:
     current_show_class = None
 
     for row in rows:
-        # Строки-заголовки пола (class="solid")
         gender_cell = row.select_one('.view-cell.gender')
         if gender_cell:
             gender_text = _text(gender_cell.select_one('.text-ru') or gender_cell)
             current_sex = parse_sex(gender_text)
 
-        # Строки-заголовки класса
         class_cell = row.select_one('.view-cell.class')
         if class_cell:
             current_show_class = _text(class_cell.select_one('.text-ru') or class_cell)
 
-        # Строки с результатами собак
         owner_cell = row.select_one('.view-cell.owner')
         if not owner_cell:
             continue
 
-        # Ссылка на собаку
         dog_link = owner_cell.select_one('a[href*="/pedigree/view/"]')
         if not dog_link:
             continue
@@ -198,7 +191,6 @@ def _parse_show_results_html(html: str) -> list[dict]:
         zooportal_dog_id = _extract_dog_id(dog_link.get('href', ''))
         dog_name = _text(dog_link)
 
-        # Владелец и рег.номер — divы внутри owner_cell
         divs = [d for d in owner_cell.find_all('div', recursive=False)
                 if not d.get('class')]
         owner_name = _text(divs[0]) if len(divs) > 0 else None
@@ -239,8 +231,6 @@ def _parse_show_results_html(html: str) -> list[dict]:
     return results
 
 
-# Вспомогательные функции для данного парсера
-
 def _text(el) -> str:
     if el is None:
         return ''
@@ -248,19 +238,16 @@ def _text(el) -> str:
 
 
 def _extract_show_id(href: str) -> Optional[str]:
-    """Извлекает ID из /show/17374482/"""
     m = re.search(r'/show/(\d+)/', href or '')
     return m.group(1) if m else None
 
 
 def _extract_dog_id(href: str) -> Optional[str]:
-    """Извлекает ID из /pedigree/view/16893363/"""
     m = re.search(r'/pedigree/view/(\d+)/', href or '')
     return m.group(1) if m else None
 
 
 def _parse_date(date_str: str) -> Optional[str]:
-    """Парсит дату "17.01.2026" → "2026-01-17" (ISO)"""
     if not date_str:
         return None
     for fmt in ('%d.%m.%Y', '%Y-%m-%d'):
@@ -272,7 +259,6 @@ def _parse_date(date_str: str) -> Optional[str]:
 
 
 def _parse_assessment(text: str):
-    """'ОТЛ, 1' → ('ОТЛ', 1).  'Хор, 2' → ('Хор', 2)."""
     if not text:
         return None, None
     parts = [p.strip() for p in text.split(',')]
@@ -287,13 +273,11 @@ def _parse_assessment(text: str):
 
 
 def _extract_rank(title: str) -> Optional[str]:
-    """Пытается вытащить ранг выставки из названия."""
     if not title:
         return None
     for rank in ['CACIB', 'CAC ЧРКФ', 'САС ЧРКФ', 'CAC РКФ', 'Монопородная', 'Монопредная']:
         if rank.upper() in title.upper():
             return rank
-    # Попытка regex для "ранга XXX"
     m = re.search(r'ранга?\s+([A-Za-zА-Яа-яЁё\s]+?)(?:\s*«|\s*\"|$)', title, re.IGNORECASE)
     if m:
         return m.group(1).strip()[:100]

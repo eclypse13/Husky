@@ -180,7 +180,7 @@
     align-items: start;
 }
 
-.archive-results-grid>* {
+.archive-results-grid > * {
     min-width: 0;
 }
 
@@ -260,9 +260,11 @@
 .archive-dog-meta-item {
     white-space: nowrap;
 }
+
 .capitalize-text {
-  text-transform: capitalize;
+    text-transform: capitalize;
 }
+
 .archive-dog-badges {
     display: flex;
     flex-wrap: wrap;
@@ -277,8 +279,6 @@
 }
 
 .archive-badge--champ {
-    /*background: var(--gradient-secondary);*/
-    /*color: var(--snow-white);*/
     background: var(--title-bg-color);
     color: var(--title-color);
     border: 1px solid var(--title-border-color);
@@ -445,9 +445,11 @@
     font-size: .9rem;
     color: var(--text-light);
 }
+
 .archive-partner-link {
     text-decoration: none;
 }
+
 .archive-partner-link:hover,
 .archive-partner-link:visited,
 .archive-partner-link:active {

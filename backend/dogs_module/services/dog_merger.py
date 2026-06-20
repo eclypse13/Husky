@@ -1,6 +1,5 @@
-# dogs_module/services/dog_merger.py
 """
-Функции слияния и нормализации данных Zoo + BA.
+Функции слияния и нормализации данных.
 """
 
 import re
@@ -13,24 +12,12 @@ from ..utils.parser_utils import (
 )
 from ..utils.dog_matcher import detect_dict_conflicts
 
-# Константы источников
 SOURCE_ZOO = 'zooportal.pro'
 SOURCE_BA = 'breedarchive.com'
 
 
 # BA: нормализация сырых данных
 def normalize_ba_data(data: Dict, ba_base_url: str) -> Dict:
-    """
-    Нормализует сырой dict от BA API в плоский dict полей модели Dog.
-
-    Обрабатывает:
-      - camelCase → snake_case (registeredName → registered_name)
-      - сборка photo_url из photo_path если нет прямой ссылки
-      - сборка дат из year/month/day если нет единой date_of_birth
-      - нормализация COI к float
-      - нормализация цвета
-      - FK-имена предков из вложенных dict'ов
-    """
     reg_num = data.get('registration_number') or data.get('registrationNumber') or ''
     if reg_num:
         reg_num = re.sub(r'\s+', '', str(reg_num))
@@ -74,32 +61,27 @@ def normalize_ba_data(data: Dict, ba_base_url: str) -> Dict:
         'neutered': data.get('neutered', False),
         'incomplete_pedigree': data.get('incomplete_pedigree') or data.get('incompletePedigree', False),
         'source': SOURCE_BA,
-        # FK-имена
+
         'dam_uuid': data.get('dam_uuid') or dam_raw.get('uuid') or None,
         'sire_uuid': data.get('sire_uuid') or sire_raw.get('uuid') or None,
         'dam_name': dam_raw.get('registeredName') or None,
         'dam_link_name': dam_raw.get('linkName') or None,
         'sire_name': sire_raw.get('registeredName') or None,
         'sire_link_name': sire_raw.get('linkName') or None,
-        # Здоровье
+
         'health_info_general': data.get('health_info_general') or data.get('healthInfoGeneral'),
         'health_info_genetic': data.get('health_info_genetic') or data.get('healthInfoGenetic'),
-        # Конфликты
+
         'has_conflicts': data.get('has_conflicts', False),
         'conflicts': data.get('conflicts'),
-        # Заметки
+
         'notes': data.get('private_note') or data.get('privateNote') or None,
         'modified_at': now(),
     }
 
 
 # Zoo: маппинг полей
-
 def build_zoo_dog_fields(dog_data: Dict) -> Dict:
-    """
-    Маппит merged_data → плоский dict полей модели Dog для Zoo-пути.
-    Не пишет в БД.
-    """
     return {
         'registered_name': dog_data.get('registered_name'),
         'call_name': dog_data.get('call_name'),
@@ -135,8 +117,6 @@ def build_zoo_dog_fields(dog_data: Dict) -> Dict:
         'modified_at': now(),
     }
 
-
-# Слияние Zoo + BA
 
 # Поля которые Zoo-источник заполняет первым
 _ZP_FIELDS = (
@@ -174,14 +154,6 @@ def merge_zoo_ba_data(
         zoo_data: Dict,
         ba_data: Optional[Dict] = None,
 ) -> Dict:
-    """
-    Объединяет данные Zoo и BA в единый словарь.
-
-    Приоритет:
-      - registered_name, zooportal_id, zoo_hash — всегда из Zoo
-      - остальные поля: Zoo первый, BA заполняет пробелы
-      - uuid, link_name и эксклюзивные BA-поля — только из BA
-    """
     merged: Dict = {
         'zooportal_id': zoo_data.get('zooportal_id'),
         'zoo_hash': zoo_data.get('zoo_hash'),
@@ -229,12 +201,10 @@ def merge_zoo_ba_data(
     return merged
 
 
-# ── Zoo патч поверх BA-записи ─────────────────────────────────────────────────
-
 # Числовые поля с float-конвертацией
 _FLOAT_FIELDS = ('coi', 'size', 'weight')
 
-# Простые строковые поля — заполняем только если пустые в BA-записи
+# Простые строковые поля, заполняем только если пустые в BA-записи
 _PATCH_SIMPLE_FIELDS = (
     'photo_url', 'land_of_birth', 'land_of_birth_code', 'land_of_standing',
     'registration_number', 'brand_chip', 'kennel', 'sire_name', 'dam_name',
@@ -242,13 +212,8 @@ _PATCH_SIMPLE_FIELDS = (
 )
 
 
+# Вычисляет dict обновлений Zoo-данных поверх существующей BA-записи
 def build_zoo_patch(dog, zoo_raw: Dict, zoo_id: str) -> Dict:
-    """
-    Вычисляет dict обновлений Zoo-данных поверх существующей BA-записи.
-    Заполняет только поля которые пустые у dog.
-
-    Возвращает dict (может быть пустым если все поля уже заполнены).
-    """
     update: Dict = {'zooportal_id': str(zoo_id)}
 
     zoo_name = (

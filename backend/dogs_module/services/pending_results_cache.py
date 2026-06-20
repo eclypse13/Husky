@@ -1,6 +1,5 @@
-# dogs_module/services/pending_results_cache.py
 """
-Redis-хранилище «ожидающих» результатов выставки.
+Redis хранилище ожидающих результатов выставки.
 """
 
 import json
@@ -21,11 +20,8 @@ def _key(show_id: str) -> str:
     return f"{_PREFIX}:{show_id}"
 
 
+# Сохраняет список результатов в Redis для указанной выставки
 def store(show_id: str, results: list) -> None:
-    """
-    Сохраняет список результатов в Redis для указанной выставки.
-    Мёрджит с уже существующими — дублей по zooportal_dog_id не создаёт.
-    """
     try:
         existing = retrieve(show_id)
         existing_ids = {r.get('zooportal_dog_id') for r in existing}
@@ -37,8 +33,8 @@ def store(show_id: str, results: list) -> None:
         logger.error(f"pending_cache.store show_id={show_id}: {e}")
 
 
+# Достаёт ожидающие результаты из Redis
 def retrieve(show_id: str) -> list:
-    """Достаёт ожидающие результаты из Redis. При ошибке — пустой список."""
     try:
         data = _cache().get(_key(show_id))
         return json.loads(data) if data else []
@@ -47,30 +43,24 @@ def retrieve(show_id: str) -> list:
         return []
 
 
+# Перезаписывает список целиком
 def save(show_id: str, results: list) -> None:
-    """
-    Перезаписывает список целиком (используется после частичной линковки,
-    когда нужно сохранить только оставшиеся незалинкованные записи).
-    """
     try:
         _cache().set(_key(show_id), json.dumps(results, default=str), timeout=_TTL)
     except Exception as e:
         logger.error(f"pending_cache.save show_id={show_id}: {e}")
 
 
+# Удаляет все ожидающие результаты для выставки
 def clear(show_id: str) -> None:
-    """Удаляет все ожидающие результаты для выставки."""
     try:
         _cache().delete(_key(show_id))
     except Exception as e:
         logger.error(f"pending_cache.clear show_id={show_id}: {e}")
 
 
+# Возвращает все show_id у которых есть ожидающие результаты
 def all_show_ids() -> list:
-    """
-    Возвращает все show_id у которых есть ожидающие результаты.
-    Используется для периодической задачи «попробовать залинковать всё».
-    """
     try:
         keys = _cache().keys(f"{_PREFIX}:*") or []
         result = []

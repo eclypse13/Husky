@@ -1,215 +1,241 @@
-/*
- * Pedigree.css
-
-
-/* ═══ 1. PAGE ══════════════════════════════════════════════ */
 
 .pedigree-page {
-  padding-bottom: 3rem;
-  background: #eceef0;
-  min-height: 100vh;
+    padding-bottom: 3rem;
+    background: #eceef0;
+    min-height: 100vh;
 }
-
-/* ═══ 2. CONTROLS ══════════════════════════════════════════ */
 
 .pedigree-controls {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 1rem 2rem .4rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: .5rem;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 1rem 2rem .4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
 }
 
-/* Tab group — white pill with gen numbers */
 .pedigree-gen-tabs {
-  display: flex;
-  align-items: center;
-  gap: .15rem;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: .2rem;
+    display: flex;
+    align-items: center;
+    gap: .15rem;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: .2rem;
 }
 
 .pedigree-gen-label {
-  font-size: .78rem;
-  font-weight: 600;
-  color: #6b7280;
-  padding: 0 .6rem;
-  white-space: nowrap;
+    font-size: .78rem;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 0 .6rem;
+    white-space: nowrap;
 }
 
-/* Individual tab button */
 .pedigree-gen-tab {
-  min-width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  font-size: .82rem;
-  font-weight: 700;
-  color: #2563eb;
-  cursor: pointer;
-  transition: background .15s, color .15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 .35rem;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    font-size: .82rem;
+    font-weight: 700;
+    color: #2563eb;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 .35rem;
 }
 
 .pedigree-gen-tab:hover {
-  background: #eceef0;
+    background: #eceef0;
 }
 
-/* Active tab — solid blue */
 .pedigree-gen-tab.is-active {
-  background: #2563eb;
-  color: #fff;
+    background: #2563eb;
+    color: #fff;
 }
 
-/* Stat badges (♂ 12  ♀ 8  20 записей) */
 .pedigree-stats {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
 }
 
 .pdg-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: .2rem;
-  padding: .2rem .6rem;
-  border-radius: 6px;
-  font-size: .72rem;
-  font-weight: 700;
-  white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+    padding: .2rem .6rem;
+    border-radius: 6px;
+    font-size: .72rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
-.pdg-badge--male   { background: rgba(37,99,235,.08); color: #2563eb; }
-.pdg-badge--female { background: rgba(192,38,211,.08); color: #c026d3; }
-.pdg-badge--total  { background: #fff; color: #6b7280; border: 1px solid #d1d5db; }
+.pdg-badge--male {
+    background: rgba(37, 99, 235, .08);
+    color: #2563eb;
+}
 
-/* ═══ 3. FRAME ═════════════════════════════════════════════ */
+.pdg-badge--female {
+    background: rgba(192, 38, 211, .08);
+    color: #c026d3;
+}
+
+.pdg-badge--total {
+    background: #fff;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
 
 .pedigree-frame {
-  max-width: 1440px;
-  margin: .5rem auto 0;
-  padding: .5rem;
-  background: #eceef0;
-  border-radius: 10px;
-  overflow: hidden;
+    max-width: 1440px;
+    margin: .5rem auto 0;
+    padding: .5rem;
+    background: #eceef0;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
-/* Horizontal scroll when tree exceeds viewport */
 .pedigree-frame.is-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: #c4c8cd transparent;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #c4c8cd transparent;
 }
 
-.pedigree-frame.is-scroll::-webkit-scrollbar { height: 6px; }
+.pedigree-frame.is-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
 .pedigree-frame.is-scroll::-webkit-scrollbar-thumb {
-  background: #c4c8cd;
-  border-radius: 3px;
+    background: #c4c8cd;
+    border-radius: 3px;
 }
 
-.pedigree-scroll { width: 100%; }
+.pedigree-scroll {
+    width: 100%;
+}
 
 .pedigree-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* ═══ 4. SVG ELEMENTS ══════════════════════════════════════ */
 
-.pdg-node { cursor: pointer; }
+.pdg-node {
+    cursor: pointer;
+}
 
-/* Connector lines — brand blue, right-angle elbows */
 .pdg-link {
-  fill: none;
-  stroke: #3b82f6;
-  stroke-width: 1.5px;
+    fill: none;
+    stroke: #3b82f6;
+    stroke-width: 1.5px;
 }
 
-/* ═══ 5. STATES ════════════════════════════════════════════ */
 
 .pedigree-error {
-  max-width: 1440px;
-  margin: 1rem auto;
-  padding: .75rem 1.25rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  color: #dc2626;
-  text-align: center;
-  font-weight: 600;
-  font-size: .88rem;
+    max-width: 1440px;
+    margin: 1rem auto;
+    padding: .75rem 1.25rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    color: #dc2626;
+    text-align: center;
+    font-weight: 600;
+    font-size: .88rem;
 }
 
 .pedigree-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .6rem;
-  padding: 4rem 2rem;
-  color: #6b7280;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .6rem;
+    padding: 4rem 2rem;
+    color: #6b7280;
 }
 
 .pedigree-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #d1d5db;
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  animation: pdg-spin .7s linear infinite;
+    width: 32px;
+    height: 32px;
+    border: 3px solid #d1d5db;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: pdg-spin .7s linear infinite;
 }
 
-@keyframes pdg-spin { to { transform: rotate(360deg); } }
+@keyframes pdg-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 
-/* ═══ 6. SCROLL HINT ══════════════════════════════════════ */
 
 .pedigree-scroll-hint {
-  max-width: 1440px;
-  margin: .4rem auto 0;
-  display: none;
-  justify-content: center;
-  font-size: .72rem;
-  color: #9ca3af;
-  font-weight: 600;
-  animation: pdg-pulse 2s ease-in-out infinite;
+    max-width: 1440px;
+    margin: .4rem auto 0;
+    display: none;
+    justify-content: center;
+    font-size: .72rem;
+    color: #9ca3af;
+    font-weight: 600;
+    animation: pdg-pulse 2s ease-in-out infinite;
 }
 
-.pedigree-frame.is-scroll + .pedigree-scroll-hint { display: flex; }
+.pedigree-frame.is-scroll + .pedigree-scroll-hint {
+    display: flex;
+}
 
 @keyframes pdg-pulse {
-  0%, 100% { opacity: .4; }
-  50%      { opacity: 1; }
+    0%, 100% {
+        opacity: .4;
+    }
+    50% {
+        opacity: 1;
+    }
 }
 
-/* ═══ 7. RESPONSIVE ═══════════════════════════════════════ */
 
 @media (max-width: 768px) {
-  .pedigree-controls {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem 1rem .4rem;
-  }
-  .pedigree-frame {
-    margin: .5rem .5rem 0;
-    padding: .5rem;
-  }
+    .pedigree-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem 1rem .4rem;
+    }
+
+    .pedigree-frame {
+        margin: .5rem .5rem 0;
+        padding: .5rem;
+    }
 }
 
 @media (max-width: 480px) {
-  .pedigree-controls { padding: .75rem .75rem .3rem; }
-  .pedigree-gen-tab  { min-width: 24px; height: 24px; font-size: .75rem; }
-  .pedigree-gen-label { font-size: .7rem; }
-  .pedigree-frame { margin: .4rem .35rem 0; padding: .35rem; }
+    .pedigree-controls {
+        padding: .75rem .75rem .3rem;
+    }
+
+    .pedigree-gen-tab {
+        min-width: 24px;
+        height: 24px;
+        font-size: .75rem;
+    }
+
+    .pedigree-gen-label {
+        font-size: .7rem;
+    }
+
+    .pedigree-frame {
+        margin: .4rem .35rem 0;
+        padding: .35rem;
+    }
 }

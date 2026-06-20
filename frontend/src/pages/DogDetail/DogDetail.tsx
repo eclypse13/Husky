@@ -1,24 +1,23 @@
-// src/pages/DogDetail/DogDetail.tsx
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import {useEffect, useState} from "react";
+import {Link, useParams} from "react-router-dom";
 import Breadcrumb from "@/components/Breadcrumb/Breadcrumb";
-import { getDogDetail } from "@/api/dogs";
-import type { CoiCalculationResult, DogDetail } from "@/types/dog";
+import {getDogDetail} from "@/api/dogs";
+import type {CoiCalculationResult, DogDetail} from "@/types/dog";
 import "./DogDetail.css";
 import HealthModal from "@/components/HealthModal/HealthModal";
-import { PLACEHOLDER_URLS } from "@/utils/dogPhoto";
-import { DogAvatar } from "@/components/DogAvatar/DogAvatar";
+import {PLACEHOLDER_URLS} from "@/utils/dogPhoto";
+import {DogAvatar} from "@/components/DogAvatar/DogAvatar";
 
-const SEX_LABEL: Record<number, string> = { 1: "♂ Кобель", 2: "♀ Сука" };
+const SEX_LABEL: Record<number, string> = {1: "♂ Кобель", 2: "♀ Сука"};
 
 function formatDate(raw: string | null): string | null {
     if (!raw) return null;
     const d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
-    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+    return d.toLocaleDateString("ru-RU", {day: "numeric", month: "long", year: "numeric"});
 }
 
-function Row({ label, value }: { label: string; value?: string | number | null }) {
+function Row({label, value}: { label: string; value?: string | number | null }) {
     return (
         <div className="dd-row">
             <span className="dd-row-label">{label}</span>
@@ -29,7 +28,7 @@ function Row({ label, value }: { label: string; value?: string | number | null }
     );
 }
 
-function ParentCard({ label, parent }: {
+function ParentCard({label, parent}: {
     label: string;
     parent: {
         id: number; registered_name: string; sex: number;
@@ -62,10 +61,10 @@ function ParentCard({ label, parent }: {
 function Skeleton() {
     return (
         <div className="dd-skeleton">
-            <div className="dd-skeleton-photo" />
+            <div className="dd-skeleton-photo"/>
             <div className="dd-skeleton-lines">
                 {[160, 260, 180, 140, 210].map((w, i) => (
-                    <div key={i} className="dd-skeleton-line" style={{ width: w }} />
+                    <div key={i} className="dd-skeleton-line" style={{width: w}}/>
                 ))}
             </div>
         </div>
@@ -73,19 +72,17 @@ function Skeleton() {
 }
 
 export default function DogDetail() {
-    const { id } = useParams<{ id: string }>();
+    const {id} = useParams<{ id: string }>();
     const [dog, setDog] = useState<DogDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [healthOpen, setHealthOpen] = useState(false);
 
-    // ── Lightbox ──────────────────────────────────────────────────────────────
     const [photoOpen, setPhotoOpen] = useState(false);
 
-    // ── COI ───────────────────────────────────────────────────────────────────
     const [coiLoading, setCoiLoading] = useState(false);
-    const [coiResult, setCoiResult]   = useState<CoiCalculationResult | null>(null);
-    const [coiError, setCoiError]     = useState<string | null>(null);
+    const [coiResult, setCoiResult] = useState<CoiCalculationResult | null>(null);
+    const [coiError, setCoiError] = useState<string | null>(null);
 
     const handleCalculateCoi = async () => {
         if (!dog) return;
@@ -103,9 +100,9 @@ export default function DogDetail() {
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+                    ...(csrfToken ? {"X-CSRFToken": csrfToken} : {}),
                 },
-                body: JSON.stringify({ generations: 10 }),
+                body: JSON.stringify({generations: 10}),
             });
 
             const contentType = res.headers.get("content-type") ?? "";
@@ -119,7 +116,7 @@ export default function DogDetail() {
                 setCoiError(data.error ?? data.detail ?? `Ошибка ${res.status}`);
             } else {
                 setCoiResult(data);
-                setDog((prev) => prev ? { ...prev, coi: data.coi, coi_updated_on: data.coi_updated_on } : prev);
+                setDog((prev) => prev ? {...prev, coi: data.coi, coi_updated_on: data.coi_updated_on} : prev);
             }
         } catch (e) {
             setCoiError(e instanceof Error ? e.message : "Сетевая ошибка");
@@ -141,7 +138,6 @@ export default function DogDetail() {
             .finally(() => setLoading(false));
     }, [id]);
 
-    // Закрытие lightbox по Escape
     useEffect(() => {
         if (!photoOpen) return;
         const handler = (e: KeyboardEvent) => {
@@ -152,21 +148,21 @@ export default function DogDetail() {
     }, [photoOpen]);
 
     const suffixTitles = dog?.titles.filter((t) => !t.is_prefix) ?? [];
-    const isClickable  = !!dog?.photo_url && !PLACEHOLDER_URLS.includes(dog.photo_url);
+    const isClickable = !!dog?.photo_url && !PLACEHOLDER_URLS.includes(dog.photo_url);
 
     return (
         <div className="dd-page">
             <Breadcrumb
                 title="Карточка собаки"
                 items={[
-                    { label: "Главная", to: "/" },
-                    { label: "Архив", to: "/archive" },
-                    { label: dog?.registered_name ?? "…" },
+                    {label: "Главная", to: "/"},
+                    {label: "Архив", to: "/archive"},
+                    {label: dog?.registered_name ?? "…"},
                 ]}
             />
 
             <div className="dd-container">
-                {loading && <Skeleton />}
+                {loading && <Skeleton/>}
 
                 {error && (
                     <div className="dd-error">
@@ -178,7 +174,6 @@ export default function DogDetail() {
 
                 {!loading && !error && dog && (
                     <>
-                        {/* ══ LIGHTBOX ════════════════════════════════════════ */}
                         {photoOpen && (
                             <div className="dd-lightbox" onClick={() => setPhotoOpen(false)}>
                                 <button
@@ -199,7 +194,6 @@ export default function DogDetail() {
                             </div>
                         )}
 
-                        {/* ══ ШАПКА ══════════════════════════════════════════ */}
                         <div className="dd-header">
                             <div className="dd-photo-wrap">
                                 <DogAvatar
@@ -222,13 +216,13 @@ export default function DogDetail() {
                                 <div className="dd-actions">
                                     {dog.zooportal_id && (
                                         <a href={`https://zooportal.pro/pedigree/view/${dog.zooportal_id}/`}
-                                            target="_blank" rel="noopener noreferrer" className="dd-btn">
+                                           target="_blank" rel="noopener noreferrer" className="dd-btn">
                                             🔗 Zooportal
                                         </a>
                                     )}
                                     {dog.uuid && (
                                         <a href={`https://siberianhusky.breedarchive.com/animal/view/${dog.link_name}-${dog.uuid}`}
-                                            target="_blank" rel="noopener noreferrer" className="dd-btn">
+                                           target="_blank" rel="noopener noreferrer" className="dd-btn">
                                             📋 BreedArchive
                                         </a>
                                     )}
@@ -236,16 +230,16 @@ export default function DogDetail() {
                             </div>
                         </div>
 
-                        {/* ══ КАРТОЧКИ ════════════════════════════════════════ */}
                         <div className="dd-grid">
                             <section className="dd-card">
-                                <h2 className="dd-card-title"><span className="dd-card-icon">📄</span>Основные данные</h2>
+                                <h2 className="dd-card-title"><span className="dd-card-icon">📄</span>Основные данные
+                                </h2>
                                 <div className="dd-rows">
-                                    <Row label="Кличка" value={dog.call_name || dog.registered_name} />
-                                    <Row label="Пол" value={SEX_LABEL[dog.sex]} />
-                                    <Row label="Дата рождения" value={formatDate(dog.date_of_birth)} />
-                                    <Row label="Страна рождения" value={dog.land_of_birth} />
-                                    <Row label="Окрас" value={dog.color} />
+                                    <Row label="Кличка" value={dog.call_name || dog.registered_name}/>
+                                    <Row label="Пол" value={SEX_LABEL[dog.sex]}/>
+                                    <Row label="Дата рождения" value={formatDate(dog.date_of_birth)}/>
+                                    <Row label="Страна рождения" value={dog.land_of_birth}/>
+                                    <Row label="Окрас" value={dog.color}/>
                                     <Row
                                         label="Размер / Вес"
                                         value={dog.size && dog.weight ? `${dog.size} см / ${dog.weight} кг` : null}
@@ -263,13 +257,15 @@ export default function DogDetail() {
                                                 title="Рассчитать / обновить COI"
                                                 aria-label="Обновить COI"
                                             >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="23 4 23 10 17 10" />
-                                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                     stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                                                     strokeLinejoin="round">
+                                                    <polyline points="23 4 23 10 17 10"/>
+                                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                                                 </svg>
                                             </button>
                                             {coiLoading ? (
-                                                <span className="dd-coi-spinner" />
+                                                <span className="dd-coi-spinner"/>
                                             ) : coiResult ? (
                                                 <span className="dd-row-value">{coiResult.coi.toFixed(2)} %</span>
                                             ) : dog.coi != null ? (
@@ -285,21 +281,22 @@ export default function DogDetail() {
                             <section className="dd-card">
                                 <h2 className="dd-card-title"><span className="dd-card-icon">🐾</span>Родители</h2>
                                 <div className="dd-parents">
-                                    <ParentCard label="Отец (Sire)" parent={dog.sire} />
-                                    <ParentCard label="Мать (Dam)" parent={dog.dam} />
+                                    <ParentCard label="Отец (Sire)" parent={dog.sire}/>
+                                    <ParentCard label="Мать (Dam)" parent={dog.dam}/>
                                 </div>
                             </section>
 
                             <section className="dd-card">
                                 <h2 className="dd-card-title"><span className="dd-card-icon">🏷️</span>Регистрация</h2>
                                 <div className="dd-rows">
-                                    <Row label="№ родословной" value={dog.registration_number} />
-                                    <Row label="Чип / Клеймо" value={dog.brand_chip} />
+                                    <Row label="№ родословной" value={dog.registration_number}/>
+                                    <Row label="Чип / Клеймо" value={dog.brand_chip}/>
                                 </div>
                             </section>
 
                             <section className="dd-card">
-                                <h2 className="dd-card-title"><span className="dd-card-icon">👤</span>Заводчик и владелец</h2>
+                                <h2 className="dd-card-title"><span className="dd-card-icon">👤</span>Заводчик и владелец
+                                </h2>
                                 <div className="dd-rows">
                                     <div className="dd-row dd-row--block">
                                         <span className="dd-row-label">Заводчик</span>
@@ -307,7 +304,8 @@ export default function DogDetail() {
                                             {dog.breeders.length
                                                 ? dog.breeders.map((b) => (
                                                     <span key={b.id} className="dd-person">
-                                                        {b.name}{b.kennel && <span className="dd-person-kennel"> · {b.kennel}</span>}
+                                                        {b.name}{b.kennel &&
+                                                        <span className="dd-person-kennel"> · {b.kennel}</span>}
                                                     </span>
                                                 ))
                                                 : <span className="dd-row-value--empty">Не указано</span>}
@@ -319,7 +317,8 @@ export default function DogDetail() {
                                             {dog.owners.length
                                                 ? dog.owners.map((o) => (
                                                     <span key={o.id} className="dd-person">
-                                                        {o.name}{o.kennel && <span className="dd-person-kennel"> · {o.kennel}</span>}
+                                                        {o.name}{o.kennel &&
+                                                        <span className="dd-person-kennel"> · {o.kennel}</span>}
                                                     </span>
                                                 ))
                                                 : <span className="dd-row-value--empty">Не указано</span>}
@@ -329,20 +328,20 @@ export default function DogDetail() {
                             </section>
                         </div>
 
-                        {/* ══ ТИТУЛЫ ══════════════════════════════════════════ */}
                         {dog.titles.length > 0 && (
                             <section className="dd-card dd-card--wide">
                                 <h2 className="dd-card-title"><span className="dd-card-icon">🏆</span>Титулы</h2>
                                 <div className="dd-titles-grid">
                                     {dog.titles.map((t) => (
                                         <div key={t.id}
-                                            className={`dd-title-card ${t.is_prefix ? "dd-title-card--prefix" : "dd-title-card--suffix"}`}>
+                                             className={`dd-title-card ${t.is_prefix ? "dd-title-card--prefix" : "dd-title-card--suffix"}`}>
                                             <span className="dd-title-card-short">
                                                 {t.short_name.toUpperCase()}
                                                 {t.country && <em>.{t.country.toUpperCase()}</em>}
                                             </span>
                                             {t.long_name && <span className="dd-title-card-long">{t.long_name}</span>}
-                                            {t.winner_year && <span className="dd-title-card-year">{t.winner_year}</span>}
+                                            {t.winner_year &&
+                                                <span className="dd-title-card-year">{t.winner_year}</span>}
                                         </div>
                                     ))}
                                 </div>
@@ -359,10 +358,9 @@ export default function DogDetail() {
                             </section>
                         )}
 
-                        {/* ══ НАВИГАЦИЯ ═══════════════════════════════════════ */}
                         <div className="dd-nav">
                             <Link to="/archive" className="dd-btn">← Назад в архив</Link>
-                            <div style={{ display: "flex", gap: ".6rem" }}>
+                            <div style={{display: "flex", gap: ".6rem"}}>
                                 <button className="dd-btn" onClick={() => setHealthOpen(true)}>
                                     🩺 Здоровье
                                 </button>

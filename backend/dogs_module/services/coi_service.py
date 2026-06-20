@@ -1,4 +1,3 @@
-# dogs_module/services/coi_service.py
 """
 Массовый пересчёт COI.
 """
@@ -13,6 +12,7 @@ from ..utils.coi_calculator import calculate_coi, save_coi
 logger = logging.getLogger(__name__)
 
 
+# Пересчитывает COI для всех собак с обоими родителями
 def recalculate_all(
         generations: int = 5,
         batch_size: int = 100,
@@ -20,12 +20,6 @@ def recalculate_all(
         use_ancestor_coi: bool = False,
         progress_cb: Optional[Callable[[dict], None]] = None,
 ) -> dict:
-    """
-    Пересчитывает COI для всех собак с обоими родителями.
-
-    progress_cb — необязательный колбэк, вызывается после каждого батча
-    со словарём прогресса (таска передаёт сюда self.update_state).
-    """
     start = time.time()
 
     qs = dog_repo.iter_dogs_for_coi_recalc(only_missing=only_missing)

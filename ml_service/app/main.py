@@ -1,5 +1,3 @@
-# ml_service/app/main.py
-
 from fastapi import FastAPI
 from .routers import breeding
 

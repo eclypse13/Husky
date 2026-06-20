@@ -1,4 +1,3 @@
-# dogs_module/utils/cache.py
 """
 Утилиты кеширования для парсеров.
 """
@@ -42,8 +41,8 @@ def cache_delete(key: str, alias: str = 'parsers') -> None:
         logger.error(f"cache_delete [{alias}] {key}: {e}")
 
 
+# Генерирует ключ кеша
 def generate_cache_key(prefix: str, *args, **kwargs) -> str:
-    """Генерирует ключ кеша. Если длиннее 200 — усекает через MD5."""
     parts = [prefix] + [str(a).lower().strip() for a in args]
     parts += [f"{k}={v}" for k, v in sorted(kwargs.items())]
     key = ":".join(parts)
@@ -53,9 +52,8 @@ def generate_cache_key(prefix: str, *args, **kwargs) -> str:
     return key
 
 
+# Декоратор кеширования результатов функции
 def cached(ttl: Optional[int] = None, alias: str = 'parsers', key_prefix: str = ""):
-    """Декоратор кеширования результатов функции."""
-
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -73,12 +71,8 @@ def cached(ttl: Optional[int] = None, alias: str = 'parsers', key_prefix: str = 
     return decorator
 
 
-# Обратная совместимость: старый класс RedisCache как тонкая обёртка ───────
-
+# Обёртка для обратной совместимости.
 class RedisCache:
-    """
-    Обёртка для обратной совместимости.
-    """
 
     def __init__(self, cache_alias: str = 'parsers'):
         self.cache_alias = cache_alias

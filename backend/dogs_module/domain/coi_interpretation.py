@@ -1,4 +1,3 @@
-# dogs_module/domain/coi_interpretation.py
 """
 Интерпретация коэффициента инбридинга.
 """
