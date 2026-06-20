@@ -1,7 +1,5 @@
-# dogs_module/services/health_service.py
 """
 Архив OFA медицинских тестов всех собак.
-Показать все записи → отфильтровать по имени собаки / типу теста / результату.
 """
 
 import logging
@@ -26,12 +24,6 @@ def search_health_records(
         page: int = 1,
         per_page: int = DEFAULT_PER_PAGE,
 ) -> dict:
-    """
-    Все OFA-записи с фильтрами и пагинацией.
-    q — поиск по имени собаки
-    registry — тип теста (HIPS, EYES, ...)
-    conclusion — результат (EXCELLENT, NORMAL, ...)
-    """
     from ..models import MedicalRecord
 
     per_page = min(max(1, per_page), MAX_PER_PAGE)
@@ -84,7 +76,6 @@ def search_health_records(
 
 
 def get_available_registries() -> list:
-    """Какие типы тестов есть в БД — для фильтра."""
     cached = cache.get(_REGISTRIES_CACHE_KEY)
     if cached:
         return cached
@@ -107,7 +98,6 @@ def get_available_registries() -> list:
 
 
 def get_health_stats() -> dict:
-    """Сводная статистика: сколько тестов, сколько собак, процент нормальных по каждому тесту."""
     cached = cache.get(_STATS_CACHE_KEY)
     if cached:
         return cached
@@ -152,7 +142,6 @@ def get_health_stats() -> dict:
 
 
 def get_dog_health_records(dog_id) -> dict:
-    """Все тесты одной собаки."""
     from ..models import MedicalRecord
 
     try:

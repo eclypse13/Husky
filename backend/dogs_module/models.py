@@ -1,11 +1,5 @@
 from django.db import models
 
-# Create your models here.
-
-# dogs_module/models.py
-
-from django.db import models
-
 
 class Breeder(models.Model):
     uuid = models.CharField(max_length=255, unique=True, blank=True, null=True)
@@ -46,39 +40,39 @@ class Owner(models.Model):
 
 
 class Dog(models.Model):
-    # --- Идентификаторы ---
+    # Идентификаторы
     uuid = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     zooportal_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
     zoo_hash = models.CharField(max_length=64, blank=True, null=True, db_index=True)
     ofa_appnum = models.CharField(max_length=20, blank=True, null=True, unique=True, db_index=True)
 
-    # --- Имена ---
+    # Имена
     registered_name = models.CharField(max_length=500, blank=True, null=True)
     call_name = models.CharField(max_length=255, blank=True, null=True)
     link_name = models.CharField(max_length=500, blank=True, null=True)
 
-    # --- Пол (1 = кобель, 2 = сука) ---
+    # Пол (1 = кобель, 2 = сука)
     SEX_CHOICES = [(1, 'Кобель'), (2, 'Сука')]
     sex = models.IntegerField(choices=SEX_CHOICES)
 
-    # --- Дата рождения ---
+    # Дата рождения
     year_of_birth = models.IntegerField(blank=True, null=True)
     month_of_birth = models.IntegerField(blank=True, null=True)
     day_of_birth = models.IntegerField(blank=True, null=True)
     date_of_birth = models.DateTimeField(blank=True, null=True)
 
-    # --- Дата смерти ---
+    # Дата смерти
     year_of_death = models.IntegerField(blank=True, null=True)
     month_of_death = models.IntegerField(blank=True, null=True)
     day_of_death = models.IntegerField(blank=True, null=True)
     date_of_death = models.DateTimeField(blank=True, null=True)
 
-    # --- География ---
+    # География
     land_of_birth = models.CharField(max_length=255, blank=True, null=True)
     land_of_birth_code = models.CharField(max_length=10, blank=True, null=True)
     land_of_standing = models.CharField(max_length=255, blank=True, null=True)
 
-    # --- Внешность ---
+    # Внешность
     size = models.FloatField(blank=True, null=True)
     weight = models.FloatField(blank=True, null=True)
     color = models.CharField(max_length=255, blank=True, null=True)
@@ -94,24 +88,24 @@ class Dog(models.Model):
     photo_yadisk_url = models.TextField(null=True, blank=True, verbose_name='Публичная ссылка фото на Яндекс.Диске')
     photo_hash = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
-    # --- Титулы ---
+    # Титулы
     prefix_titles = models.CharField(max_length=500, blank=True, null=True)
     suffix_titles = models.CharField(max_length=500, blank=True, null=True)
     other_titles = models.CharField(max_length=500, blank=True, null=True)
     rating = models.IntegerField(default=0, blank=True, null=True)
     rating_updated_at = models.DateTimeField(blank=True, null=True)
 
-    # --- Регистрация ---
+    # Регистрация
     registration_status = models.IntegerField(blank=True, null=True)
     registration_number = models.CharField(max_length=255, blank=True, null=True)
     brand_chip = models.CharField(max_length=255, blank=True, null=True)
 
-    # --- Родословная ---
+    # Родословная
     coi = models.FloatField(blank=True, null=True)
     coi_updated_on = models.DateTimeField(blank=True, null=True)
     incomplete_pedigree = models.BooleanField(blank=True, null=True)
 
-    # --- Статусы ---
+    # Статусы
     locked = models.BooleanField(blank=True, null=True)
     removed = models.BooleanField(blank=True, null=True)
     show_ad = models.BooleanField(blank=True, null=True)
@@ -119,7 +113,7 @@ class Dog(models.Model):
     modified = models.BooleanField(blank=True, null=True)
     modified_at = models.DateTimeField(blank=True, null=True)
 
-    # --- Здоровье ---
+    # Здоровье
     health_info_general = models.JSONField(blank=True, null=True)
     health_info_genetic = models.JSONField(blank=True, null=True)
     neutered = models.BooleanField(blank=True, null=True)
@@ -127,7 +121,7 @@ class Dog(models.Model):
     frozen_semen = models.BooleanField(blank=True, null=True)
     artificial_insemination = models.BooleanField(blank=True, null=True)
 
-    # --- Источник и прочее ---
+    # Источник и прочее
     source = models.CharField(max_length=255, blank=True, null=True)
     has_conflicts = models.BooleanField(blank=True, null=True)
     conflicts = models.JSONField(blank=True, null=True)
@@ -137,7 +131,7 @@ class Dog(models.Model):
     club = models.CharField(max_length=255, blank=True, null=True)
     sports = models.JSONField(blank=True, null=True)
 
-    # --- Мать (dam) ---
+    # Мать (dam)
     dam = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -150,7 +144,7 @@ class Dog(models.Model):
     dam_name = models.CharField(max_length=500, blank=True, null=True)
     dam_link_name = models.CharField(max_length=500, blank=True, null=True)
 
-    # --- Отец (sire) ---
+    # Отец (sire)
     sire = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -163,7 +157,7 @@ class Dog(models.Model):
     sire_name = models.CharField(max_length=500, blank=True, null=True)
     sire_link_name = models.CharField(max_length=500, blank=True, null=True)
 
-    # --- Помёт рождения ---
+    # Помёт рождения
     birth_litter = models.ForeignKey(
         'Litter',
         on_delete=models.SET_NULL,
@@ -172,8 +166,7 @@ class Dog(models.Model):
         related_name='puppies'
     )
 
-    # --- ManyToMany связи ---
-    # through= указывает промежуточную таблицу (уже существует в БД)
+    # ManyToMany связи
     breeders = models.ManyToManyField(
         Breeder,
         through='Dogbreederlink',
@@ -192,10 +185,6 @@ class Dog(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        """
-        Переопределяем save для автоматической генерации zoo_hash
-        """
-        # Генерируем zoo_hash если его нет и есть необходимые данные
         if not self.zoo_hash and self.registered_name and self.sex:
             self.zoo_hash = self.generate_zoo_hash()
 
@@ -203,11 +192,6 @@ class Dog(models.Model):
 
     @staticmethod
     def compute_zoo_hash(name: str, sex: int):
-        """
-        Статический метод: вычисляет zoo_hash по имени и полу.
-        Используется как в instance-методе, так и в сервисах (без объекта Dog).
-        Возвращает None если имя или пол не заданы.
-        """
         import hashlib
         if not name or not sex:
             return None
@@ -218,10 +202,6 @@ class Dog(models.Model):
         return hashlib.sha256(f"{normalized}|{sex_str}".encode('utf-8')).hexdigest()
 
     def generate_zoo_hash(self):
-        """
-        Генерирует zoo_hash для текущего экземпляра Dog.
-        Делегирует в compute_zoo_hash — единственный источник алгоритма.
-        """
         name = self.registered_name or self.call_name or ''
         sex = self.sex or 0
         return self.compute_zoo_hash(name, sex)
@@ -371,7 +351,7 @@ class MedicalRecord(models.Model):
             models.UniqueConstraint(
                 fields=["dog", "ofa_number"],
                 name="unique_dog_ofa_number",
-                condition=models.Q(ofa_number__isnull=False),  # только если ofa_number не null
+                condition=models.Q(ofa_number__isnull=False),
             )
         ]
         ordering = ["-test_date"]
@@ -498,6 +478,7 @@ class ShowResult(models.Model):
 
     def __str__(self):
         return f'{self.dog_name} @ {self.event} → {self.grade} {self.place}'
+
 
 class ShowYearlyRating(models.Model):
     dog = models.ForeignKey(

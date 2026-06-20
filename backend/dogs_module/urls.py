@@ -59,7 +59,7 @@ from .views import (
     PhotoCleanupPlaceholdersView,
 
     PopulationStatsView,
-    PhotoBackfillHashesFromSourceView,
+    PhotoBackfillHashesFromSourceView, DogPhotoRawView,
 )
 
 router = DefaultRouter()
@@ -218,6 +218,9 @@ urlpatterns = [
     path('dogs/photos/sync-from-yadisk/',
          PhotoSyncFromYaDiskView.as_view(),
          name='photos-sync-from-yadisk'),
+
+    path('dogs/photos/<int:dog_id>/raw/', DogPhotoRawView.as_view(), name='dog-photo-raw'),
+
     # Yandex Disk Photo Zoo фото через Playwright
     path(
         'dogs/photos/fetch-zoo/<int:dog_id>/',

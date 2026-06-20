@@ -1,21 +1,4 @@
 """
-Django management command: импорт медицинских записей из CSV.
-
-Поиск собаки в БД — двухступенчатый:
-1. Сначала по registration_number (если в CSV указан regnum)
-2. Если не нашлось — по expected_name (поля registered_name / call_name / link_name)
-3. Если найдено несколько по имени — пропуск с подсказкой что исправить
-
-Адаптирована под модель MedicalRecord:
-    dog (FK, nullable) | registry (Char) | test_date (DateTime, nullable) |
-    conclusion (Char, nullable) | ofa_number (Char, nullable) |
-    source (Char) | notes (Char, nullable)
-
-Дедупликация на уровне команды: (dog, registry, conclusion).
-
-CSV формат (regnum может быть пустым, тогда поиск только по expected_name):
-    regnum,registry,conclusion,test_date,source,expected_name[,ofa_number,notes]
-
 Использование:
     docker compose exec web python manage.py import_health_records data/records.csv --dry-run
     docker compose exec web python manage.py import_health_records data/records.csv --fci-hip --fci-elbow --verify --dry-run
@@ -43,14 +26,6 @@ FCI_TO_OFA_ELBOW = {
 
 
 def find_dog(Dog, regnum: str, expected_name: str, stdout, style, row_idx: int):
-    """
-    Двухступенчатый поиск собаки.
-    Возвращает (dog, status) где status — одно из:
-      'found'             — нашли уверенно
-      'multiple_regnum'   — несколько по regnum, взяли первого
-      'multiple_name'     — несколько по имени, пропускаем
-      'not_found'         — не нашли
-    """
     digits_only = "".join(ch for ch in regnum if ch.isdigit()) if regnum else ""
 
     # Шаг 1: поиск по registration_number (если regnum осмысленный)

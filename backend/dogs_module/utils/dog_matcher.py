@@ -1,4 +1,3 @@
-# dogs_module/utils/dog_matcher.py
 from datetime import datetime, date
 from typing import Any, Dict, Tuple
 from ..utils.text import normalize_for_similarity
@@ -18,8 +17,8 @@ _CONFLICT_FIELDS = (
 _NUMERIC_FIELDS = ('size', 'weight', 'coi')
 
 
+# Приводит значение числового поля к float для сравнения
 def _to_comparable(field: str, value: Any) -> Any:
-    """Приводит значение числового поля к float для сравнения."""
     if field in _NUMERIC_FIELDS and isinstance(value, str):
         try:
             return float(value.strip())
@@ -28,37 +27,31 @@ def _to_comparable(field: str, value: Any) -> Any:
     return value
 
 
+# Конвертирует дату/время в ISO-строку для JSON-сериализации
 def _serialize(value: Any) -> Any:
-    """Конвертирует дату/время в ISO-строку для JSON-сериализации."""
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
 
 
+# Сравнивает поля существующей записи Dog с новыми данными
 def detect_conflicts(
         existing_dog: Any,
         new_data: Dict[str, Any],
         source: str,
 ) -> Tuple[bool, Dict[str, Dict[str, Any]]]:
-    """
-    Сравнивает поля существующей записи Dog с новыми данными.
-    Делегирует в detect_dict_conflicts — единственная реализация логики.
-    existing_dog принимает Any (обычно Dog) — не импортируем модель.
-    """
     existing_dict = {f: getattr(existing_dog, f, None) for f in _CONFLICT_FIELDS}
     existing_source = getattr(existing_dog, 'source', None) or 'unknown'
     return detect_dict_conflicts(existing_dict, new_data, existing_source, source)
 
 
+# Детектирует конфликты между двумя словарями данных (до сохранения в БД)
 def detect_dict_conflicts(
         left: Dict[str, Any],
         right: Dict[str, Any],
         left_source: str,
         right_source: str,
 ) -> Tuple[bool, Dict[str, Dict[str, Any]]]:
-    """
-    Детектирует конфликты между двумя словарями данных (до сохранения в БД).
-    """
     conflicts: Dict[str, Dict[str, Any]] = {}
 
     for key in set(left) & set(right):
@@ -125,16 +118,16 @@ except ImportError:  # fallback без зависимости
         return jaro + prefix * 0.1 * (1 - jaro)
 
 
+# Jaro-Winkler похожести двух имён собак после нормализации (0..1)
 def name_similarity(a: str, b: str) -> float:
-    """Jaro-Winkler похожести двух имён собак после нормализации (0..1)."""
     na, nb = normalize_for_similarity(a), normalize_for_similarity(b)
     if not na or not nb:
         return 0.0
     return _jw(na, nb)
 
 
+# Сравнение родителей по именам
 def _parents_match(new: dict, cand: dict) -> str:
-    """Сравнение родителей по именам. → 'both' | 'one' | 'none' | 'unknown'."""
     pairs = []
     for role in ("sire_name", "dam_name"):
         n, c = new.get(role), cand.get(role)
@@ -156,13 +149,8 @@ def _year_match(new: dict, cand: dict) -> bool:
     return abs(int(y1) - int(y2)) <= YEAR_WINDOW
 
 
+# Решение по паре (новая собака, кандидат из БД)
 def classify_duplicate(new: dict, cand: dict) -> tuple:
-    """
-    Решение по паре (новая собака, кандидат из БД).
-    → (verdict, score, reason), где verdict: 'merge' | 'flag' | 'different'.
-
-    Ожидает ключи: registered_name, sex, year_of_birth, sire_name, dam_name.
-    """
     # Пол обязан совпадать — иначе разные точно
     if new.get("sex") and cand.get("sex") and new["sex"] != cand["sex"]:
         return "different", 0.0, "разный пол"

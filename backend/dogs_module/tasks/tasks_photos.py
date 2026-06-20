@@ -1,6 +1,6 @@
 # dogs_module/tasks/tasks_photos.py
 """
-Celery таски для фотографий — тонкие обёртки над photo_service.
+Celery таски для фотографий.
 """
 
 from typing import Dict, Optional
@@ -10,11 +10,9 @@ from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 
+# Загружает фото одной собаки на ЯД
 @shared_task(bind=True, name="dogs_module.photo_upload_one")
 def photo_upload_one(self, dog_id: int) -> Dict:
-    """
-    Загружает фото одной собаки на ЯД.
-    """
     from ..services.photo_service import process_dog_photo
 
     result, redirect_to_zoo = process_dog_photo(dog_id)
@@ -24,6 +22,7 @@ def photo_upload_one(self, dog_id: int) -> Dict:
     return result
 
 
+# Bulk-загрузка фото всех собак из БД на ЯД.
 @shared_task(bind=True, name="dogs_module.photo_upload_bulk")
 def photo_upload_bulk(
         self,
@@ -33,19 +32,12 @@ def photo_upload_bulk(
         delay: float = 0.5,
         only_without_yadisk: bool = True,
 ) -> Dict:
-    """
-    Bulk-загрузка фото всех собак из БД на ЯД.
-    Диспатчит photo_upload_one для каждой собаки с photo_url.
-
-    only_without_yadisk=True  → только новые (у кого нет пути на ЯД)
-    only_without_yadisk=False → все, сравнивает байты и обновляет изменившиеся
-    """
     from ..services.photo_service import yadisk_ensure_folder, get_dogs_for_bulk_sync
 
     dogs = get_dogs_for_bulk_sync(
         id_from=id_from,
         id_to=id_to,
-        limit=min(limit, 2000),
+        limit=min(limit, 5000),
         only_without_yadisk=only_without_yadisk,
     )
 
@@ -75,16 +67,14 @@ def photo_upload_bulk(
     }
 
 
+# Открывает страницу Zoo собаки через Playwright, скачивает фото
 @shared_task(bind=True, name="dogs_module.photo_fetch_zoo_via_playwright")
 def photo_fetch_zoo_via_playwright(self, dog_id: int) -> Dict:
-    """
-    Открывает страницу Zoo собаки через Playwright, скачивает фото
-    и загружает на ЯД.
-    """
     from ..services.photo_service import process_zoo_dog_photo
     return process_zoo_dog_photo(dog_id)
 
 
+# Bulk-загрузка Zoo фото через Playwright для собак у которых нет photo_yadisk_url
 @shared_task(bind=True, name="dogs_module.photo_fetch_zoo_bulk")
 def photo_fetch_zoo_bulk(
         self,
@@ -93,12 +83,6 @@ def photo_fetch_zoo_bulk(
         limit: int = 100,
         delay: float = 5.0,
 ) -> Dict:
-    """
-    Bulk-загрузка Zoo фото через Playwright для собак у которых нет photo_yadisk_url.
-
-    delay=5.0 — Playwright тяжёлый, нужна пауза между задачами.
-    limit=100 — не больше 100 за раз (каждая таска запускает браузер).
-    """
     from ..repositories import dog_repository as dog_repo
 
     dogs = dog_repo.get_zoo_dogs_without_yadisk_photo(
@@ -124,56 +108,52 @@ def photo_fetch_zoo_bulk(
     }
 
 
+# ЯД → БД: сканирует disk:/dogs/photos/, обновляет photo_yadisk_path в БД
 @shared_task(bind=True, name="dogs_module.photo_sync_yadisk_to_db")
 def photo_sync_yadisk_to_db(self) -> Dict:
-    """
-    ЯД → БД: сканирует disk:/dogs/photos/, обновляет photo_yadisk_path в БД.
-    """
     from ..services.photo_service import sync_yadisk_to_db
     return sync_yadisk_to_db()
 
 
+# Статистика: сколько в БД, на ЯД, осталось
 @shared_task(bind=True, name="dogs_module.photo_stats")
 def photo_stats(self) -> Dict:
-    """Статистика: сколько в БД, на ЯД, осталось."""
     from ..services.photo_service import get_photo_stats
     return get_photo_stats()
 
 
+# Удаляет фото одной собаки с ЯД и чистит поля photo_yadisk_* в БД
 @shared_task(bind=True, name="dogs_module.photo_delete_one")
 def photo_delete_one(self, dog_id: int) -> Dict:
-    """Удаляет фото одной собаки с ЯД и чистит поля photo_yadisk_* в БД."""
     from ..services.photo_service import delete_dog_photo
     return delete_dog_photo(dog_id)
 
 
 @shared_task(bind=True, name="dogs_module.photo_backfill_hashes")
 def photo_backfill_hashes(
-    self,
-    limit: int = 1000,
-    id_from: int = 1,
-    id_to: int = None,
+        self,
+        limit: int = 1000,
+        id_from: int = 1,
+        id_to: int = None,
 ) -> Dict:
     from ..services.photo_service import backfill_photo_hashes
     return backfill_photo_hashes(limit=limit, id_from=id_from, id_to=id_to)
 
 
+# Удаляет с ЯД дефолтные заглушки и чистит поля
 @shared_task(bind=True, name="dogs_module.photo_cleanup_placeholders")
 def photo_cleanup_placeholders(self) -> Dict:
-    """Удаляет с ЯД дефолтные заглушки (по DEFAULT_PHOTO_HASHES) и чистит поля."""
     from ..services.photo_service import cleanup_placeholder_photos
     return cleanup_placeholder_photos()
 
+
+# Считает photo_hash из оригинального photo_url для BA-собак
 @shared_task(bind=True, name="dogs_module.photo_backfill_hashes_from_source")
 def photo_backfill_hashes_from_source(
-    self,
-    limit: int = 1000,
-    id_from: int = 1,
-    id_to: int = None,
+        self,
+        limit: int = 1000,
+        id_from: int = 1,
+        id_to: int = None,
 ) -> dict:
-    """
-    Считает photo_hash из оригинального photo_url для BA-собак.
-    Zoo-собаки пропускаются (нужен Playwright).
-    """
     from ..services.photo_service import backfill_hashes_from_source
     return backfill_hashes_from_source(limit=limit, id_from=id_from, id_to=id_to)

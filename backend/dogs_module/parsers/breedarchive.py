@@ -1,4 +1,3 @@
-# dogs_module/parsers/breedarchive.py
 """
 Парсер BreedArchive
 """
@@ -37,17 +36,14 @@ logger = logging.getLogger(__name__)
 
 # КЕШ
 _NOT_FOUND = "__NOT_FOUND__"  # маркер «спрашивали — не нашли»
-_TTL_NAME_SEARCH = 2 * 24 * 3600  # 24ч  — UUID по имени
-_TTL_DOG_DATA = 7 * 24 * 3600  # 7д   — полные данные собаки
-_TTL_BASIC_DATA = 2 * 24 * 3600  # 24ч  — базовые данные
+_TTL_NAME_SEARCH = 2 * 24 * 3600  # 24ч — UUID по имени
+_TTL_DOG_DATA = 7 * 24 * 3600  # 7д — полные данные собаки
+_TTL_BASIC_DATA = 2 * 24 * 3600  # 24ч — базовые данные
+_FETCH_MAX_RETRIES = 2  # доп. попытки при transient-сбоях BA
+_FETCH_RETRY_BACKOFF = 1.5  # сек, растёт по попытке
 
 
 def _cache():
-    """
-    Redis-кеш 'parsers' (DB 2).
-    Функция, не константа — гарантирует что Django settings уже загружены.
-    IGNORE_EXCEPTIONS=True → при сбое Redis работаем без кеша.
-    """
     return caches['parsers']
 
 
@@ -65,13 +61,6 @@ def _key_basic(uuid: str) -> str:
 
 # HTTP КЛИЕНТ — КУКИ + ЗАГОЛОВКИ
 def _create_session() -> requests.Session:
-    """
-    Создаёт HTTP-сессию с куками и заголовками для BreedArchive.
-
-    КУКИ берутся из config.py → BREEDARCHIVE_COOKIES → .env
-    Главная кука: session_tba_v3 — авторизация в BA.
-    Без неё API возвращает 401.
-    """
     from ..utils.cookie_refresher import get_ba_cookies
     session = requests.Session()
     cookies = get_ba_cookies()
@@ -94,12 +83,6 @@ def _create_ba_client() -> httpx.Client:
 
 # ПОИСК ПО ИМЕНИ — ВАРИАНТЫ
 def _build_search_variants(name: str) -> List[str]:
-    """
-    Строит список вариантов имени для поиска в BA.
-
-    Порядок: имя без титулов → RU→EN транслит → EN→RU транслит.
-    Дубликаты удаляются с сохранением порядка.
-    """
     base = normalize_name_title_case(name.strip())
     without_titles = remove_titles_from_name(base)
 
@@ -131,13 +114,7 @@ def _build_search_variants(name: str) -> List[str]:
 
 
 # ПОИСК ПО ИМЕНИ → UUID
-
 def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
-    """
-    Ищет собаку в BreedArchive по имени, возвращает UUID или None.
-
-    КЕШ: ba:name:{NAME_UPPER}, TTL=24ч
-    """
     if not dog_name or not isinstance(dog_name, str):
         return None
 
@@ -227,13 +204,8 @@ def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
     return None
 
 
-# ПОЛУЧЕНИЕ ПОЛНЫХ ДАННЫХ ПО UUID (с предками, 5 поколений)
+# ПОЛУЧЕНИЕ ПОЛНЫХ ДАННЫХ ПО UUID (с предками)
 def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
-    """
-     Получает полные данные собаки из BA, запрашиваем generations=5 — кешируем полный результат.
-
-    КЕШ: ba:dog:{uuid}, TTL=7д
-    """
     c = _cache()
     key = _key_dog(uuid)
 
@@ -243,53 +215,59 @@ def fetch_breedarchive_dog(uuid: str, generations: int = 5) -> Optional[Dict]:
         return cached
 
     logger.info(f"📄 BA: загрузка uuid={uuid}")
-    session = _create_session()
 
-    try:
-        response = session.get(
-            # f"{BREEDARCHIVE_BASE_URL}/animal/get_ancestors/{uuid}",
-            f"{BREEDARCHIVE_SEARCH_DOG_GET_ANCESTORS}/{uuid}",
-            params={'generations': generations},
-            timeout=30,
-        )
-        response.raise_for_status()
-        data = response.json()
+    logger.info(f"📄 BA: загрузка uuid={uuid}")
+    url = f"{BREEDARCHIVE_SEARCH_DOG_GET_ANCESTORS}/{uuid}"
+    relogged = False
 
-        if not data or 'uuid' not in data:
-            logger.error(f"❌ BA: пустой/некорректный ответ для uuid={uuid}")
+    for attempt in range(_FETCH_MAX_RETRIES + 1):
+        session = _create_session()
+        try:
+            response = session.get(url, params={'generations': generations}, timeout=30)
+
+            if response.status_code == 401:
+                # Сессия истекла посреди обхода — перелогин и повтор
+                from ..utils.cookie_refresher import on_ba_401
+                if not relogged:
+                    on_ba_401()
+                    relogged = True
+                    logger.warning(f"🔑 BA 401 uuid={uuid} — куки обновлены, повтор")
+                    continue
+                logger.error(f"❌ BA: 401 повторно для uuid={uuid}")
+                return None
+
+            response.raise_for_status()
+            data = response.json()
+            if not data or 'uuid' not in data:
+                logger.error(f"❌ BA: пустой/некорректный ответ для uuid={uuid}")
+                return None
+
+            logger.info(f"✅ BA: данные '{data.get('registeredName') or data.get('registered_name', '?')}'")
+            c.set(key, data, timeout=_TTL_DOG_DATA)
+            return data
+
+        except requests.HTTPError as e:
+            code = e.response.status_code if e.response is not None else '?'
+            if code == 404:
+                logger.warning(f"⚠️ BA: uuid={uuid} не найден (404)")
+                return None
+            logger.error(f"❌ BA: HTTP {code} uuid={uuid} (попытка {attempt + 1})")
+        except (requests.ConnectionError, requests.Timeout) as e:
+            logger.warning(f"🌐 BA: сетевой сбой uuid={uuid} (попытка {attempt + 1}): {e}")
+        except Exception as e:
+            logger.error(f"❌ BA: ошибка uuid={uuid}: {e}")
             return None
+        finally:
+            session.close()
 
-        # logger.info(f"✅ BA: получены данные '{data}'")
-        logger.info(f"✅ BA: получены данные Имя'{data.get('registeredName') or data.get('registered_name', '?')}'")
-        c.set(key, data, timeout=_TTL_DOG_DATA)
-        return data
+        if attempt < _FETCH_MAX_RETRIES:
+            time.sleep(_FETCH_RETRY_BACKOFF * (attempt + 1))
 
-    except requests.HTTPError as e:
-        code = e.response.status_code if e.response is not None else '?'
-        if code == 404:
-            logger.warning(f"⚠️ BA: uuid={uuid} не найден (404)")
-        elif code == 401:
-            from ..utils.cookie_refresher import on_ba_401
-            on_ba_401()
-            logger.error(f"❌ BA: 401 — куки обновлены, uuid={uuid}")
-        else:
-            logger.error(f"❌ BA: HTTP {code} для uuid={uuid}")
-        return None
-    except Exception as e:
-        logger.error(f"❌ BA: ошибка для uuid={uuid}: {e}")
-        return None
+    return None
 
 
+# Рекурсивно обходит дерево предков и собирает граничные узлы
 def collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
-    """
-    Рекурсивно обходит дерево предков и собирает UUID «граничных» узлов.
-
-    «Граничный» узел — тот, у которого:
-      - есть uuid (значит можем запросить его предков отдельно)
-      - sire и/или dam = None, но sireId / damId > 0
-        (родитель существует в BA, просто не вошёл в текущий ответ из-за лимита 5 поколений)
-
-    """
     if not isinstance(node, dict):
         return
 
@@ -298,27 +276,19 @@ def collect_leaf_uuids(node: Dict, leaves: Set[str]) -> None:
     dam_cut = node.get('dam') is None and (node.get('damId') or 0) > 0
 
     if uuid and (sire_cut or dam_cut):
-        # Этот узел — граница: его родители известны BA, но не пришли в ответе.
+        # Этот узел граница: его родители известны BA, но не пришли в ответе.
         # Добавляем uuid узла в очередь на отдельный запрос.
         leaves.add(uuid)
-        # Не идём глубже — сам узел будет запрошен отдельно.
-        return
 
-    # Если родители пришли — рекурсивно проверяем их тоже.
+    # Если родители пришли ,то рекурсивно проверяем их тоже.
     if node.get('sire'):
         collect_leaf_uuids(node['sire'], leaves)
     if node.get('dam'):
         collect_leaf_uuids(node['dam'], leaves)
 
 
-# ПОЛУЧЕНИЕ БАЗОВЫХ ДАННЫХ ПО UUID (без предков — быстро)
-
+# ПОЛУЧЕНИЕ БАЗОВЫХ ДАННЫХ ПО UUID (без предков только некоторую инфу)
 def fetch_breedarchive_basic(uuid: str) -> Optional[Dict]:
-    """
-    Получает базовые данные собаки без дерева предков.
-
-    КЕШ: ba:basic:{uuid}, TTL=24ч
-    """
     c = _cache()
     key = _key_basic(uuid)
 
@@ -395,16 +365,6 @@ def fetch_recent_dogs(
         start_page: int = 0,
         is_full_sync: bool = False,
 ) -> List[Dict]:
-    """
-    Получает список последних обновлённых/новых собак из BreedArchive.
-
-    ПАРАМЕТРЫ:
-      pages_count  — количество страниц (1 стр = 25 собак)
-      start_page   — с какой страницы начать (0–9)
-      is_full_sync — True = грузим всё до has_more=False (максимум 250)
-
-    ВОЗВРАЩАЕТ: List[Dict] — raw данные из API.
-    """
     session = _create_session()
     start = start_page * 25
     all_animals: List[Dict] = []
@@ -466,12 +426,6 @@ def fetch_recent_dogs(
 
 # ПАРСИНГ BROWSE-СТРАНИЦЫ ЧЕРЕЗ PLAYWRIGHT
 def parse_browse_page(recent_days: int = 1) -> Dict[str, Any]:
-    """
-    Парсит страницу /animal/browse через синхронный Playwright.
-
-    ПАРАМЕТРЫ:
-      recent_days — сколько последних дней обрабатывать (1–30)
-    """
     dogs_data: List[Dict] = []
     failed: List[Dict] = []
     total_processed = 0
@@ -749,6 +703,28 @@ def invalidate_name_cache(dog_name: str) -> None:
     key = _key_name(dog_name.strip().upper())
     _cache().delete(key)
     logger.info(f"🗑️ Кеш удалён: {key}")
+
+
+def invalidate_pedigree_fully_parsed(uuid: str, max_depth: int = 40) -> int:
+    from ..repositories import dog_repository as dog_repo
+    c = _cache()
+    seen, stack, removed = set(), [uuid], 0
+    while stack and len(seen) < 5000:
+        u = stack.pop()
+        if not u or u in seen:
+            continue
+        seen.add(u)
+        if c.delete(f"ba:fully_parsed:{u}"):
+            removed += 1
+        dog = dog_repo.get_by_uuid(u)
+        if not dog:
+            continue
+        for parent in (getattr(dog, 'dam', None), getattr(dog, 'sire', None)):
+            p_uuid = getattr(parent, 'uuid', None)
+            if p_uuid and p_uuid not in seen:
+                stack.append(p_uuid)
+    logger.info(f"🗑️ fully_parsed снят с {removed} узлов дерева uuid={uuid}")
+    return removed
 
 
 def invalidate_dog_cache(uuid: str) -> None:

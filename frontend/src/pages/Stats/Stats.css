@@ -1,229 +1,283 @@
-/* src/pages/Stats/Stats.css */
 
-/* ── Анимации ─────────────────────────────────────────────────────────────── */
 .st-page [data-anim][data-visible="0"] {
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity .5s ease, transform .5s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity .5s ease, transform .5s ease;
 }
+
 .st-page [data-anim][data-visible="1"] {
-  opacity: 1;
-  transform: none;
+    opacity: 1;
+    transform: none;
 }
 
-/* ── Лейаут ───────────────────────────────────────────────────────────────── */
-.st-main      { padding: 2.5rem 0 5rem; }
+.st-main {
+    padding: 2.5rem 0 5rem;
+}
+
 .st-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 clamp(1rem, 3vw, 2rem);
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 3vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
 }
 
-/* ── Герой ────────────────────────────────────────────────────────────────── */
 .st-hero {
-  text-align: center;
-  padding: 1rem 0 .5rem;
+    text-align: center;
+    padding: 1rem 0 .5rem;
 }
+
 .st-hero-title {
-  font-size: clamp(1.7rem, 3.5vw, 2.4rem);
-  font-weight: 900;
-  color: var(--text-dark);
-  margin: 0 0 .6rem;
-  line-height: 1.2;
+    font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+    font-weight: 900;
+    color: var(--text-dark);
+    margin: 0 0 .6rem;
+    line-height: 1.2;
 }
+
 .st-hero-accent {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
+
 .st-hero-sub {
-  color: var(--text-light);
-  font-size: .95rem;
-  margin: 0;
+    color: var(--text-light);
+    font-size: .95rem;
+    margin: 0;
 }
 
-/* ── KPI сетка ────────────────────────────────────────────────────────────── */
 .st-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem;
 }
+
 .st-kpi {
-  background: var(--snow-white);
-  border: 1px solid var(--border-light);
-  border-radius: 18px;
-  padding: 1.5rem 1.25rem;
-  box-shadow: var(--shadow-soft);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .3rem;
-  text-align: center;
-  transition: transform .2s, box-shadow .2s;
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 18px;
+    padding: 1.5rem 1.25rem;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .3rem;
+    text-align: center;
+    transition: transform .2s, box-shadow .2s;
 }
+
 .st-kpi:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
 }
-.st-kpi-icon  { font-size: 1.6rem; }
+
+.st-kpi-icon {
+    font-size: 1.6rem;
+}
+
 .st-kpi-value {
-  font-size: 1.5rem;
-  font-weight: 900;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1.1;
+    font-size: 1.5rem;
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
 }
-.st-kpi-label { font-size: .78rem; font-weight: 600; color: var(--text-dark); }
-.st-kpi-sub   { font-size: .75rem; color: var(--text-light); }
 
-/* ── Основная сетка — 3 колонки ───────────────────────────────────────────── */
+.st-kpi-label {
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.st-kpi-sub {
+    font-size: .75rem;
+    color: var(--text-light);
+}
+
 .st-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
 }
 
-/* ── Секция ───────────────────────────────────────────────────────────────── */
 .st-section {
-  background: var(--snow-white);
-  border: 1px solid var(--border-light);
-  border-radius: 20px;
-  padding: 1.75rem;
-  box-shadow: var(--shadow-soft);
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    padding: 1.75rem;
+    box-shadow: var(--shadow-soft);
 }
+
 .st-section-title {
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--text-dark);
-  margin: 0 0 1.25rem;
-  padding-bottom: .75rem;
-  border-bottom: 1px solid var(--border-light);
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 0 0 1.25rem;
+    padding-bottom: .75rem;
+    border-bottom: 1px solid var(--border-light);
 }
 
-/* ── Список с полосками ───────────────────────────────────────────────────── */
-.st-list { display: flex; flex-direction: column; gap: .5rem; }
+.st-list {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
 .st-list-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: .6rem;
-  align-items: center;
-  font-size: .85rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .6rem;
+    align-items: center;
+    font-size: .85rem;
 }
+
 .st-list-row:has(.st-bar-wrap) {
-  grid-template-columns: 120px 1fr auto;
+    grid-template-columns: 120px 1fr auto;
 }
+
 .st-list-label {
-  font-size: .83rem;
-  color: var(--text-dark);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-size: .83rem;
+    color: var(--text-dark);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
 .st-list-value {
-  font-size: .83rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  white-space: nowrap;
+    font-size: .83rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    white-space: nowrap;
 }
 
-/* ── Полоска ──────────────────────────────────────────────────────────────── */
 .st-bar-wrap {
-  flex: 1;
-  height: 8px;
-  background: var(--arctic-gray);
-  border-radius: 999px;
-  overflow: hidden;
-  min-width: 0;
+    flex: 1;
+    height: 8px;
+    background: var(--arctic-gray);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 0;
 }
+
 .st-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--bright-blue);
-  transition: width .4s ease;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--bright-blue);
+    transition: width .4s ease;
 }
 
-/* ── Гистограмма по годам ─────────────────────────────────────────────────── */
 .st-year-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 160px;
-  padding-bottom: 1.5rem;
-  position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 160px;
+    padding-bottom: 1.5rem;
+    position: relative;
 }
+
 .st-year-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
 }
+
 .st-year-bar {
-  width: 100%;
-  background: var(--bright-blue);
-  border-radius: 3px 3px 0 0;
-  min-height: 2px;
-  transition: height .4s ease;
-  cursor: pointer;
+    width: 100%;
+    background: var(--bright-blue);
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: height .4s ease;
+    cursor: pointer;
 }
-.st-year-bar:hover { filter: brightness(1.15); }
+
+.st-year-bar:hover {
+    filter: brightness(1.15);
+}
+
 .st-year-label {
-  position: absolute;
-  bottom: -1.3rem;
-  font-size: .65rem;
-  color: var(--text-light);
-  white-space: nowrap;
+    position: absolute;
+    bottom: -1.3rem;
+    font-size: .65rem;
+    color: var(--text-light);
+    white-space: nowrap;
 }
 
-/* ── COI ──────────────────────────────────────────────────────────────────── */
 .st-coi-summary {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-light);
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-light);
 }
-.st-coi-stat  { display: flex; flex-direction: column; gap: .15rem; }
-.st-coi-num   { font-size: 1.4rem; font-weight: 900; color: var(--bright-blue); }
-.st-coi-lbl   { font-size: .78rem; color: var(--text-light); }
 
-/* ── Скелетон ─────────────────────────────────────────────────────────────── */
+.st-coi-stat {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+
+.st-coi-num {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--bright-blue);
+}
+
+.st-coi-lbl {
+    font-size: .78rem;
+    color: var(--text-light);
+}
+
 .st-skel {
-  border-radius: 12px;
-  background: linear-gradient(90deg,
+    border-radius: 12px;
+    background: linear-gradient(90deg,
     var(--border-light) 25%, var(--arctic-gray) 50%, var(--border-light) 75%);
-  background-size: 200% 100%;
-  animation: st-shimmer 1.3s infinite;
+    background-size: 200% 100%;
+    animation: st-shimmer 1.3s infinite;
 }
+
 @keyframes st-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
 }
 
-/* ── Ошибка ───────────────────────────────────────────────────────────────── */
 .st-error {
-  background: var(--snow-white);
-  border: 1px solid var(--border-light);
-  border-radius: 16px;
-  padding: 2rem;
-  text-align: center;
-  color: var(--text-light);
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-light);
 }
 
-/* ── Адаптив ──────────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .st-kpi-grid { grid-template-columns: repeat(3, 1fr); }
-  .st-grid     { grid-template-columns: repeat(2, 1fr); }
+    .st-kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .st-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
+
 @media (max-width: 700px) {
-  .st-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .st-grid     { grid-template-columns: 1fr; }
+    .st-kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .st-grid {
+        grid-template-columns: 1fr;
+    }
 }

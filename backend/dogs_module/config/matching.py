@@ -1,4 +1,3 @@
-# dogs_module/config/matching.py
 """Пороги нечёткого сопоставления собак-дубликатов."""
 
 # Имя: Jaro-Winkler similarity в 0..1

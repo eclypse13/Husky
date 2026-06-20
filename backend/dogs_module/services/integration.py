@@ -1,6 +1,5 @@
-# dogs_module/services/integration.py
 """
-Сервис интеграции: парсинг Zoo/BA, слияние данных, сохранение в БД.
+Сервис интеграции Zoo/BA.
 """
 import logging
 import time
@@ -31,7 +30,6 @@ from ..repositories import litter_repository as litter_repo
 from ..repositories import dog_repository as dog_repo
 from ..repositories import title_repository as title_repo
 
-# КЕШ
 from .parse_cache import (
     is_recursively_done,
     mark_recursively_done,
@@ -46,7 +44,7 @@ from .parse_cache import (
 logger = logging.getLogger(__name__)
 
 # Задержка между запросами к BA при обходе граничных листьев дерева предков
-_BA_LEAF_DELAY = 0.3  # секунды;
+_BA_LEAF_DELAY = 0.3  # секунды
 
 
 # СОХРАНЕНИЕ BA-ДЕРЕВА ПРЕДКОВ
@@ -104,84 +102,95 @@ def process_ba_dog_tree(
         return existing
 
 
+# Загружает и сохраняет полное дерево предков собаки из BA
 def process_ba_full_pedigree(
         uuid: str,
         api_dispatched: Optional[Set[str]] = None,
         depth: int = 0,
-        max_depth: int = 30,
+        max_depth: int = 1024,
+        _completed: Optional[Set[str]] = None,
 ) -> Optional[Dog]:
-    """Рекурсивно загружает и сохраняет ПОЛНОЕ дерево предков собаки из BA."""
     if api_dispatched is None:
         api_dispatched = set()
+    if _completed is None:
+        _completed = set()  # uuid'ы, чьё поддерево в этом прогоне собрано полностью
+
+    indent = "  " * depth
+    is_root = (depth == 0)
 
     if uuid in api_dispatched:
         return dog_repo.get_by_uuid(uuid)
 
-    if depth > 0 and _is_ba_fully_parsed(uuid):
+    if not is_root and _is_ba_fully_parsed(uuid):
         existing = dog_repo.get_by_uuid(uuid)
         if existing:
             api_dispatched.add(uuid)
-            logger.debug(f"{'  ' * depth}⚡ Redis HIT: {existing.registered_name} (uuid={uuid})")
+            _completed.add(uuid)
+            logger.debug(f"{indent}⚡ Redis HIT: {existing.registered_name} (uuid={uuid})")
             return existing
         _invalidate_ba_fully_parsed(uuid)
 
     if depth > max_depth:
-        logger.warning(f"{'  ' * depth}⚠️ max_depth={max_depth} uuid={uuid}")
-        return dog_repo.get_by_uuid(uuid)
+        logger.warning(f"{indent}⚠️ max_depth={max_depth} uuid={uuid}")
+        return dog_repo.get_by_uuid(uuid)  # глубже не идём → поддерево неполное
 
-    api_dispatched.add(uuid)
-    indent = "  " * depth
     logger.info(f"{indent}🔍 BA full pedigree [depth={depth}]: uuid={uuid}")
 
     data = fetch_breedarchive_dog(uuid)
     if not data:
         logger.error(f"{indent}❌ Нет данных для uuid={uuid}")
-        return None
+        # Не корень: не помечаем fully и не кладём в api_dispatched →
+        # ветка незавершённая, будущий прогон попробует снова. Корень → None (retry в таске).
+        return None if is_root else dog_repo.get_by_uuid(uuid)
+
+    api_dispatched.add(uuid)  # обработан в этом прогоне — только после успешного fetch
 
     try:
         dog = process_ba_dog_tree(data, visited=None, saved=None)
     except Exception as e:
-        logger.error(f"{indent}❌ process_ba_dog_tree: {e}", exc_info=True)
-        return None
-
+        logger.error(f"{indent}❌ save uuid={uuid}: {e}", exc_info=True)
+        dog = None
     if not dog:
-        logger.error(f"{indent}❌ process_ba_dog_tree вернул None uuid={uuid}")
-        return None
-
+        # узел не сохранился, но обрывать ветку нельзя — предки достижимы
+        logger.warning(f"{indent}⚠️ узел не сохранён, продолжаю обход предков uuid={uuid}")
     leaves: Set[str] = set()
     collect_ba_leaf_uuids(data, leaves)
+    leaves.discard(uuid)
 
-    new_leaves = {
-        leaf for leaf in leaves
-        if leaf not in api_dispatched
-           and not _is_ba_fully_parsed(leaf)
-    }
+    logger.info(f"{indent}  Граничных: {len(leaves)}, api_dispatched: {len(api_dispatched)}")
 
-    logger.info(
-        f"{indent}  Граничных: {len(leaves)}, новых: {len(new_leaves)}, "
-        f"api_dispatched: {len(api_dispatched)}"
-    )
-
-    for leaf_uuid in new_leaves:
+    complete = True
+    for leaf_uuid in leaves:
+        if leaf_uuid in _completed or _is_ba_fully_parsed(leaf_uuid):
+            continue  # точно готов
+        if leaf_uuid in api_dispatched:
+            complete = False  # пытались, но не довели → неполное
+            continue
         time.sleep(_BA_LEAF_DELAY)
         process_ba_full_pedigree(
             uuid=leaf_uuid,
             api_dispatched=api_dispatched,
             depth=depth + 1,
             max_depth=max_depth,
+            _completed=_completed,
         )
+        if leaf_uuid not in _completed:
+            complete = False  # ветка не завершилась
 
-    if depth > 0:
-        _mark_ba_fully_parsed(uuid)
+    if complete:
+        _completed.add(uuid)
+        if not is_root:
+            _mark_ba_fully_parsed(uuid)
 
-    logger.info(f"{indent}✅ BA full pedigree [depth={depth}]: завершено uuid={uuid}")
+    tail = "завершено" if complete else "ЧАСТИЧНО (достроится в след. прогоне)"
+    logger.info(f"{indent}✅ BA full pedigree [depth={depth}]: {tail} uuid={uuid}")
     return dog
 
 
+# Диспатчит import_hybrid_full_dog_task для каждого Zoo-предка
 def _dispatch_ancestor_enrichment(
         zoo_raw: Dict, root_zoo_id: str, enrich_ancestors: bool = False
 ) -> None:
-    """Диспатчит import_hybrid_full_dog_task для каждого Zoo-предка."""
     from ..tasks.tasks_breedarchive import import_hybrid_full_dog_task
 
     ancestors = zoo_raw.get('pedigree', {}).get('ancestors', {})
@@ -217,12 +226,8 @@ def _dispatch_ancestor_enrichment(
         )
 
 
+# Парсинг страницы Zoo-собаки
 def _parse_zoo_page_with_retry(browser, zoo_id: str, generations: int) -> Dict:
-    """
-    Парсит страницу Zoo-собаки.
-    При пустом имени — обновляет куки и делает вторую попытку.
-    Дедуплицирует логику из process_hybrid_full_pedigree и _page.
-    """
     zoo_raw = zooportal_parser.parse_dog_page_with_browser(
         browser, zoo_id, generations
     ) or {}
@@ -238,13 +243,13 @@ def _parse_zoo_page_with_retry(browser, zoo_id: str, generations: int) -> Dict:
     return zoo_raw
 
 
+# Гибридный импорт одной собаки (Zoo данные и BA полное дерево предков)
 def process_hybrid_full_pedigree(
         zooportal_id: str,
         generations: int = 5,
         force_update: bool = False,
         _enrich_ancestors: bool = True,
 ) -> Optional[Dog]:
-    """Гибридный импорт одной собаки: Zoo данные + BA полное дерево предков."""
     logger.info(f"🔀 Hybrid full pedigree: zooportal_id={zooportal_id}")
 
     zoo_raw: Dict = {}
@@ -296,6 +301,7 @@ def process_hybrid_full_pedigree(
     return dog
 
 
+# Гибридный импорт одной страницы (Zoo данные и BA полное дерево предков для каждой собаки)
 def process_hybrid_full_pedigree_page(
         page_num: Optional[int] = None,
         max_dogs: int = 11,
@@ -304,7 +310,6 @@ def process_hybrid_full_pedigree_page(
         deadline: Optional[float] = None,
         zooportal_ids: Optional[List[str]] = None,
 ) -> Dict:
-    """Гибридный импорт страницы: Zoo + BA полное дерево для каждой собаки."""
     start_time = time.time()
     imported, failed, dog_ids = 0, 0, []
 
@@ -385,10 +390,8 @@ def process_hybrid_full_pedigree_page(
     }
 
 
+# Атомарный слив Zoo-стаб с BA-записью
 def _merge_zoo_twin(dog: Dog, zoo_hash: str, defaults: Dict) -> None:
-    """
-    Атомарно сливает Zoo-стаб с BA-записью.
-    """
     try:
         merged = dog_repo.merge_zoo_stub_into_ba(dog.pk, zoo_hash, defaults)
         if merged:
@@ -400,9 +403,7 @@ def _merge_zoo_twin(dog: Dog, zoo_hash: str, defaults: Dict) -> None:
 
 
 # СОХРАНЕНИЕ BA-СОБАКИ
-
 def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
-    """Создаёт или обновляет Dog из BA-данных с готовыми ссылками на родителей."""
     uuid = data.get('uuid')
     if not uuid:
         raise ValueError("UUID обязателен")
@@ -410,8 +411,12 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     from ..config.breedarchive import BASE_URL as _ba_base_url
     normalized = normalize_ba_data(data, _ba_base_url)
     defaults = {k: v for k, v in normalized.items() if v is not None and v != ''}
-    defaults['dam'] = dam
-    defaults['sire'] = sire
+    # defaults['dam'] = dam
+    # defaults['sire'] = sire
+    if dam is not None:
+        defaults['dam'] = dam
+    if sire is not None:
+        defaults['sire'] = sire
 
     dog, created = dog_repo.upsert_ba_dog(uuid, defaults)
 
@@ -440,8 +445,8 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     return dog
 
 
+# Сохраняет заводчиков, владельцев, титулы, сиблингов и помёты из BA
 def _save_ba_relations(dog: Dog, data: Dict) -> None:
-    """Сохраняет заводчиков, владельцев, титулы, сиблингов и помёты из BA."""
     # Заводчики
     ba_breeders = data.get('breeders', [])
     if not ba_breeders and data.get('kennel'):
@@ -523,32 +528,31 @@ def _save_ba_relations(dog: Dog, data: Dict) -> None:
         except Exception as e:
             logger.error(f"  Сиблинг '{sib.get('uuid')}': {e}")
 
-    # Помёты
-    for lit in data.get('litters', []):
-        if not isinstance(lit, dict):
-            continue
-        try:
-            dam_uuid = lit.get('dam', {}).get('uuid')
-            sire_uuid = lit.get('sire', {}).get('uuid')
-            dam = dog_repo.get_by_uuid(dam_uuid) if dam_uuid else None
-            sire = dog_repo.get_by_uuid(sire_uuid) if sire_uuid else None
-            litter_repo.upsert_litter(
-                dam=dam, sire=sire,
-                date_of_birth=parse_date(lit.get('date_of_birth')),
-                fields={
-                    'litter_male_count': lit.get('litter_male_count'),
-                    'litter_female_count': lit.get('litter_female_count'),
-                    'litter_undef_count': lit.get('litter_undef_count'),
-                    'dam': dam,
-                    'sire': sire,
-                },
-            )
-        except Exception as e:
-            logger.error(f"  Помёт: {e}")
+    # Помёты (BA не возвращает по практическому опыту)
+    # for lit in data.get('litters', []):
+    #     if not isinstance(lit, dict):
+    #         continue
+    #     try:
+    #         dam_uuid = lit.get('dam', {}).get('uuid')
+    #         sire_uuid = lit.get('sire', {}).get('uuid')
+    #         dam = dog_repo.get_by_uuid(dam_uuid) if dam_uuid else None
+    #         sire = dog_repo.get_by_uuid(sire_uuid) if sire_uuid else None
+    #         litter_repo.upsert_litter(
+    #             dam=dam, sire=sire,
+    #             date_of_birth=parse_date(lit.get('date_of_birth')),
+    #             fields={
+    #                 'litter_male_count': lit.get('litter_male_count'),
+    #                 'litter_female_count': lit.get('litter_female_count'),
+    #                 'litter_undef_count': lit.get('litter_undef_count'),
+    #                 'dam': dam,
+    #                 'sire': sire,
+    #             },
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"  Помёт: {e}")
 
 
-# ПАРСИНГ ОДНОЙ СОБАКИ (Zoo + BA поиск → merged_data)
-
+# ПАРСИНГ ОДНОЙ СОБАКИ (Zoo + BA поиск)
 def parse_dog_data(browser: BrowserManager, zooportal_id: str, generations: int = 3) -> Dict:
     """Парсит одну собаку: Zoo страница + BA базовые данные → merged_data + pedigree."""
     logger.info(f"🔍 parse_dog_data: zooportal_id={zooportal_id}")
@@ -589,6 +593,7 @@ def parse_dog_data(browser: BrowserManager, zooportal_id: str, generations: int 
     return result
 
 
+# Рекурсивно парсит собаку и всех её предков у которых есть zooportal_id
 def parse_dog_data_recursive(
         browser: BrowserManager,
         zooportal_id: str,
@@ -597,7 +602,6 @@ def parse_dog_data_recursive(
         deadline: Optional[float] = None,
         _depth: int = 0,
 ) -> List[Dict]:
-    """Рекурсивно парсит собаку и всех её предков у которых есть zooportal_id."""
     if visited is None:
         visited = set()
     indent = "  " * _depth
@@ -641,14 +645,13 @@ def parse_dog_data_recursive(
     return all_results
 
 
-# СЛИЯНИЕ Zoo + BA
+# СЛИЯНИЕ Zoo + BA (совместимость)
 def _merge_dog_data(zooportal_data: Dict, breedarchive_data: Optional[Dict] = None) -> Dict:
     return merge_zoo_ba_data(zooportal_data, breedarchive_data)
 
 
-# СОХРАНЕНИЕ В БД (Zoo-путь)
+# СОХРАНЕНИЕ В БД (Zoo-путь, сохр собаку, заводчика, владельца, титулы и связи родословной)
 def save_dog_with_ancestors(parsed: Dict) -> Dog:
-    """Сохраняет собаку, заводчика, владельца, титулы и связи родословной."""
     merged_data = parsed['merged_data']
     pedigree = parsed['pedigree']
     zooportal_id = parsed['zooportal_id']
@@ -665,8 +668,8 @@ def save_dog_with_ancestors(parsed: Dict) -> Dog:
     return dog
 
 
+# Создаёт или обновляет запись Dog из Zoo merged_data
 def _save_dog(dog_data: Dict) -> Dog:
-    """Создаёт или обновляет запись Dog из Zoo merged_data."""
     zooportal_id = dog_data.get('zooportal_id')
     if not zooportal_id:
         raise ValueError("zooportal_id обязателен")
@@ -698,12 +701,6 @@ def _save_dog(dog_data: Dict) -> Dog:
         "sire_name": update_fields.get('sire_name'),
         "dam_name": update_fields.get('dam_name'),
     })
-    # if dup and dup["verdict"] == "merge":
-    #     existing = dup["dog"]
-    #     logger.info(f"  🔗 Слияние с dog_id={existing.id} '{existing.registered_name}' "
-    #                 f"(score={dup['score']:.2f}, {dup['reason']})")
-    #     dog_repo.update_by_pk(existing.pk, {"zooportal_id": str(zooportal_id)})
-    #     return existing
 
     if dup and dup["verdict"] == "merge":
         existing = dup["dog"]
@@ -736,10 +733,8 @@ def _save_dog(dog_data: Dict) -> Dog:
     return dog
 
 
+# Сохраняет заводчиков, владельцев и титулы из merged_data (единый поинт входа для Zoo-пути)
 def _save_dog_relations(dog: Dog, dog_data: Dict) -> None:
-    """Сохраняет заводчиков, владельцев и титулы из merged_data.
-    Единая точка входа для Zoo-пути; BA-путь вызывает _save_ba_relations.
-    """
     _save_breeder_zooportal(dog, dog_data)
     _save_breeders_ba(dog, dog_data)
     _save_owner_for_dog(dog, dog_data)
@@ -818,10 +813,8 @@ def _save_titles_for_dog(dog: Dog, dog_data: Dict) -> None:
     )
 
 
+# Сохраняет предков из Zoo pedigree
 def _save_ancestors(pedigree: Dict) -> Dict[str, Dog]:
-    """
-    Сохраняет предков из Zoo pedigree.
-    """
     ancestors = pedigree.get('ancestors', {})
     if not ancestors:
         return {}
@@ -880,7 +873,7 @@ def _save_ancestors(pedigree: Dict) -> Dict[str, Dog]:
                     dog_map[node_key] = dog
                     continue
 
-            # Создаём стаб — собаки нет ни по zoo_id ни по hash
+            # Создаём стаб, собаки нет ни по zoo_id ни по hash
             if zoo_id:
                 dog = dog_repo.stub_or_get_by_zooportal_id(zoo_id, name, sex)
                 by_zoo_id[zoo_id] = dog
@@ -898,10 +891,10 @@ def _save_ancestors(pedigree: Dict) -> Dict[str, Dog]:
     return dog_map
 
 
+# Устанавливает связи sire/dam для всех собак в родословной (zoo-собака)
 def _apply_relationships(
         pedigree: Dict, dog_map: Dict[str, Dog], root_zooportal_id: str, root_dog: Dog,
 ) -> None:
-    """Устанавливает связи sire/dam для всех собак в родословной."""
     full_map = {**dog_map, f"{root_zooportal_id}:": root_dog}
 
     for base_key, base_info in pedigree.get('base_dogs', {}).items():
@@ -929,7 +922,6 @@ def _apply_relationships(
 def process_dog_from_zooportal(
         zooportal_id: str, generations: int = 3, deadline: Optional[float] = None,
 ) -> Dog:
-    """Полный цикл одиночного импорта одной собаки + все предки рекурсивно."""
     visited: Set[str] = set()
 
     with BrowserManager() as browser:
@@ -969,7 +961,6 @@ def process_dog_from_zooportal(
 
 
 # ГИБРИДНЫЙ ИМПОРТ: Zoo список → BA дерево предков
-
 def save_hybrid_dog(
         zoo_id: str,
         zoo_raw: Dict,
@@ -1021,8 +1012,8 @@ def _patch_zoo_onto_ba_dog(dog: Dog, zoo_raw: Dict, zoo_id: str) -> None:
         save_dog_titles(dog, prefix_for_titles, suffix_for_titles, 'zooportal')  # title_service key
 
 
+# Сохраняет собаку только из Zoo-данных когда BA не нашёл совпадений
 def _save_zoo_fallback(zoo_id: str, zoo_raw: Dict) -> Optional[Dog]:
-    """Сохраняет собаку только из Zoo-данных когда BA не нашёл совпадений."""
     from ..services.duplicate_service import find_duplicate, flag_possible_duplicate
 
     pedigree = zoo_raw.get('pedigree')
@@ -1078,7 +1069,6 @@ def collect_hybrid_page_data(
         deadline: Optional[float] = None,
         zooportal_ids: Optional[List[str]] = None,
 ) -> List[Dict]:
-    """Фаза 1 гибридного импорта — сбор Zoo+BA данных в памяти."""
     if zooportal_ids:
         dogs_list = [{'zooportal_id': zid} for zid in zooportal_ids]
     else:
@@ -1121,10 +1111,8 @@ def collect_hybrid_page_data(
     return results
 
 
+# Дедупликация списка распарсенных собак по zooportal_id
 def deduplicate_parsed(parsed_list: list) -> list:
-    """
-    Дедупликация списка распарсенных собак по zooportal_id.
-    """
     seen: set = set()
     result = []
     for p in parsed_list:
@@ -1135,8 +1123,8 @@ def deduplicate_parsed(parsed_list: list) -> list:
     return result
 
 
+# Загружает фото собаки на Яндекс.Диск
 def _schedule_photo_upload(dog, photo_bytes: bytes = None) -> None:
-    """Загружает фото собаки на Яндекс.Диск."""
     if not dog or not dog.photo_url:
         return
 
@@ -1165,7 +1153,7 @@ def _schedule_photo_upload(dog, photo_bytes: bytes = None) -> None:
         return
 
     try:
-        # Lazy import: tasks нельзя импортировать на уровне сервиса (circular + Celery init)
+        # Lazy import:
         from ..tasks.tasks_photos import photo_upload_one
         photo_upload_one.apply_async(kwargs={"dog_id": dog.id}, countdown=2)
         logger.debug(f"📷 Запланирована загрузка фото dog_id={dog.id}")
@@ -1173,8 +1161,8 @@ def _schedule_photo_upload(dog, photo_bytes: bytes = None) -> None:
         logger.warning(f"📷 Не удалось запланировать фото dog_id={dog.id}: {e}")
 
 
+# Достаёт (sire_name, dam_name) из распарсенной родословной Zoo
 def _zoo_parent_names(zoo_raw: dict) -> tuple:
-    """Достаёт (sire_name, dam_name) из распарсенной родословной Zoo."""
     parents = (zoo_raw.get('pedigree') or {}).get('parents') or {}
     sire = (parents.get('sire') or {}).get('name')
     dam = (parents.get('dam') or {}).get('name')

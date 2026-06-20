@@ -1,4 +1,3 @@
-#version: '3.8'
 version: '3.9'
 
 services:
@@ -42,7 +41,7 @@ services:
     ports:
       - "27017:27017"
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -82,7 +81,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -95,8 +94,8 @@ services:
 
   celery:
     build: .
-#    command: celery -A nkp_project worker -l info
-#    command: celery -A nkp_project worker -l info --pool=prefork --concurrency=4
+    #    command: celery -A nkp_project worker -l info
+    #    command: celery -A nkp_project worker -l info --pool=prefork --concurrency=4
     command: >
       celery -A nkp_project worker
       --queues=celery,ofa,ba,coi
@@ -157,32 +156,32 @@ services:
 
 
   celery-photos:
-      build: .
-      command: >
-        celery -A nkp_project worker
-        --queues=photos
-        --concurrency=1
-        --hostname=celery-photos@%h
-        --max-tasks-per-child=20
-        --max-memory-per-child=600000
-        -l info
-      volumes:
-        - .:/app
-      env_file:
-        - .env
-      depends_on:
-        mongodb:
-          condition: service_healthy
-        redis:
-          condition: service_started
-        postgres:
-          condition: service_healthy
-      restart: unless-stopped
-      logging:
-        driver: "json-file"
-        options:
-          max-size: "10m"
-          max-file: "3"
+    build: .
+    command: >
+      celery -A nkp_project worker
+      --queues=photos
+      --concurrency=1
+      --hostname=celery-photos@%h
+      --max-tasks-per-child=20
+      --max-memory-per-child=600000
+      -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 
   celery_beat:

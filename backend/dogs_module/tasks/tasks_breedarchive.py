@@ -1,5 +1,4 @@
-# dogs_module/tasks/tasks_breedarchive.py
-"""Celery задачи для синхронизации данных из BreedArchive (1 задача для обновления куки)."""
+"""Celery задачи для BreedArchive (1 задача для обновления куки)."""
 
 import logging
 import time
@@ -27,6 +26,7 @@ class BaseBATask(Task):
     retry_jitter = True
 
 
+# Загружает собаку из BA по UUID (только 5 поколений предков)
 @shared_task(
     base=BaseBATask,
     name='dogs_module.fetch_breedarchive_dog',
@@ -35,7 +35,6 @@ class BaseBATask(Task):
     time_limit=2100,
 )
 def fetch_breedarchive_dog_task(self, uuid: str, force_update: bool = False) -> Dict:
-    """Загружает собаку из BA по UUID — только 5 поколений предков (быстро)."""
     start_time = time.time()
     from ..repositories import dog_repository as dog_repo
 
@@ -66,6 +65,7 @@ def fetch_breedarchive_dog_task(self, uuid: str, force_update: bool = False) -> 
         return {'status': 'error', 'error': str(e), 'processing_time': time.time() - start_time}
 
 
+# Загружает полное дерево предков собаки из BA без ограничения в 5 поколений
 @shared_task(
     base=BaseBATask,
     name='dogs_module.fetch_full_pedigree',
@@ -74,14 +74,13 @@ def fetch_breedarchive_dog_task(self, uuid: str, force_update: bool = False) -> 
     time_limit=7500,
 )
 def fetch_full_pedigree_task(self, uuid: str, force_update: bool = False) -> Dict:
-    """
-    Загружает ПОЛНОЕ дерево предков собаки из BA без ограничения в 5 поколений.
-    Рекурсивно обходит всё дерево вплоть до самых ранних предков в BA.
-    """
     start_time = time.time()
 
     if force_update:
+        # invalidate_dog_cache(uuid)
+        from ..parsers.breedarchive import invalidate_pedigree_fully_parsed
         invalidate_dog_cache(uuid)
+        invalidate_pedigree_fully_parsed(uuid)
 
     try:
         dog = process_ba_full_pedigree(uuid=uuid)
@@ -107,6 +106,7 @@ def fetch_full_pedigree_task(self, uuid: str, force_update: bool = False) -> Dic
         }
 
 
+# Загружает список последних обновлений из BA и диспатчит задачи на каждую собаку
 @shared_task(
     base=BaseBATask,
     name='dogs_module.sync_breedarchive_recent',
@@ -117,7 +117,6 @@ def fetch_full_pedigree_task(self, uuid: str, force_update: bool = False) -> Dic
 def sync_breedarchive_recent_task(
         self, pages_count: int = 1, start_page: int = 0, is_full_sync: bool = False,
 ) -> Dict:
-    """Загружает список последних обновлений из BA и диспатчит задачи на каждую собаку."""
     start_time = time.time()
     raw_list = fetch_recent_dogs(
         pages_count=pages_count, start_page=start_page, is_full_sync=is_full_sync
@@ -136,6 +135,7 @@ def sync_breedarchive_recent_task(
             'processing_time': time.time() - start_time}
 
 
+# Парсит browse-страницу BA через Playwright
 @shared_task(
     base=BaseBATask,
     name='dogs_module.sync_breedarchive_browse',
@@ -144,11 +144,6 @@ def sync_breedarchive_recent_task(
     time_limit=4200,
 )
 def sync_breedarchive_browse_task(self, recent_days: int = 1) -> Dict:
-    """
-    Парсит browse-страницу BA через Playwright.
-    Для каждой найденной собаки запускает fetch_full_pedigree_task —
-    все поколения предков, а не только 5.
-    """
     start_time = time.time()
     result = parse_browse_page(recent_days=recent_days)
 
@@ -177,6 +172,7 @@ def sync_breedarchive_browse_task(self, recent_days: int = 1) -> Dict:
     }
 
 
+# Гибридный импорт одной собаки: Zoo данные + BA полное дерево предков
 @shared_task(
     base=BaseBATask,
     name='dogs_module.import_hybrid_full_dog',
@@ -191,9 +187,6 @@ def import_hybrid_full_dog_task(
         force_update: bool = False,
         _enrich_ancestors: bool = True,
 ) -> Dict:
-    """
-    Гибридный импорт одной собаки: Zoo данные + BA полное дерево предков.
-    """
     start_time = time.time()
     from ..services.integration import process_hybrid_full_pedigree
 
@@ -226,6 +219,7 @@ def import_hybrid_full_dog_task(
         }
 
 
+# Гибридный импорт страницы Zoo: для каждой собаки запускает Zoo → BA полное дерево предков (все поколения)
 @shared_task(
     base=BaseBATask,
     name='dogs_module.import_hybrid_full_page',
@@ -240,10 +234,6 @@ def import_hybrid_full_page_task(
         generations: int = 5,
         delay: float = 2.0,
 ) -> Dict:
-    """
-    Гибридный импорт страницы Zoo: для каждой собаки запускает
-    Zoo → BA полное дерево предков (все поколения) → Zoo патч.
-    """
     start_time = time.time()
     from ..services.integration import process_hybrid_full_pedigree_page
 
@@ -267,6 +257,7 @@ def import_hybrid_full_page_task(
         }
 
 
+# Диспатчит import_hybrid_full_page_task для каждой страницы в диапазоне.
 @shared_task(
     base=BaseBATask,
     name='dogs_module.import_hybrid_full_range',
@@ -283,10 +274,6 @@ def import_hybrid_full_range_task(
         delay: float = 2.0,
         countdown_between_pages: int = 30,
 ) -> Dict:
-    """
-    Диспатчит import_hybrid_full_page_task для каждой страницы в диапазоне.
-    Возвращает список task_id.
-    """
     start_time = time.time()
     dispatched_tasks = []
 
@@ -312,6 +299,7 @@ def import_hybrid_full_range_task(
     }
 
 
+# Превентивное обновление куков BA и Zoo
 @shared_task(
     base=BaseBATask,
     name='dogs_module.refresh_cookies',
@@ -320,7 +308,6 @@ def import_hybrid_full_range_task(
     time_limit=360,
 )
 def refresh_cookies_task(self) -> Dict:
-    """Превентивное обновление куков BA и Zoo. Запускается через beat каждые 20ч."""
     from ..utils.cookie_refresher import do_ba_login, do_zoo_login
     results = {}
     ba = do_ba_login()

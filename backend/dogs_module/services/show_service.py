@@ -16,10 +16,10 @@ from ..config import TITLE_POINTS, SHOW_MULTIPLIERS, BOB_TITLES
 
 logger = logging.getLogger(__name__)
 
-# алиас для обратной совместимости с кодом который импортирует SHOW_TYPE_OTHER
+# алиас для обратной совместимости
 SHOW_TYPE_OTHER = ShowType.OTHER
 
-# Определение типа выставки
+# Типы выставок
 _PK_KEYWORDS = ['ранга пк', 'нкп', 'национальн', 'монопородн', 'племенной смотр']
 _SPECIALITY_KEYWORDS = ['специализирован', 'speciality', 'specialty']
 _KCHK_KEYWORDS = ['ранга кчк', 'кчк в каждом']
@@ -27,6 +27,7 @@ _SPORT_KEYWORDS = ['соревнован', 'испытан', 'кубок', 'че
 _WORLD_KEYWORDS = ['world dog show', 'euro dog show']
 _EXCLUDE_RANKS = ['cac', 'сас', 'cacib', 'сасиб']
 
+HERO_FALLBACK_NAME = "Chudni Medvezhonok Gold Sensation"
 
 def detect_show_type(title: str, rank: str = '') -> str:
     text = (title + ' ' + (rank or '')).lower()
@@ -46,7 +47,6 @@ def detect_show_type(title: str, rank: str = '') -> str:
 
 
 # Подсчёт очков
-
 def calc_base_points(titles_won: str) -> tuple[int, bool]:
     if not titles_won:
         return 0, False
@@ -90,7 +90,6 @@ def detect_nomination(show_class: str, titles_won: str = '') -> str:
 
 
 # Расчётный год
-
 def get_rating_year(for_date: date = None) -> int:
     d = for_date or date.today()
     return d.year + 1 if d.month == 12 else d.year
@@ -101,7 +100,6 @@ def get_rating_period(rating_year: int) -> tuple[date, date]:
 
 
 # Сохранение мероприятия
-
 def save_show_event(event_data: dict):
     show_id = event_data.get('zooportal_show_id')
     if not show_id:
@@ -141,15 +139,7 @@ def save_show_event(event_data: dict):
 
 
 # Сохранение результатов
-#
-# Главное правило: ShowResult сохраняется только если dog найден.
-# Для остальных — данные идут в pending_results_cache (Redis).
-
 def save_show_results(event, results: list) -> tuple[int, int, int]:
-    """
-    Сохраняет результаты выставки.
-    Возвращает (saved, failed, pending).
-    """
     saved = 0
     failed = 0
     to_pend = []
@@ -214,18 +204,13 @@ def _save_single_result(event, dog, rec: dict) -> None:
 
 
 # Ожидающие результаты
-
 def get_all_pending_show_ids() -> list:
     """Все show_id у которых есть ожидающие результаты в Redis."""
     return pending_cache.all_show_ids()
 
 
+# Пытается залинковать ожидающие результаты для одной выставки.
 def process_pending_results(show_id: str) -> dict:
-    """
-    Пытается залинковать ожидающие результаты для одной выставки.
-    Вызывается после импорта собаки или по расписанию.
-    Возвращает {'saved': N, 'still_pending': M}.
-    """
     pending = pending_cache.retrieve(show_id)
     if not pending:
         return {'saved': 0, 'still_pending': 0}
@@ -266,8 +251,8 @@ def process_pending_results(show_id: str) -> dict:
     return {'saved': saved, 'still_pending': len(still_pending)}
 
 
+# Обрабатывает ожидающие результаты для всех выставок.
 def process_all_pending_results() -> dict:
-    """Обрабатывает ожидающие результаты для всех выставок."""
     show_ids = pending_cache.all_show_ids()
     total_saved = 0
     total_left = 0
@@ -285,7 +270,6 @@ def process_all_pending_results() -> dict:
 
 
 # Рейтинг
-
 def recalculate_dog_rating(dog_id: int, rating_year: int = None) -> int:
     year = rating_year or get_rating_year()
     date_from, date_to = get_rating_period(year)
@@ -294,10 +278,8 @@ def recalculate_dog_rating(dog_id: int, rating_year: int = None) -> int:
     return total
 
 
+# Пересчитывает рейтинг за год
 def recalculate_all_ratings(rating_year: int = None) -> dict:
-    """
-    Пересчитывает рейтинг за год.
-    """
     year = rating_year or get_rating_year()
     date_from, date_to = get_rating_period(year)
 
@@ -311,7 +293,7 @@ def recalculate_all_ratings(rating_year: int = None) -> dict:
         rows = show_repo.sum_points_grouped(date_from, date_to, nomination=nomination)
         rows_by_nomination[nomination] = rows
 
-    # Пишем в DogYearlyRating — история сохраняется
+    # Пишем в DogYearlyRating, история сохраняется
     all_participant_ids = set()
     for nomination, rows in rows_by_nomination.items():
         for row in rows:
@@ -339,6 +321,10 @@ def recalculate_all_ratings(rating_year: int = None) -> dict:
     dog_repo.reset_ratings_except(participant_ids)
 
     logger.info(f"Рейтинг {year} пересчитан: {len(all_participant_ids)} собак")
+
+    from django.core.cache import cache
+    cache.delete('home:hero_dog')
+
     return {
         'updated': len(all_participant_ids),
         'rating_year': year,
@@ -357,7 +343,6 @@ def get_rating_leaderboard_data(
         rating_year: int = None,
         limit: int = 50,
 ) -> list:
-
     year = rating_year or get_rating_year()
     rows = show_repo.get_yearly_leaderboard(year, nomination=nomination, limit=limit)
     dog_pts = {r['dog_id']: r['points'] for r in rows}
@@ -375,7 +360,7 @@ def get_rating_leaderboard_data(
     ]
 
 
-# Алиас: старое имя используется в views.py
+# Алиас
 def get_rating_leaderboard(nomination: str = 'main', rating_year: int = None, limit: int = 50) -> list:
     return get_rating_leaderboard_data(nomination=nomination, rating_year=rating_year, limit=limit)
 
@@ -384,10 +369,21 @@ def get_shows_needing_results(date_from, date_to) -> list:
     return show_repo.get_events_in_range(date_from, date_to, only_without_results=True)
 
 
-# Внутренние
-
 def _refresh_dog_rating(dog_id: int) -> None:
     try:
         recalculate_dog_rating(dog_id)
     except Exception as e:
         logger.warning(f"_refresh_dog_rating dog_id={dog_id}: {e}")
+
+# Самая рейтинговая собака за текущий год (для Home страницы)
+def get_hero_dog(rating_year: int = None):
+    year = rating_year or get_rating_year()
+
+    dog_id = show_repo.get_top_dog_id_for_year(year, nomination='main')
+    if dog_id:
+        dog = dog_repo.get_by_id(dog_id)
+        if dog:
+            return dog
+
+    fallback = dog_repo.search_by_name(HERO_FALLBACK_NAME)
+    return fallback[0] if fallback else None

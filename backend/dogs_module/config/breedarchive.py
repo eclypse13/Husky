@@ -1,5 +1,4 @@
-# dogs_module/config/breedarchive.py
-"""URL, auth, cookies и заголовки BreedArchive."""
+"""Конфиг парсинга с BreedArchive."""
 from decouple import config as _config
 
 BASE_URL = "https://siberianhusky.breedarchive.com"

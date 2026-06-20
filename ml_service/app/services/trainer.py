@@ -1,4 +1,3 @@
-# ml_service/app/services/trainer.py
 """
 Обучение CatBoost моделей — по одной на каждую болезнь.
 """
@@ -15,8 +14,8 @@ from ..config import settings, FEATURE_COLS, TARGETS
 logger = logging.getLogger(__name__)
 
 
+# Обучает CatBoost для одной болезни
 def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
-    """Обучает CatBoost для одной болезни."""
     from catboost import CatBoostClassifier, Pool
 
     positive = int(y.sum())

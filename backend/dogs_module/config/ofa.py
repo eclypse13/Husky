@@ -1,5 +1,4 @@
-# dogs_module/config/ofa.py
-"""URL и заголовки OFA."""
+"""Конфиг парсинга с OFA."""
 
 API_URL = "https://api.ofa.org/api/as.php"
 BB_URL = "https://api.ofa.org/api/bb.php"

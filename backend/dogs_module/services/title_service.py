@@ -1,4 +1,3 @@
-# dogs_module/services/title_service.py
 """
 Сохранение титулов собаки.
 """
@@ -12,10 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 def save_dog_titles(dog, prefix_text, suffix_text, source: str) -> None:
-    """
-    Парсит prefix/suffix-строки и сохраняет титулы в БД.
-    get_or_create по (dog, short_name, country) — дублей не создаёт.
-    """
     if not dog or not dog.pk:
         return
 

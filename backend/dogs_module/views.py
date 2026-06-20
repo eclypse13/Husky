@@ -1,5 +1,3 @@
-# dogs_module/views.py
-
 import logging
 
 from celery.result import AsyncResult
@@ -67,11 +65,6 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         return DogListSerializer if self.action == 'list' else DogDetailSerializer
 
     def get_object(self):
-        """
-        Override: добавляет prefetch для detail view.
-        Предотвращает N+1 на breeders / owners / titles / medical_records.
-        """
-        # Для retrieve и pedigree — получаем объект через правильный queryset с prefetch
         if self.action in ('retrieve', 'pedigree', 'calculate_coi'):
             from .repositories import dog_repository as dog_repo
             return dog_repo.get_detail(self.kwargs[self.lookup_field])
@@ -137,6 +130,18 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         from .repositories import dog_repository as dog_repo
         return Response(dog_repo.get_overview_stats())
 
+    @action(detail=False, methods=['get'])
+    def hero(self, request):
+        from django.core.cache import cache
+        from .services.show_service import get_hero_dog
+
+        data = cache.get('home:hero_dog')
+        if data is None:
+            dog = get_hero_dog()
+            data = DogListSerializer(dog).data if dog else None
+            cache.set('home:hero_dog', data, timeout=1800)
+        return Response(data)
+
     @action(detail=True, methods=['post'], permission_classes=[AllowAny], authentication_classes=[])
     def calculate_coi(self, request, pk=None):
         dog = self.get_object()
@@ -192,9 +197,7 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(data)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # СПРАВОЧНИКИ
-# ──────────────────────────────────────────────────────────────────────────────
 
 class BreederViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Breeder.objects.using('dogs_db').none()
@@ -229,16 +232,9 @@ class MedicalRecordViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ВЫСТАВКИ
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ShowEventViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    GET /api/dogs/shows/              — список выставок
-    GET /api/dogs/shows/{id}/         — одна выставка
-    GET /api/dogs/shows/{id}/results/ — результаты выставки
-    """
     queryset = ShowEvent.objects.using('dogs_db').none()
     serializer_class = ShowEventSerializer
 
@@ -260,9 +256,7 @@ class ShowEventViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(ShowResultSerializer(results, many=True).data)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # СТАТУС ЗАДАЧИ
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ImportTaskStatusView(APIView):
 
@@ -294,9 +288,7 @@ class ImportTaskStatusView(APIView):
             return Response({'error': str(e)}, status=500)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ИМПОРТ — ZOOPORTAL
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ImportZooportalDogView(APIView):
     @extend_schema(summary='Импорт одной собаки', request=ImportZooportalDogSerializer,
@@ -354,9 +346,7 @@ class ImportZooportalRangeView(APIView):
         }, status=202)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ИМПОРТ — BREEDARCHIVE
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ImportBreedarchiveDogView(APIView):
     @extend_schema(summary='Импорт собаки из BA', request=ImportBreedarchiveDogSerializer,
@@ -427,9 +417,7 @@ class ImportBreedarchiveBrowseView(APIView):
         }, status=202)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ИМПОРТ — HYBRID
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ImportHybridDogView(APIView):
     @extend_schema(summary='Гибридный импорт собаки Zoo→BA', request=ImportHybridDogSerializer,
@@ -538,9 +526,7 @@ class ImportHybridFullRangeView(APIView):
         }, status=202)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ИМПОРТ — OFA
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ImportOFADogView(APIView):
     @extend_schema(summary='Импорт OFA для одной собаки', request=ImportOFADogSerializer,
@@ -605,9 +591,8 @@ class OFABreedingStatsSHView(APIView):
             logger.error(f"OFABreedingStatsSHView: {e}")
             return Response({'error': 'Не удалось получить статистику'}, status=503)
 
-# ──────────────────────────────────────────────────────────────────────────────
+
 # ИМПОРТ — ВЫСТАВКИ
-# ──────────────────────────────────────────────────────────────────────────────
 
 class ImportShowListView(APIView):
     @extend_schema(summary='Найти выставки за дату', request=ImportShowListSerializer,
@@ -692,9 +677,7 @@ class LinkShowResultsView(APIView):
         }, status=202)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # COI
-# ──────────────────────────────────────────────────────────────────────────────
 
 class RecalculateAllCoiView(APIView):
     def post(self, request):
@@ -713,9 +696,7 @@ class RecalculateAllCoiView(APIView):
         }, status=202)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # ML / ПОДБОР ПАР
-# ──────────────────────────────────────────────────────────────────────────────
 
 class BreedingPredictView(APIView):
     def get(self, request):
@@ -737,24 +718,8 @@ class BreedingPredictView(APIView):
         return Response(result)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # Мероприятий/соревнования/выставки с Zooportal
-# ──────────────────────────────────────────────────────────────────────────────
-
 class ImportShowsFullView(APIView):
-    """
-    POST /api/dogs/import/shows/full/
-
-    Полный импорт выставок за дату или диапазон:
-      1. Парсим список выставок
-      2. Парсим результаты
-      3. Импортируем собак (ждём завершения каждой)
-      4. Линкуем результаты
-      5. Пересчитываем рейтинги
-
-    Задача может выполняться несколько часов — используй check_status_url
-    для проверки готовности.
-    """
 
     @extend_schema(
         summary='Полный импорт выставок (выставки + собаки + рейтинг)',
@@ -788,16 +753,6 @@ class ImportShowsFullView(APIView):
 
 
 class ImportResultsForDateRangeView(APIView):
-    """
-    POST /api/dogs/import/shows/results/range/
-
-    Смотрит в БД на таблицу show_event за указанный период,
-    для каждой выставки без результатов парсит и сохраняет результаты.
-
-    Пример:
-      {"date_from": "01.01.2026", "date_to": "31.01.2026"}
-      → найдёт все show_event за январь, для каждой спарсит результаты
-    """
 
     @extend_schema(
         summary='Импорт результатов для выставок из БД за период',
@@ -834,9 +789,7 @@ class ImportResultsForDateRangeView(APIView):
         }, status=202)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # Health поиск по медицинским тестам из БД
-# ──────────────────────────────────────────────────────────────────────────────
 class HealthSearchView(APIView):
     """GET /api/dogs/health/search/"""
 
@@ -920,7 +873,7 @@ class PhotoUploadBulkView(APIView):
                 "- limit: сколько собак за один прогон (рекомендуется 500)\n"
                 "- delay: пауза между загрузками (0.5с достаточно для BA)\n"
                 "- only_without_yadisk: True = только новые, False = проверить все\n\n"
-                "⚠️ Только для BA-собак. Zoo-собаки требуют Playwright — используй /fetch-zoo/bulk/"
+                "Только для BA-собак. Zoo-собаки требуют Playwright — используй /fetch-zoo/bulk/"
         ),
         request=PhotoUploadBulkSerializer,
         responses={202: OpenApiTypes.OBJECT},
@@ -1042,7 +995,7 @@ class PhotoFetchZooBulkView(APIView):
         task = photo_fetch_zoo_bulk.apply_async(kwargs={
             "id_from": d["id_from"],
             "id_to": d.get("id_to"),
-            "limit": min(d["limit"], 100),  # Playwright тяжёлый - макс 100
+            "limit": min(d["limit"], 500),  # Playwright тяжёлый - макс 500
             "delay": max(d["delay"], 5.0),  # минимум 5с между тасками
         })
         return Response({
@@ -1115,8 +1068,8 @@ class PhotoBackfillHashesFromSourceView(APIView):
                 "Считает photo_hash напрямую с оригинального photo_url через HTTP.\n"
                 "Не требует скачивания с ЯД — быстрее и дешевле по трафику.\n\n"
                 "Применимость:\n"
-                "- BreedArchive-собаки: ✅ скачивает по HTTP\n"
-                "- Zoo-собаки: ❌ пропускаются (Zooportal блокирует прямые запросы)\n\n"
+                "- BreedArchive-собаки: скачивает по HTTP\n"
+                "- Zoo-собаки: пропускаются (Zooportal блокирует прямые запросы)\n\n"
                 "Для Zoo используй /backfill-hashes/ (скачивает с ЯД).\n\n"
                 "Повторяй пока scanned > 0 в ответе задачи."
         ),
@@ -1174,6 +1127,24 @@ class PhotoCleanupPlaceholdersView(APIView):
             "message": "Очистка заглушек с ЯД запущена",
             "check_status_url": f"/api/dogs/import/status/{task.id}/",
         }, status=202)
+
+
+class DogPhotoRawView(APIView):
+    """/api/dogs/photos/<dog_id>/raw/ — постоянная ссылка, редирект на свежий href ЯД."""
+    permission_classes = [AllowAny]
+
+    def get(self, request, dog_id: int):
+        from .services.photo_service import get_fresh_download_href
+        from django.http import Http404
+        from django.http import HttpResponseRedirect
+
+        href = get_fresh_download_href(dog_id)
+        if not href:
+            raise Http404
+
+        resp = HttpResponseRedirect(href)
+        resp["Cache-Control"] = "public, max-age=86400"
+        return resp
 
 
 # dog breed stats

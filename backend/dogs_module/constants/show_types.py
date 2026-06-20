@@ -1,9 +1,6 @@
-# dogs_module/constants/show_types.py
 """
 Типы выставок.
 """
-
-
 class ShowType:
     PK = 'pk'  # Национальный клуб породы, монопородная
     KCHK = 'kchk'  # Ранга КЧК

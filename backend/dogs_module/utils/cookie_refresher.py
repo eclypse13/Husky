@@ -1,4 +1,3 @@
-# dogs_module/utils/cookie_refresher.py
 """
 Автоматическое обновление куков для Zooportal и BreedArchive.
 """
@@ -18,8 +17,6 @@ _KEY_BA_LOCK = "auth:ba:lock"
 _KEY_ZOO_LOCK = "auth:zoo:lock"
 _COOKIE_TTL = 20 * 3600  # 20ч
 
-
-# Redis helpers
 
 def _cache():
     from django.core.cache import caches
@@ -64,7 +61,6 @@ def _run_in_thread(fn, timeout: int):
 
 
 # BreedArchive
-
 def get_ba_cookies() -> Dict[str, str]:
     """Redis → автологин → .env fallback."""
     try:
@@ -116,8 +112,8 @@ def do_ba_login() -> Optional[Dict[str, str]]:
         _release_lock(_KEY_BA_LOCK)
 
 
+# HTTP POST логин BA через /auth_user/perform_login
 def _ba_http_login() -> Optional[Dict[str, str]]:
-    """HTTP POST логин BA через /auth_user/perform_login."""
     from ..config import (
         BREEDARCHIVE_BASE_URL, BREEDARCHIVE_EMAIL,
         BREEDARCHIVE_PASSWORD, BREEDARCHIVE_HEADERS,
@@ -181,7 +177,6 @@ def _ba_http_login() -> Optional[Dict[str, str]]:
 
 
 # Zooportal
-
 def get_zoo_cookies() -> Dict[str, str]:
     """Redis → автологин → .env fallback."""
     try:
@@ -213,10 +208,6 @@ def _zoo_env_cookies() -> Dict[str, str]:
 
 
 def do_zoo_login() -> Optional[Dict[str, str]]:
-    """
-    Сначала пробует HTTP логин (быстро),
-    если не получил PHPSESSID — fallback на Playwright.
-    """
     from ..config import ZOOPORTAL_LOGIN, ZOOPORTAL_PASSWORD
 
     if not ZOOPORTAL_LOGIN or not ZOOPORTAL_PASSWORD:
@@ -246,10 +237,6 @@ def do_zoo_login() -> Optional[Dict[str, str]]:
 
 
 def _zoo_http_login() -> Optional[Dict[str, str]]:
-    """
-    HTTP POST логин Zooportal.
-    Использует J-куки из .env для прохождения anti-bot защиты.
-    """
     from ..config import (
         ZOOPORTAL_BASE_URL, ZOOPORTAL_LOGIN,
         ZOOPORTAL_PASSWORD, USER_AGENT,
@@ -269,7 +256,7 @@ def _zoo_http_login() -> Optional[Dict[str, str]]:
             'Referer': ZOOPORTAL_AUTH_PAGE_URL,
         })
 
-        # GET — получаем начальные куки сервера
+        # Получаем начальные куки сервера
         r = session.get(ZOOPORTAL_AUTH_PAGE_URL, timeout=30)
         if r.status_code != 200:
             logger.error(f"Zoo HTTP GET: {r.status_code}")
@@ -313,10 +300,6 @@ def _zoo_http_login() -> Optional[Dict[str, str]]:
 
 
 def _zoo_playwright_login() -> Optional[Dict[str, str]]:
-    """
-    Playwright логин Zooportal — fallback если HTTP не сработал.
-    PHPSESSID достаточно для парсинга — BITRIX_SM_UIDH не обязателен.
-    """
     from ..config import (
         ZOOPORTAL_LOGIN_URL, ZOOPORTAL_LOGIN, ZOOPORTAL_PASSWORD,
         PLAYWRIGHT_HEADLESS, PLAYWRIGHT_BROWSER_ARGS, USER_AGENT,

@@ -1,6 +1,5 @@
-# dogs_module/utils/coi_calculator.py
 """
-Расчёт коэффициента инбридинга (COI) по методу Райта.
+Расчёт коэффициента инбридинга по методу Райта.
 """
 
 import logging
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CoiResult:
-    """Результат расчёта COI (coi в процентах; error — если расчёт невозможен)."""
     coi: float
     generations: int
     common_ancestors: int
@@ -104,9 +102,8 @@ def calculate_coi(
     )
 
 
-# BFS
+# BFS по дереву предков. Один SQL на поколение
 def _collect_ancestor_paths(root_id: int, max_depth: int) -> Dict[int, List[int]]:
-    """BFS по дереву предков. Один SQL на поколение → {ancestor_id: [depth, ...]}."""
     paths: Dict[int, List[int]] = defaultdict(list)
     paths[root_id].append(0)
     current_front: Dict[int, List[int]] = {root_id: [0]}
@@ -131,10 +128,8 @@ def _collect_ancestor_paths(root_id: int, max_depth: int) -> Dict[int, List[int]
     return dict(paths)
 
 
-# СОХРАНЕНИЕ
-
+# Сохраняет COI в Dog
 def save_coi(dog, result: CoiResult):
-    """Сохраняет COI в Dog (только coi + coi_updated_on)."""
     from django.utils import timezone
     coi_value = result.coi if result.is_valid else None
     dog_repo.save_coi(dog, coi_value, timezone.now())
@@ -144,16 +139,13 @@ def save_coi(dog, result: CoiResult):
     return dog
 
 
+# Рассчитывает ожидаемый COI потомства для пары без создания объекта Dog
 def calculate_coi_for_pair(
         sire_id: int,
         dam_id: int,
         generations: int = 10,
         use_ancestor_coi: bool = False,
 ) -> CoiResult:
-    """
-    Рассчитывает ожидаемый COI потомства для пары (sire_id, dam_id)
-    без создания объекта Dog.
-    """
     from types import SimpleNamespace
     virtual = SimpleNamespace(id=None, sire_id=sire_id, dam_id=dam_id)
     return calculate_coi(virtual, generations, use_ancestor_coi, check_completeness=False)

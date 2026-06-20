@@ -1,16 +1,11 @@
-# dogs_module/services/ancestor_features.py
 """
 Агрегаты здоровья по предкам.
-
-ЕДИНЫЙ источник признаков-по-предкам для обучения (dataset_builder) и для
-инференса (ml_dog_service).
-
 """
 
 from ..repositories import dog_repository as dog_repo
 from ..domain.health_codes import HIP_DYSPLASIA_THRESHOLD, EYE_PROBLEM_THRESHOLD
 
-# Глубина обхода предков (поколений вверх). 4 ≈ до прапрапредков.
+# Глубина обхода предков (поколений вверх), 4 примерно до прапрапредков.
 ANCESTOR_DEPTH = 4
 
 # Группы, по которым считаем агрегаты, и порог «болен» для каждой.

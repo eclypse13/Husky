@@ -1,4 +1,3 @@
-# dogs_module/repositories/medical_record_repository.py
 """
 Доступ к данным MedicalRecord.
 """
@@ -9,10 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 def filter_records(dog_id=None, source: str = None):
-    """
-    QuerySet MedicalRecord с опциональными фильтрами для API.
-    Используется MedicalRecordViewSet.get_queryset.
-    """
     from ..models import MedicalRecord
     qs = MedicalRecord.objects.using('dogs_db')
     if dog_id:
@@ -22,10 +17,7 @@ def filter_records(dog_id=None, source: str = None):
     return qs.order_by('-test_date')
 
 
-# ЧТЕНИЕ (.values)
-
 def get_ofa_records_for_dogs_values(dog_ids) -> list:
-    """OFA-записи (registry, conclusion, test_date) для набора собак — один SQL."""
     from ..models import MedicalRecord
     if not dog_ids:
         return []
@@ -37,7 +29,6 @@ def get_ofa_records_for_dogs_values(dog_ids) -> list:
 
 
 def get_ofa_hips_for_dogs_values(dog_ids) -> list:
-    """Только HIPS OFA-записи для набора собак (для расчёта дисплазии по родословной)."""
     from ..models import MedicalRecord
     if not dog_ids:
         return []
@@ -49,7 +40,6 @@ def get_ofa_hips_for_dogs_values(dog_ids) -> list:
 
 
 def get_ofa_records_for_dog_values(dog_id: int) -> list:
-    """OFA registry+conclusion одной собаки (для подготовки данных в ML)."""
     from ..models import MedicalRecord
     return list(
         MedicalRecord.objects.using('dogs_db')
@@ -59,10 +49,6 @@ def get_ofa_records_for_dog_values(dog_id: int) -> list:
 
 
 def get_dog_ids_with_ofa() -> set:
-    """
-    id всех собак у которых уже есть хотя бы одна OFA-запись.
-    Используется в dog_service для исключения уже обработанных собак из bulk-импорта.
-    """
     from ..models import MedicalRecord
     return set(
         MedicalRecord.objects.using('dogs_db')
@@ -71,8 +57,6 @@ def get_dog_ids_with_ofa() -> set:
         .distinct()
     )
 
-
-# ЗАПИСЬ
 
 def upsert_ofa_record(dog, ofa_number: str, fields: dict) -> bool:
     """update_or_create одной OFA-записи. Возвращает created (True/False)."""
@@ -86,19 +70,12 @@ def upsert_ofa_record(dog, ofa_number: str, fields: dict) -> bool:
 
 
 def bulk_upsert_ofa_records(dog, records: list) -> tuple:
-    """
-    Батч update_or_create OFA-записей для одной собаки.
-    Возвращает (saved_count, failed_count). Дубликаты по (dog, ofa_number)
-    идемпотентны — запускать можно сколько угодно раз.
-    """
     from ..models import MedicalRecord
     if dog is None or not records:
         return 0, 0
     saved = failed = 0
     for rec in records:
         ofa_num = (rec.get("ofa_number") or "").strip()
-        # У OFA бывают записи без OFA Number (например, CHIC summary).
-        # Их не сохраняем — идемпотентность по (dog, ofa_number) ломается.
         if not ofa_num:
             continue
         try:

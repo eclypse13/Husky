@@ -1,5 +1,4 @@
-# dogs_module/config/zooportal.py
-"""URL, auth и cookies Zooportal."""
+"""Конфиг парсинга с Zooportal."""
 from decouple import config as _config
 
 BASE_URL = "https://zooportal.pro"

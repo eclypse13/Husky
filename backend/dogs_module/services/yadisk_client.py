@@ -1,7 +1,5 @@
-# dogs_module/services/yadisk_client.py
 """
 HTTP-клиент для Яндекс.Диск API.
-Использует httpx вместо requests — нет SSLZeroReturnError при загрузке файлов.
 """
 
 import logging
@@ -23,7 +21,6 @@ from ..config.yadisk import (
 logger = logging.getLogger(__name__)
 
 
-# Утилиты
 def _token() -> str:
     if not YANDEX_DISK_TOKEN:
         raise ValueError("YANDEX_DISK_TOKEN не задан в .env")
@@ -34,13 +31,13 @@ def _headers() -> dict:
     return {"Authorization": f"OAuth {_token()}"}
 
 
+# 'dogs/photos/1.jpg' - 'disk:/dogs/photos/1.jpg'
 def _disk(path: str) -> str:
-    """'dogs/photos/1.jpg'  →  'disk:/dogs/photos/1.jpg'"""
     return path if path.startswith("disk:/") else f"disk:/{path}"
 
 
+# SSL контекст который игнорирует отсутствие TLS close_notify
 def _ssl_ctx() -> ssl.SSLContext:
-    """SSL контекст который игнорирует отсутствие TLS close_notify."""
     ctx = ssl.create_default_context()
     try:
         # Python 3.11+
@@ -59,10 +56,9 @@ def _client(timeout: float = None) -> httpx.Client:
         verify=_ssl_ctx(),
     )
 
-# ── Операции с папками ────────────────────────────────────────────────────────
 
+# Создаёт папку на ЯД если её нет
 def ensure_folder(path: str) -> None:
-    """Создаёт папку на ЯД если её нет. Тихо пропускает если уже существует."""
     try:
         with _client() as c:
             r = c.get(f"{YADISK_API}?path={_disk(path)}")
@@ -74,16 +70,14 @@ def ensure_folder(path: str) -> None:
         logger.warning(f"yadisk ensure_folder '{path}': {e}")
 
 
+# Создаёт dogs/ и dogs/photos/ если их нет
 def ensure_photos_folder() -> None:
-    """Создаёт dogs/ и dogs/photos/ если их нет."""
     ensure_folder("dogs")
     ensure_folder(YADISK_FOLDER)
 
 
-# ── Операции с файлами ────────────────────────────────────────────────────────
-
+# Размер файла на ЯД в байтах
 def get_file_size(yadisk_path: str) -> Optional[int]:
-    """Размер файла на ЯД в байтах. None если файла нет или ошибка."""
     try:
         with _client() as c:
             r = c.get(f"{YADISK_API}?path={_disk(yadisk_path)}&fields=size")
@@ -93,16 +87,12 @@ def get_file_size(yadisk_path: str) -> Optional[int]:
         return None
 
 
+# Загружает bytes на ЯД
 def upload(data: bytes, yadisk_path: str) -> bool:
-    """
-    Загружает bytes на ЯД. True = успех.
-    Retry 3 раза — каждый раз получает новый upload URL
-    (href одноразовый и быстро истекает).
-    """
     for attempt in range(3):
         try:
             with _client(timeout=YADISK_UPLOAD_TIMEOUT) as c:
-                # Шаг 1: получить одноразовый upload URL
+
                 r = c.get(
                     f"{YADISK_API}/upload?path={_disk(yadisk_path)}&overwrite=true",
                 )
@@ -114,8 +104,6 @@ def upload(data: bytes, yadisk_path: str) -> bool:
                 if not href:
                     return False
 
-                # Шаг 2: загрузить файл по одноразовому URL
-                # content= вместо data= — разница между httpx и requests
                 r2 = c.put(href, content=data, timeout=YADISK_PUT_TIMEOUT)
                 return r2.status_code in (200, 201)
 
@@ -134,11 +122,8 @@ def upload(data: bytes, yadisk_path: str) -> bool:
     return False
 
 
+# Список файлов в папке.
 def list_files(folder: str = None, limit: int = 10000) -> List[Dict]:
-    """
-    Список файлов в папке.
-    Возвращает [{"name": "12345.jpg", "size": 54321, "path": "disk:/..."}, ...]
-    """
     target = folder or YADISK_FOLDER
     try:
         url = (
@@ -156,8 +141,8 @@ def list_files(folder: str = None, limit: int = 10000) -> List[Dict]:
         return []
 
 
+# Количество файлов в папке
 def count_files(folder: str = None) -> Optional[int]:
-    """Количество файлов в папке (без листинга)."""
     target = folder or YADISK_FOLDER
     try:
         with _client() as c:
@@ -202,8 +187,8 @@ def publish_and_get_url(yadisk_path: str) -> Optional[str]:
     return None
 
 
+# Возвращает public_key опубликованной папки. При необходимости публикует
 def get_public_key(folder: str = None) -> Optional[str]:
-    """Возвращает public_key опубликованной папки. При необходимости публикует."""
     target = folder or YADISK_FOLDER
     try:
         with _client() as c:
@@ -224,8 +209,8 @@ def get_public_key(folder: str = None) -> Optional[str]:
     return None
 
 
+# Скачивает файл с ЯД (для backfill хэшей существующих фото)
 def download(yadisk_path: str) -> Optional[bytes]:
-    """Скачивает файл с ЯД (для backfill хэшей существующих фото)."""
     try:
         with _client(timeout=YADISK_UPLOAD_TIMEOUT) as c:
             r = c.get(f"{YADISK_API}/download?path={_disk(yadisk_path)}")
@@ -241,8 +226,8 @@ def download(yadisk_path: str) -> Optional[bytes]:
         return None
 
 
+# Удаляет файл с ЯД
 def delete(yadisk_path: str, permanently: bool = True) -> bool:
-    """Удаляет файл с ЯД."""
     try:
         with _client() as c:
             r = c.delete(
@@ -253,3 +238,14 @@ def delete(yadisk_path: str, permanently: bool = True) -> bool:
     except Exception as e:
         logger.error(f"yadisk delete '{yadisk_path}': {e}")
         return False
+
+
+# Одноразовый download-URL файла на ЯД
+def get_download_href(yadisk_path: str) -> Optional[str]:
+    try:
+        with _client() as c:
+            r = c.get(f"{YADISK_API}/download?path={_disk(yadisk_path)}")
+            return r.json().get("href") if r.status_code == 200 else None
+    except Exception as e:
+        logger.error(f"yadisk get_download_href '{yadisk_path}': {e}")
+        return None

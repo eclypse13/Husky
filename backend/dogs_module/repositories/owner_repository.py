@@ -1,4 +1,3 @@
-# dogs_module/repositories/owner_repository.py
 """
 Доступ к данным Owner и связующей таблице Dogownerlink.
 """
@@ -16,11 +15,6 @@ def upsert_owner(
         owner_url: str = None,
         kennel_url: str = None,
 ):
-    """
-    Находит или создаёт Owner.
-    Поиск: по uuid (если есть), иначе по name.
-    Возвращает (owner, created).
-    """
     from ..models import Owner
 
     defaults = {
@@ -30,7 +24,8 @@ def upsert_owner(
         'owner_url': owner_url,
         'kennel_url': kennel_url,
     }
-    # Убираем None-значения чтобы не перезаписывать существующие поля
+
+    # убираем None-значения чтобы не перезаписывать существующие поля
     defaults = {k: v for k, v in defaults.items() if v is not None}
 
     if uuid:
@@ -60,11 +55,9 @@ def upsert_owner(
 
 
 def link_to_dog(dog, owner) -> None:
-    """Создаёт связь Dog ↔ Owner если её ещё нет."""
     from ..models import Dogownerlink
     Dogownerlink.objects.using('dogs_db').get_or_create(dog=dog, owner=owner)
 
 
 def dog_has_owners(dog) -> bool:
-    """True если у собаки уже есть хотя бы один владелец."""
     return dog.owners.using('dogs_db').exists()

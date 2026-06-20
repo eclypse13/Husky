@@ -1,4 +1,3 @@
-# dogs_module/services/pedigree_service.py
 """
 Сервис расчёта генетических коэффициентов из родословной.
 """
@@ -20,8 +19,8 @@ GENERATION_WEIGHTS = {
 }
 
 
+# Балл теста бёдер из последнего по дате HIPS-теста
 def _get_hip_score(dog_id: int, records_by_dog: dict) -> Optional[int]:
-    """Балл теста бёдер из последнего по дате HIPS-теста."""
     records = records_by_dog.get(dog_id, [])
     hip_records = [r for r in records if (r["registry"] or "").upper() == "HIPS"]
     if not hip_records:
@@ -30,6 +29,7 @@ def _get_hip_score(dog_id: int, records_by_dog: dict) -> Optional[int]:
     return score_conclusion("hips", latest["conclusion"])
 
 
+# Рекурсивный обход родословной → список
 def _get_ancestors(
         dog_id: int,
         generation: int,
@@ -37,7 +37,6 @@ def _get_ancestors(
         parents_by_dog: dict,
         visited: set,
 ) -> list:
-    """Рекурсивный обход родословной → список (dog_id, generation)."""
     if generation > max_generation or dog_id in visited:
         return []
 
@@ -52,12 +51,8 @@ def _get_ancestors(
     return result
 
 
+# Взвешенная доля предков с дисплазией бёдер
 def calc_hip_dysplasia_ratio(dog_id: int, max_generations: int = 4) -> Optional[float]:
-    """
-    Взвешенная доля предков с дисплазией бёдер (FAIR и хуже).
-    Возвращает float 0.0-1.0 или None если нет данных.
-    """
-    # Шаг 1 — BFS по иерархии родителей
     all_ids = {dog_id}
     queue = [dog_id]
     parents_by_dog = {}
@@ -87,14 +82,12 @@ def calc_hip_dysplasia_ratio(dog_id: int, max_generations: int = 4) -> Optional[
         logger.debug(f"pedigree: dog_id={dog_id} нет предков в родословной")
         return None
 
-    # Шаг 2 — OFA записи бёдер для всех предков одним запросом
     records_raw = med_repo.get_ofa_hips_for_dogs_values(all_ids)
 
     records_by_dog = {}
     for rec in records_raw:
         records_by_dog.setdefault(rec["dog_id"], []).append(rec)
 
-    # Шаг 3 — взвешенный коэффициент
     ancestors = _get_ancestors(
         dog_id=dog_id,
         generation=0,  # сама собака
@@ -132,8 +125,8 @@ def calc_hip_dysplasia_ratio(dog_id: int, max_generations: int = 4) -> Optional[
     return ratio
 
 
+# Данные родословной пары для передачи в ML сервис
 def get_pair_pedigree_data(sire_id: int, dam_id: int) -> dict:
-    """Данные родословной пары для передачи в ML сервис."""
     sire_ratio = calc_hip_dysplasia_ratio(sire_id)
     dam_ratio = calc_hip_dysplasia_ratio(dam_id)
 
@@ -152,8 +145,8 @@ def get_pair_pedigree_data(sire_id: int, dam_id: int) -> dict:
     }
 
 
+# Ожидаемый COI потомства для пары
 def calc_offspring_coi(sire_id: int, dam_id: int) -> float | None:
-    """Ожидаемый COI потомства для пары."""
     from ..utils.coi_calculator import calculate_coi_for_pair
     result = calculate_coi_for_pair(sire_id, dam_id, generations=10)
     return round(result.coi, 4) if result.is_valid else None
