@@ -21,7 +21,6 @@ def _as_pct(value) -> float | None:
     return float(value) if value else None
 
 
-# Строит скелет дерева предков
 def _load_parent_map(seed_ids: set[int], depth: int) -> dict[int, tuple]:
     parent_map: dict[int, tuple] = {}
     front = {i for i in seed_ids if i}
@@ -42,7 +41,6 @@ def _load_parent_map(seed_ids: set[int], depth: int) -> dict[int, tuple]:
     return parent_map
 
 
-# Собирает реальные данные из БД
 def _build_real_dataset() -> tuple[list[dict], int]:
     offspring_list = dog_repo.get_offspring_with_parents_values()
     if not offspring_list:
@@ -84,7 +82,11 @@ def _build_real_dataset() -> tuple[list[dict], int]:
         dog_id, sire_id, dam_id = d["id"], d["sire_id"], d["dam_id"]
 
         offspring_scores = scores_by_dog.get(dog_id, {})
-        if "hips" not in offspring_scores:
+        has_hips = "hips" in offspring_scores
+        has_eyes = "eyes" in offspring_scores
+
+        # Потомок попадает в выборку, если есть хотя бы один из двух тестов.
+        if not has_hips and not has_eyes:
             skipped += 1
             continue
 
@@ -99,9 +101,16 @@ def _build_real_dataset() -> tuple[list[dict], int]:
             scores_by_dog=scores_by_dog,
             parent_map=parent_map,
         )
+        # Метки: None если соответствующего теста нет
         row.update({
-            "offspring_has_hip_problem": int(offspring_scores["hips"] >= HIP_PROBLEM_THRESHOLD),
-            "offspring_has_eye_problem": int(offspring_scores.get("eyes", 0) >= EYE_PROBLEM_THRESHOLD),
+            "offspring_has_hip_problem": (
+                int(offspring_scores["hips"] >= HIP_PROBLEM_THRESHOLD)
+                if has_hips else None
+            ),
+            "offspring_has_eye_problem": (
+                int(offspring_scores["eyes"] >= EYE_PROBLEM_THRESHOLD)
+                if has_eyes else None
+            ),
             "_synthetic": False,
             "_offspring_id": dog_id,
             "_sire_id": sire_id,
@@ -119,20 +128,23 @@ def build_dataset(augment: bool = False, n_synthetic: int = 3000) -> list[dict]:
     logger.info(f"Потомков с известными родителями: {offspring_count}")
 
     real_data, skipped = _build_real_dataset()
-    logger.info(f"Реальных записей с меткой по бёдрам: {len(real_data)}")
+    logger.info(f"Реальных записей с меткой (hips или eyes): {len(real_data)}")
 
     if not real_data:
         logger.warning("Нет реальных данных")
         return []
 
     total = len(real_data)
-    hip_pos = sum(d["offspring_has_hip_problem"] for d in real_data)
-    eye_pos = sum(d["offspring_has_eye_problem"] for d in real_data)
+    # Корректный подсчёт: исключаем None при суммировании
+    hip_labeled = [d for d in real_data if d["offspring_has_hip_problem"] is not None]
+    eye_labeled = [d for d in real_data if d["offspring_has_eye_problem"] is not None]
+    hip_pos = sum(d["offspring_has_hip_problem"] for d in hip_labeled)
+    eye_pos = sum(d["offspring_has_eye_problem"] for d in eye_labeled)
 
     logger.info(
         f"Реальный датасет: {total} записей, пропущено: {skipped}\n"
-        f" бёдра (Borderline+): {hip_pos} ({hip_pos / total:.1%})\n"
-        f" глаза: {eye_pos} ({eye_pos / total:.1%})"
+        f" с меткой по бёдрам: {len(hip_labeled)} (позитивов {hip_pos})\n"
+        f" с меткой по глазам: {len(eye_labeled)} (позитивов {eye_pos})"
     )
 
     if not augment:
@@ -143,13 +155,15 @@ def build_dataset(augment: bool = False, n_synthetic: int = 3000) -> list[dict]:
 
     combined = real_data + synthetic
     total_c = len(combined)
-    hip_c = sum(d["offspring_has_hip_problem"] for d in combined)
-    eye_c = sum(d["offspring_has_eye_problem"] for d in combined)
+    hip_labeled_c = [d for d in combined if d.get("offspring_has_hip_problem") is not None]
+    eye_labeled_c = [d for d in combined if d.get("offspring_has_eye_problem") is not None]
+    hip_c = sum(d["offspring_has_hip_problem"] for d in hip_labeled_c)
+    eye_c = sum(d["offspring_has_eye_problem"] for d in eye_labeled_c)
 
     logger.info(
         f"Итоговый датасет (реальные + синтетика): {total_c} записей\n"
-        f" бёдра (Borderline+): {hip_c} ({hip_c / total_c:.1%})\n"
-        f" глаза: {eye_c} ({eye_c / total_c:.1%})"
+        f" с меткой по бёдрам: {len(hip_labeled_c)} (позитивов {hip_c})\n"
+        f" с меткой по глазам: {len(eye_labeled_c)} (позитивов {eye_c})"
     )
 
     return combined
@@ -160,8 +174,6 @@ def save_dataset_csv(path: str = "/tmp/ofa_dataset.csv", augment: bool = False) 
     dataset = build_dataset(augment=augment)
     if not dataset:
         return ""
-    # Объединение ключи всех строк (у реальных и синтетических набор совпадает,
-    # но на всякий случай берется union для устойчивости заголовка).
     fieldnames = list({k for row in dataset for k in row.keys()})
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
