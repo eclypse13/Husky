@@ -107,7 +107,7 @@ function DogSelector({sex, selected, onSelect, onClear}: SelectorProps) {
                     />
                     <div className="breeding-selected-info">
                         <Link to={`/archive/dog/${selected.id}`} className="breeding-selected-name">
-                            {selected.display_name} ↗
+                            {selected.registered_name} ↗
                         </Link>
                         {/*<div className="breeding-selected-meta">{formatMeta(selected)}</div>*/}
                     </div>
@@ -143,7 +143,7 @@ function DogSelector({sex, selected, onSelect, onClear}: SelectorProps) {
                                         wrapClassName="breeding-dropdown-avatar"
                                     />
                                     <div>
-                                        <div className="breeding-dropdown-name">{dog.display_name}</div>
+                                        <div className="breeding-dropdown-name">{dog.registered_name}</div>
                                         <div className="breeding-dropdown-meta">{formatMeta(dog)}</div>
                                     </div>
                                 </div>
