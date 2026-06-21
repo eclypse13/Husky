@@ -934,6 +934,7 @@ def process_dog_from_zooportal(
         existing = dog_repo.get_by_zooportal_id(zooportal_id)
         if existing:
             logger.info(f"♻️ {zooportal_id} уже в БД: {existing.registered_name}")
+            _ensure_photo(existing)
             return existing
         invalidate_parse_cache(zooportal_id, generations)
         raise ValueError(f"Не удалось распарсить {zooportal_id}")
@@ -957,6 +958,7 @@ def process_dog_from_zooportal(
             raise ValueError(f"Не удалось сохранить основную собаку {zooportal_id}")
 
     logger.info(f"🎉 Импорт завершён: {root_dog.registered_name} + {len(all_parsed) - 1} предков")
+    _ensure_photo(root_dog)
     return root_dog
 
 
@@ -1167,3 +1169,9 @@ def _zoo_parent_names(zoo_raw: dict) -> tuple:
     sire = (parents.get('sire') or {}).get('name')
     dam = (parents.get('dam') or {}).get('name')
     return sire, dam
+
+def _ensure_photo(dog) -> None:
+    # дозагрузка фото для собаки, которая вернулась без парсинга (уже была в БД)
+    if dog and dog.photo_url and not dog.photo_yadisk_path:
+        from ..tasks.tasks_photos import photo_upload_one
+        photo_upload_one.apply_async(kwargs={"dog_id": dog.id}, countdown=2)
