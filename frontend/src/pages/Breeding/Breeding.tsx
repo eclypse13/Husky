@@ -36,7 +36,7 @@ const VERDICT = {
 };
 
 const CONFIDENCE_LABELS = {low: "Низкая", medium: "Средняя", high: "Высокая"};
-const BASIS_LABELS = {ml: "ML модель", rules: "Правила OFA", genetics: "Генетика"};
+// const BASIS_LABELS = {ml: "ML модель", rules: "Правила OFA", genetics: "Генетика"};
 
 const ML_DISEASES: Record<string, string> = {
     hip_dysplasia: "Дисплазия бёдер",
@@ -74,8 +74,7 @@ interface SelectorProps {
 function DogSelector({sex, selected, onSelect, onClear}: SelectorProps) {
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
-    const timer = useRef<ReturnType<typeof setTimeout>>();
-
+    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const {data, isFetching} = useQuery<{ count: number; results: DogListItem[] }>({
         queryKey: ["breed-search", sex, query],
         queryFn: () => fetch(`/api/dogs/?sex=${sex}&q=${encodeURIComponent(query)}&per_page=8`).then(r => r.json()),
