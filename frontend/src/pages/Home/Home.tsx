@@ -1038,13 +1038,25 @@ export default function Home() {
     const featured = visibleNews[0] ?? news[0];
     const others = featured ? visibleNews.slice(1) : visibleNews;
 
-    // ── Загружаем кол-во питомников и собак из БД ────────────────────────────────
+    // ── Загружаем кол-во собак из БД ──────────────────────────────────────────────
     useEffect(() => {
         fetch("/api/dogs/stats/")
             .then(r => r.ok ? r.json() : null)
             .then(data => {
-                if (data?.breeders != null) setBreederCount(data.breeders);
                 if (data?.total != null) setDogCount(data.total);
+            })
+            .catch(() => {
+            });
+    }, []);
+
+    // ── Загружаем кол-во питомников из kennels-data.json ──────────────────────────
+    useEffect(() => {
+        fetch("/data/kennels-data.json")
+            .then(r => r.ok ? r.json() : null)
+            .then((data: Record<string, unknown[]> | null) => {
+                if (!data) return;
+                const total = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
+                setBreederCount(total);
             })
             .catch(() => {
             });
