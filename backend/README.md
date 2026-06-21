@@ -158,7 +158,7 @@ nkp_husky/
 - **Gallery** - фотогалереи
 - **Event** - мероприятия и выставки
 - **EventReport** - отчеты о мероприятиях
-- **Judge** - судьи
+- **Judge** - судьи; детализированный профиль вынесен в отдельную модель **JudgeDetails**
 - **Seminar** - семинары
 
 #### О клубе
@@ -166,11 +166,23 @@ nkp_husky/
 - **ClubDocument** - документы (устав, положения)
 - **BoardMember** - члены Президиума
 - **MembershipPlan** - планы членства
+- **FastLink** - быстрые ссылки главной страницы
 
 #### О породе
 
 - **BreedStandard** - стандарты FCI
 - **BreedArticle** - статьи о породе
+
+#### Ездовой спорт
+
+- **Season** - спортивный сезон
+- **Race** - гонка
+
+#### Президент клуба
+
+- **President** - президент клуба
+- **PresidentBadge** - бейджи президента
+- **PresidentAchievement** - достижения президента
 
 #### Личный кабинет
 
@@ -244,10 +256,18 @@ GET    /api/galleries/highlights/    # Избранные
 GET    /api/events/                  # Мероприятия
 GET    /api/event-reports/           # Отчеты
 GET    /api/judges/                  # Судьи
+GET    /api/judge-details/           # Детализированные профили судей
 GET    /api/club/documents/          # Документы клуба
 GET    /api/club/board/              # Президиум
+GET    /api/club/stats/              # Статистика клуба
 GET    /api/breed/standards/         # Стандарты породы
 GET    /api/breed/articles/          # Статьи о породе
+GET    /api/sports-seasons/          # Спортивные сезоны
+GET    /api/sports-races/            # Гонки ездового спорта
+GET    /api/sports-races/{id}/results/  # Результаты конкретной гонки (из JSON-файла)
+GET    /api/president/active/        # Действующий президент клуба
+GET    /api/activity-feed/           # Лента активности (Telegram-новости)
+GET    /api/site-banner/             # Настройки баннера сайта
 ```
 
 ### Личный кабинет (требует авторизации)
@@ -354,6 +374,10 @@ POST   /api/dogs/photos/backfill-hashes/                                   # З�
 POST   /api/dogs/photos/backfill-hashes-from-source/
 POST   /api/dogs/photos/cleanup-placeholders/                                 # Очистка заглушек
 ```
+
+### Telegram-бот
+
+Автоматическая агрегация новостей из Telegram-канала клуба (`pyTelegramBotAPI`), публикация в ленту активности сайта (`/api/activity-feed/`) через общий файловый том между контейнерами `web` и `telegram_bot`.
 
 ### Мониторинг фоновых задач
 
