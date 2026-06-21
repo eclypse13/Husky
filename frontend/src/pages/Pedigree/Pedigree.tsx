@@ -75,9 +75,9 @@ function getConfig(depth: number): CardConfig {
     return CONFIGS.hcompact;  // поколение 3 и далее: везде одинаковые компактные карточки
 }
 
-function resolvePhoto(url?: string): string {
-    return url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_PHOTO;
-}
+// function resolvePhoto(url?: string): string {
+//     return url && !PLACEHOLDER_URLS.includes(url) ? url : DEFAULT_PHOTO;
+// }
 
 function photoCandidates(n: TreeNode): string[] {
     return Array.from(

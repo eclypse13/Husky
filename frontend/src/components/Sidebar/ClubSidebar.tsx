@@ -392,7 +392,7 @@ export default function ClubSidebar({
         return a.title.localeCompare(b.title);
     });
 
-    // const shownStats = statsState ?? stats; // stats всё ещё может прийти пропсом (и дефолтится defaultStats)
+    const shownStats = statsState ?? stats; // stats всё ещё может прийти пропсом (и дефолтится defaultStats)
 
 
     return (
@@ -440,17 +440,17 @@ export default function ClubSidebar({
                         </div>
                     </div>
 
-                    {/*<div className="club-sidebar__card sidebar-card">*/}
-                    {/*  <h3 className="club-sidebar__title">📊 Статистика клуба</h3>*/}
-                    {/*  <div className="club-sidebar__stats">*/}
-                    {/*    {shownStats.map((s) => (*/}
-                    {/*      <div className="club-sidebar__stat" key={s.id}>*/}
-                    {/*        <div className="club-sidebar__stat-number">{s.value}</div>*/}
-                    {/*        <div className="club-sidebar__stat-label">{s.label}</div>*/}
-                    {/*      </div>*/}
-                    {/*    ))}*/}
-                    {/*  </div>*/}
-                    {/*</div>*/}
+                    <div className="club-sidebar__card sidebar-card">
+                      <h3 className="club-sidebar__title">📊 Статистика клуба</h3>
+                      <div className="club-sidebar__stats">
+                        {shownStats.map((s) => (
+                          <div className="club-sidebar__stat" key={s.id}>
+                            <div className="club-sidebar__stat-number">{s.value}</div>
+                            <div className="club-sidebar__stat-label">{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
                     <div className="club-sidebar__card sidebar-card">
                         <h3 className="club-sidebar__title">🚀 Быстрые действия</h3>
