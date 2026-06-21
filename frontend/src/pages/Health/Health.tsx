@@ -121,8 +121,7 @@ export default function Health() {
         setSearched(true);
     };
 
-    const totalPages = data?.total && data?.per_page ? Math.ceil(data.total / data.per_page) : 0;
-
+    const totalPages = data?.count && data?.per_page ? Math.ceil(data.count / data.per_page) : 0;
     useEffect(() => {
         const root = pageRef.current;
         if (!root) return;
@@ -224,9 +223,9 @@ export default function Health() {
                             <section className="health-card">
                                 <div className="health-results-head">
                                     <h3 className="health-card-title" style={{margin: 0}}>Результаты</h3>
-                                    {!isFetching && data?.total != null && (
+                                    {!isFetching && data?.count != null && (
                                         <span className="health-results-count">
-                                            {data.total.toLocaleString("ru-RU")} записей
+                                            {data.count.toLocaleString("ru-RU")} записей
                                         </span>
                                     )}
                                 </div>
@@ -299,7 +298,7 @@ export default function Health() {
                                         {s.suffix ? `${s.num}${s.suffix}` : s.num}
                                     </div>
                                     <div className="health-stat-label">{s.label}</div>
-                                    <div className="health-stat-trend">{s.trend}</div>
+                                    {/*<div className="health-stat-trend">{s.trend}</div>*/}
                                 </article>
                             ))}
                         </section>

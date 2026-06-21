@@ -392,7 +392,7 @@ export default function ClubSidebar({
         return a.title.localeCompare(b.title);
     });
 
-    const shownStats = statsState ?? stats; // stats всё ещё может прийти пропсом (и дефолтится defaultStats)
+    // const shownStats = statsState ?? stats; // stats всё ещё может прийти пропсом (и дефолтится defaultStats)
 
 
     return (

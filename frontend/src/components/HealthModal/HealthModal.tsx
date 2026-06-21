@@ -33,7 +33,7 @@ function formatDate(raw: string | null): string | null {
     return d.toLocaleDateString("ru-RU", {day: "2-digit", month: "2-digit", year: "numeric"});
 }
 
-export default function HealthModal({dogId, dogName, onClose}: Props) {
+export default function HealthModal({dogId, dogName: _dogName, onClose}: Props) {
     const {data, isLoading, error} = useQuery<ApiResponse>({
         queryKey: ["dog-health", dogId],
         queryFn: async () => {
