@@ -12,16 +12,14 @@ from .serializers import *
 from .permissions import IsNKPMember, IsOwnerOrReadOnly
 
 
-# ============================================
-# КОНТЕНТ-СПРАВОЧНИК API
-# ============================================
+# Контент-справочник
 
 class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
     """API для контент-справочника"""
     queryset = models.ContentDictionary.objects.all()
     serializer_class = ContentDictionarySerializer
     permission_classes = [AllowAny]
-    
+
     @extend_schema(
         parameters=[
             OpenApiParameter('page', str, description='Фильтр по странице'),
@@ -30,25 +28,25 @@ class ContentDictionaryViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         page_filter = request.query_params.get('page')
         if page_filter:
             queryset = queryset.filter(page=page_filter)
-        
+
         key_filter = request.query_params.get('key')
         if key_filter:
             queryset = queryset.filter(key__icontains=key_filter)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'])
     def by_key(self, request):
         """Получить значение по ключу"""
         key = request.query_params.get('key')
         if not key:
             return Response({'error': 'Key parameter required'}, status=400)
-        
+
         try:
             content = models.ContentDictionary.objects.get(key=key)
             return Response({'key': content.key, 'value': content.value})
@@ -65,16 +63,14 @@ def site_banner(request):
     return Response(SiteBannerSettingsSerializer(obj).data)
 
 
-# ============================================
-# ПУБЛИЧНЫЕ API
-# ============================================
+# Публичные API
 
 class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     """API новостей"""
     queryset = models.News.objects.all()
     serializer_class = NewsSerializer
     permission_classes = [AllowAny]
-    
+
     @extend_schema(
         parameters=[
             OpenApiParameter('featured', bool, description='Только избранные'),
@@ -84,14 +80,14 @@ class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     @method_decorator(cache_page(60 * 5))  # Кеш на 5 минут
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         if request.query_params.get('featured'):
             queryset = queryset.filter(is_featured=True)
-        
+
         tag = request.query_params.get('tag')
         if tag:
             queryset = queryset.filter(tags__contains=tag)
-        
+
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
@@ -103,7 +99,7 @@ class PageViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PageSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
-    
+
     @method_decorator(cache_page(60 * 10))
     def retrieve(self, request, slug=None):
         return super().retrieve(request, slug)
@@ -114,7 +110,7 @@ class GalleryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = models.Gallery.objects.all()
     serializer_class = GallerySerializer
     permission_classes = [AllowAny]
-    
+
     @action(detail=False, methods=['get'])
     def highlights(self, request):
         """Избранные галереи для главной"""
@@ -128,7 +124,7 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = EventSerializer
     permission_classes = [AllowAny]
-    
+
     @extend_schema(
         parameters=[
             OpenApiParameter('from_date', str, description='От даты (YYYY-MM-DD)'),
@@ -138,18 +134,18 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         from_date = request.query_params.get('from_date')
         to_date = request.query_params.get('to_date')
         event_type = request.query_params.get('type')
-        
+
         if from_date:
             queryset = queryset.filter(starts_at__gte=from_date)
         if to_date:
             queryset = queryset.filter(starts_at__lte=to_date)
         if event_type:
             queryset = queryset.filter(event_type=event_type)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -197,6 +193,7 @@ class RaceViewSet(viewsets.ReadOnlyModelViewSet):
                 status=500,
             )
 
+
 class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
     """API судей"""
     queryset = models.Judge.objects.all()
@@ -205,7 +202,7 @@ class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class JudgeDetailsViewSet(viewsets.ReadOnlyModelViewSet):
-    """API ??????? ?????"""
+    """API детальных профилей судей"""
     queryset = models.JudgeDetails.objects.all()
     serializer_class = JudgeDetailsSerializer
     permission_classes = [AllowAny]
@@ -265,7 +262,7 @@ class BreedArticleViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = models.BreedArticle.objects.all()
     serializer_class = BreedArticleSerializer
     permission_classes = [AllowAny]
-    
+
     @extend_schema(
         parameters=[
             OpenApiParameter('category', str, description='Категория статьи'),
@@ -273,23 +270,21 @@ class BreedArticleViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def list(self, request):
         queryset = self.get_queryset()
-        
+
         category = request.query_params.get('category')
         if category:
             queryset = queryset.filter(category=category)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 
-# ============================================
-# ЛИЧНЫЙ КАБИНЕТ API
-# ============================================
+# Личный кабинет
 
 class MyProfileViewSet(viewsets.ViewSet):
     """API профиля пользователя"""
     permission_classes = [IsAuthenticated]
-    
+
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Получить информацию о себе"""
@@ -299,7 +294,7 @@ class MyProfileViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         except models.User.DoesNotExist:
             return Response({'error': 'User not found'}, status=404)
-    
+
     @action(detail=False, methods=['put'])
     def update_profile(self, request):
         """Обновить профиль"""
@@ -318,11 +313,11 @@ class MyDogViewSet(viewsets.ModelViewSet):
     """API собак пользователя"""
     serializer_class = DogSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Dog.objects.filter(owner=user)
-    
+
     @action(detail=False, methods=['get'])
     def champions(self, request):
         """Только чемпионы"""
@@ -335,7 +330,7 @@ class MyKennelViewSet(viewsets.ModelViewSet):
     """API питомника пользователя"""
     serializer_class = KennelSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Kennel.objects.filter(owner=user)
@@ -345,7 +340,7 @@ class MyLitterViewSet(viewsets.ModelViewSet):
     """API пометов пользователя"""
     serializer_class = LitterSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         kennels = models.Kennel.objects.filter(owner=user)
@@ -356,7 +351,7 @@ class MyApplicationViewSet(viewsets.ModelViewSet):
     """API заявлений пользователя"""
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Application.objects.filter(user=user)
@@ -366,15 +361,13 @@ class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
     """API достижений пользователя"""
     serializer_class = AchievementSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         user = models.User.objects.get(email=self.request.user.email)
         return models.Achievement.objects.filter(user=user)
 
 
-# ============================================
-# АУТЕНТИФИКАЦИЯ API
-# ============================================
+# Аутентификация
 
 @extend_schema(
     request={
@@ -394,12 +387,12 @@ def login_view(request):
     """Вход в систему"""
     email = request.data.get('email')
     password = request.data.get('password')
-    
+
     # Django auth
     user = authenticate(request, username=email, password=password)
     if user:
         login(request, user)
-        
+
         # Получаем MongoDB пользователя
         try:
             mongo_user = models.User.objects.get(email=email)
@@ -413,7 +406,7 @@ def login_view(request):
             })
         except:
             return Response({'success': True, 'user': {'email': email}})
-    
+
     return Response({'error': 'Invalid credentials'}, status=401)
 
 
@@ -425,9 +418,7 @@ def logout_view(request):
     return Response({'success': True})
 
 
-# ============================================
-# ГЛАВНАЯ СТРАНИЦА API
-# ============================================
+# Главная страница
 
 @extend_schema(
     responses={200: {
@@ -451,7 +442,7 @@ def home_api(request):
     featured_news = models.News.objects.filter(is_featured=True)[:3]
     upcoming_events = models.Event.objects.filter(starts_at__gte=datetime.utcnow())[:5]
     highlight_galleries = models.Gallery.objects.filter(is_highlight=True)[:2]
-    
+
     return Response({
         'featured_news': NewsSerializer(featured_news, many=True).data,
         'upcoming_events': EventSerializer(upcoming_events, many=True).data,
@@ -461,6 +452,7 @@ def home_api(request):
 
 import json
 from pathlib import Path
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
