@@ -2,7 +2,7 @@
 
 Полнофункциональный REST API для Национального клуба породы Сибирский хаски с централизованным контент-справочником, личным кабинетом членов клуба, модулем породного архива и предиктивной аналитикой, а также админ-панелью.
 
-## 🚀 Быстрый старт
+##  Быстрый старт
 
 ```bash
 # 1. Запустить все сервисы
@@ -17,14 +17,14 @@ make seed
 
 API будет доступен по адресу: **http://localhost:8000/api/**
 
-## 📚 Документация API
+##  Документация API
 
 - **Swagger UI**: http://localhost:8000/api/schema/swagger-ui/
 - **ReDoc**: http://localhost:8000/api/schema/redoc/
 - **OpenAPI Schema - Скачать файл**: http://localhost:8000/api/schema/
 - **ML Service Docs (FastAPI Swagger)**: http://localhost:8001/docs
 
-## 🏗️ Архитектура
+## ️ Архитектура
 
 ### Технологии
 
@@ -130,7 +130,7 @@ nkp_husky/
     └── tasks.py
 ```
 
-## 🗄️ Модели данных
+## ️ Модели данных
 
 ### MongoDB-коллекции (приложение core)
 
@@ -231,7 +231,7 @@ nkp_husky/
 
 **ShowResult** - результат участника: `grade`, `place`, `titles_won`, `rating_points`, `catalog_count`; unique по `(event, dog)`; `dog` со стратегией `SET_NULL`
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 ### Аутентификация
 
@@ -385,7 +385,7 @@ POST   /api/dogs/photos/cleanup-placeholders/                                 # 
 GET    /api/dogs/import/status/{task_id}/    # Статус Celery-задачи
 ```
 
-## 🎯 Фильтры и параметры
+## Фильтры и параметры
 
 ### Новости
 ```
@@ -419,7 +419,7 @@ GET /api/dogs/rating/?nomination=main&year=2026
 ```
 Номинации: `main`, `junior`, `veteran`, `working`.
 
-## 🔐 Роли и права доступа
+## Роли и права доступа
 
 ### Роли пользователей
 
@@ -437,7 +437,7 @@ GET /api/dogs/rating/?nomination=main&year=2026
 - **Импорт/обучение ML-моделей** - только администраторам
 - **Админ-панель** - только администраторам
 
-## 💾 Контент-справочник - как редактировать тексты
+## Контент-справочник - как редактировать тексты
 
 ### Ключевая идея
 
@@ -468,12 +468,12 @@ GET /api/dict/by_key/?key=HOME_TITLE
 
 ### Преимущества
 
-- ✅ Менять текст без правки кода
-- ✅ История изменений (ContentRevision)
-- ✅ Поиск и массовое редактирование
-- ✅ Поддержка локализации
+- Менять текст без правки кода
+- История изменений (ContentRevision)
+- Поиск и массовое редактирование
+- Поддержка локализации
 
-## 🐕 Модуль породного архива (dogs_module)
+## Модуль породного архива (dogs_module)
 
 ### Интеграция с внешними источниками
 
@@ -512,7 +512,7 @@ GET /api/dict/by_key/?key=HOME_TITLE
 
 Независимый микросервис FastAPI + CatBoost (контейнер `ml_service`)
 
-## 🔧 Makefile команды
+## Makefile команды
 
 ```bash
 make up          # Запустить все сервисы
@@ -526,7 +526,7 @@ make test        # Запустить тесты
 make clean       # Очистить volumes
 ```
 
-## 📦 Docker сервисы
+## Docker сервисы
 
 ```yaml
 web                 # Django + Gunicorn (порт 8000)
@@ -544,7 +544,7 @@ telegram_bot                            # Telegram-бот клуба
 ml_service                                # FastAPI + CatBoost (порт 8001) — прогнозирование вязки
 ```
 
-## 🔄 Celery задачи
+## Celery задачи
 
 Фоновые задачи разделены по специализированным очередям между двумя воркерами.
 
@@ -575,7 +575,7 @@ ml_service                                # FastAPI + CatBoost (порт 8001) �
 - **send_event_reminders** — напоминания о мероприятиях (понедельник в 10:00)
 - **refresh_cookies** — обновление сессионных cookie BA/Zoo (каждые 20 часов)
 
-## 🧪 Тестовые данные
+## Тестовые данные
 
 После выполнения `make seed` создаются:
 
@@ -593,17 +593,17 @@ ml_service                                # FastAPI + CatBoost (порт 8001) �
 - **1 стандарт породы FCI**
 - **1 статья** о породе
 
-## 🔒 Безопасность
+## Безопасность
 
-- ✅ CSRF защита для форм
-- ✅ Rate limiting (100 req/hour для анонимов, 1000 для пользователей)
-- ✅ Session-based аутентификация (+ Token для API-интеграций)
-- ✅ Валидация загружаемых файлов
-- ✅ Журнал аудита (AuditLog)
-- ✅ CORS настройки
-- ✅ Принцип «лучше пропуск, чем ошибочное соответствие» при сопоставлении медицинских данных OFA
+-  CSRF защита для форм
+-  Rate limiting (100 req/hour для анонимов, 1000 для пользователей)
+-  Session-based аутентификация (+ Token для API-интеграций)
+-  Валидация загружаемых файлов
+-  Журнал аудита (AuditLog)
+-  CORS настройки
+-  Принцип «лучше пропуск, чем ошибочное соответствие» при сопоставлении медицинских данных OFA
 
-## 📝 Переменные окружения (.env)
+## Переменные окружения (.env)
 
 ```bash
 DEBUG=True
@@ -646,7 +646,7 @@ EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-password
 ```
 
-## 🚀 Деплой в production
+##  Деплой в production
 
 1. Изменить `DEBUG=False` в .env
 2. Установить надежный `SECRET_KEY`
@@ -657,7 +657,7 @@ EMAIL_HOST_PASSWORD=your-password
 7. Регулярные бэкапы MongoDB и PostgreSQL
 8. Переобучение ML-моделей по мере накопления реальных медицинских данных (`/api/dogs/coi/recalculate/`, `train_ml_model_task`)
 
-## 📊 Мониторинг и логи
+##  Мониторинг и логи
 
 ```bash
 # Логи приложения
@@ -689,7 +689,7 @@ docker-compose exec postgres psql -U dogs_user -d dogs_db
 # http://localhost:5555 (Flower)
 ```
 
-## 🧩 Расширение функционала
+##  Расширение функционала
 
 ### Добавление нового раздела (контент, MongoDB)
 
@@ -718,7 +718,7 @@ docker-compose exec postgres psql -U dogs_user -d dogs_db
 2. Добавить расписание в `nkp_project/celery.py`
 3. При необходимости — назначить специализированную очередь в `CELERY_TASK_ROUTES`
 
-## 🎨 Фронтенд интеграция
+##  Фронтенд интеграция
 
 Разработан клиент на React + TypeScript (Vite)
 
@@ -730,11 +730,11 @@ API готов для подключения и любого другого фр
 
 Все тексты можно получить через `/api/dict/`, все данные породного архива — через `/api/dogs/`.
 
-## 📄 Лицензия
+##  Лицензия
 
 MIT License
 
-## 👥 Контакты
+##  Контакты
 
 - Email: sherba.ru@icloud.com
 - Telegram: @KreoManser
