@@ -8,10 +8,6 @@ from django.db.models import Q
 from . import models_django as models
 
 
-# ============================================
-# ФОРМЫ ДЛЯ АДМИНКИ
-# ============================================
-
 class ContentDictionaryForm(forms.Form):
     key = forms.CharField(max_length=200, label='Ключ')
     value = forms.CharField(widget=forms.Textarea(attrs={'rows': 4}), label='Значение')
@@ -40,14 +36,9 @@ class NewsForm(forms.Form):
     is_featured = forms.BooleanField(required=False, label='Избранное')
 
 
-# ============================================
-# БАЗОВЫЕ ФУНКЦИИ АДМИНКИ
-# ============================================
-
 def get_model_admin_urls(model, form_class, list_display=None, search_fields=None):
     """Генерирует URL patterns для админки модели"""
-    
-    # Определяем model_name на уровне функции, чтобы использовать в URL patterns
+
     model_name = model.__name__
 
     @staff_member_required
@@ -84,10 +75,8 @@ def get_model_admin_urls(model, form_class, list_display=None, search_fields=Non
         if request.method == 'POST':
             form = form_class(request.POST)
             if form.is_valid():
-                # Создаем объект из формы
                 obj_data = form.cleaned_data.copy()
 
-                # Обработка специальных полей
                 if 'tags' in obj_data and obj_data['tags']:
                     obj_data['tags'] = [tag.strip() for tag in obj_data['tags'].split(',')]
 
@@ -119,7 +108,6 @@ def get_model_admin_urls(model, form_class, list_display=None, search_fields=Non
         if request.method == 'POST':
             form = form_class(request.POST)
             if form.is_valid():
-                # Обновляем объект
                 for field, value in form.cleaned_data.items():
                     if field == 'tags' and value:
                         value = [tag.strip() for tag in value.split(',')]
@@ -129,7 +117,6 @@ def get_model_admin_urls(model, form_class, list_display=None, search_fields=Non
                 messages.success(request, f'{model_name} успешно обновлен.')
                 return redirect(f'nkp_admin:{model_name.lower()}_list')
         else:
-            # Заполняем форму данными объекта
             initial_data = {}
             for field in form_class.base_fields:
                 if hasattr(obj, field):
@@ -169,7 +156,6 @@ def get_model_admin_urls(model, form_class, list_display=None, search_fields=Non
         }
         return render(request, 'admin/model_confirm_delete.html', context)
 
-    # Возвращаем URL patterns
     return [
         path('', list_view, name=f'{model_name.lower()}_list'),
         path('add/', add_view, name=f'{model_name.lower()}_add'),
@@ -178,13 +164,10 @@ def get_model_admin_urls(model, form_class, list_display=None, search_fields=Non
     ]
 
 
-# ============================================
-# КОНКРЕТНЫЕ АДМИН-ВЬЮХИ ДЛЯ МОДЕЛЕЙ
-# ============================================
-
 @staff_member_required
 def admin_dashboard(request):
     """Главная страница админки"""
+
     models_info = [
         {'name': 'ContentDictionary', 'count': models.ContentDictionary.objects.count(),
          'url': 'nkp_admin:contentdictionary_list'},
@@ -201,10 +184,6 @@ def admin_dashboard(request):
     return render(request, 'admin/dashboard.html', context)
 
 
-# ============================================
-# ГЕНЕРАЦИЯ URL PATTERNS
-# ============================================
-
 def get_admin_urls():
     """Возвращает все URL patterns для админки"""
 
@@ -212,7 +191,6 @@ def get_admin_urls():
         path('', admin_dashboard, name='admin_dashboard'),
     ]
 
-    # Регистрируем модели с их формами и настройками
     models_config = [
         (models.ContentDictionary, ContentDictionaryForm, ['key', 'page', 'locale'], ['key', 'value']),
         (models.User, UserForm, ['email', 'first_name', 'last_name', 'is_nkp_member'], ['email', 'first_name', 'last_name']),
@@ -235,9 +213,15 @@ def get_admin_urls():
     for model, form, list_display, search_fields in models_config:
         model_name = model.__name__.lower()
         urlpatterns.extend([
-            path(f'{model_name}/', include(get_model_admin_urls(
-                model, form, list_display, search_fields
-            )))
+            path(
+                f'{model_name}/',
+                include(get_model_admin_urls(
+                    model,
+                    form,
+                    list_display,
+                    search_fields
+                ))
+            )
         ])
 
     return urlpatterns

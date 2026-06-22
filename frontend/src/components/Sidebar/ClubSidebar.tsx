@@ -155,7 +155,7 @@ export default function ClubSidebar({
     };
 
 
-    // Скролл-логика — без изменений
+    // Скролл-логика
     useEffect(() => {
         const handleScroll = () => {
             if (sidebarRef.current) {
@@ -235,11 +235,11 @@ export default function ClubSidebar({
     }, [isDocModalOpen]);
 
 
-    // 🔥 ЕДИНЫЙ useEffect: кэш при старте + загрузка API + обновление кэша
+    // ЕДИНЫЙ useEffect: кэш при старте + загрузка API + обновление кэша
     useEffect(() => {
         let ignore = false;
 
-        // 1️⃣ Пытаемся восстановить из кэша
+        // Пытаемся восстановить из кэша
         const restoreFromCache = () => {
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
@@ -268,7 +268,7 @@ export default function ClubSidebar({
         const hasCache = restoreFromCache();
         if (ignore) return;
 
-        // 2️⃣ Если кэша нет или он просрочен — грузим с API
+        // Если кэша нет или он просрочен — грузим с API
         if (!hasCache) {
             setLoading(true);
             setError(null);
@@ -294,7 +294,7 @@ export default function ClubSidebar({
                     to: entry.file ?? "#",
                     documentType: entry.document_type ?? 'regulation',
 
-                    // 👇 поле порядка (поддерживаем несколько вариантов с бэка)
+                    // поле порядка (поддерживаем несколько вариантов с бэка)
                     order:
                         typeof entry.order === 'number'
                             ? entry.order
@@ -308,7 +308,7 @@ export default function ClubSidebar({
 
                 if (!ignore) {
                     setDocsState(mappedDocs);
-                    // ✅ Сохраняем в кэш
+                    // Сохраняем в кэш
                     localStorage.setItem(
                         CACHE_KEY,
                         JSON.stringify({
@@ -331,7 +331,7 @@ export default function ClubSidebar({
         };
 
 
-        // Запускаем API-запрос ВСЕГДА (даже при кэше — для актуализации!)
+        // Запускаем API-запрос ВСЕГДА (даже при кэше - для актуализации!)
         loadFromApi();
 
         return () => {
@@ -359,7 +359,7 @@ export default function ClubSidebar({
 
                 if (!ignore) setStatsState(mapped);
             } catch (e) {
-                // если API недоступен — просто остаёмся на defaultStats
+                // если API недоступен - просто остаёмся на defaultStats
                 if (!ignore) setStatsState(null);
             }
         };

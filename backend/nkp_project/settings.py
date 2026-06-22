@@ -71,6 +71,10 @@ import mongoengine
 import time
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def connect_to_mongodb(retries=5, delay=2):
     """Подключение к MongoDB с повторными попытками"""
     for attempt in range(retries):
@@ -83,17 +87,17 @@ def connect_to_mongodb(retries=5, delay=2):
                 serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=5000
             )
-            print(f"✓ Successfully connected to MongoDB at {MONGODB_HOST}:{MONGODB_PORT}")
+            logger.info(f"✓ Successfully connected to MongoDB at {MONGODB_HOST}:{MONGODB_PORT}")
             return True
         except Exception as e:
-            print(f"MongoDB connection attempt {attempt + 1}/{retries} failed: {e}")
+            logger.warning(f"MongoDB connection attempt {attempt + 1}/{retries} failed: {e}")
             if attempt < retries - 1:
                 time.sleep(delay)
             else:
-                print("ERROR: Could not connect to MongoDB after all retries")
+                logger.error("ERROR: Could not connect to MongoDB after all retries")
                 # В режиме разработки продолжаем без MongoDB
                 if DEBUG:
-                    print("WARNING: Running without MongoDB in DEBUG mode")
+                    logger.warning("WARNING: Running without MongoDB in DEBUG mode")
                     return False
                 else:
                     sys.exit(1)

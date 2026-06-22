@@ -300,7 +300,7 @@ export default function Events() {
       if (pill) stack.appendChild(pill);
     }
 
-    // Remove the extra "Ближайшие события" card if it exists
+    // Удалить "Ближайшие события", если существуют
     const aside = root.querySelector<HTMLElement>(".events-sidebar");
     const firstCard = aside?.querySelector<HTMLElement>(".sidebar-card");
     const heading = firstCard?.querySelector<HTMLElement>(".events-sidebar-title");

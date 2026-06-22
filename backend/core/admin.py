@@ -31,9 +31,7 @@ from .models import (
 )
 
 
-# ============================================
-# БАЗОВЫЕ КЛАССЫ И УТИЛИТЫ
-# ============================================
+# Базовые классы и утилиты
 
 class MongoAdminForm(forms.Form):
     """Базовая форма для MongoEngine документов"""
@@ -108,9 +106,7 @@ def create_mongo_form(model_class, fields=None, exclude=None):
     return type(f'{model_class.__name__}Form', (MongoAdminForm,), form_fields)
 
 
-# ============================================
-# КАСТОМНЫЕ ФОРМЫ ДЛЯ МОДЕЛЕЙ
-# ============================================
+# Формы для моделей
 
 class ContentDictionaryAdminForm(forms.Form):
     key = forms.CharField(max_length=200, label='Ключ', help_text='Уникальный ключ для контента')
@@ -213,9 +209,7 @@ class ApplicationAdminForm(forms.Form):
     )
 
 
-# ============================================
-# КАСТОМНЫЕ АДМИН КЛАССЫ
-# ============================================
+# Базовый класс MongoModelAdmin
 
 class MongoModelAdmin:
     """Базовый класс для администрирования MongoEngine моделей"""
@@ -252,9 +246,7 @@ class MongoModelAdmin:
         return self.list_filter
 
 
-# ============================================
-# КОНКРЕТНЫЕ АДМИН КЛАССЫ ДЛЯ МОДЕЛЕЙ
-# ============================================
+# Админ-классы для моделей
 
 class ContentDictionaryAdmin(MongoModelAdmin):
     form_class = ContentDictionaryAdminForm
@@ -551,9 +543,7 @@ class AuditLogAdmin(MongoModelAdmin):
     ordering = ['-timestamp']
 
 
-# ============================================
-# РЕГИСТРАЦИЯ МОДЕЛЕЙ
-# ============================================
+# Реестр и регистрация моделей
 
 ADMIN_REGISTRY = {
     ContentDictionary: ContentDictionaryAdmin,
@@ -770,9 +760,7 @@ def build_grouped_app_list(app_list):
 
     return grouped_app_list
 
-# ============================================
-# Django ORM admin (new)
-# ============================================
+# Django ORM admin
 from . import models_django as dj_models
 
 
