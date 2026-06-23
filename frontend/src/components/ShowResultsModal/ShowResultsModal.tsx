@@ -83,7 +83,7 @@ export function ShowResultsModal({dog, year, onClose}: Props) {
             aria-label={`Выступления ${dog.name}`}
         >
             <div className="srm-modal">
-                {/* Шапка */}
+
                 <div className="srm-header">
                     <div className="srm-dog-info">
                         <div className="srm-dog-avatar">
@@ -120,7 +120,7 @@ export function ShowResultsModal({dog, year, onClose}: Props) {
                     </button>
                 </div>
 
-                {/* Тело */}
+
                 <div className="srm-body">
                     {results === null && (
                         <div className="srm-loading">
@@ -144,7 +144,7 @@ export function ShowResultsModal({dog, year, onClose}: Props) {
 
                     {results !== null && results.length > 0 && (
                         <>
-                            {/* Итого */}
+
                             <div className="srm-summary">
                                 <span>{results.length} выступлений</span>
                                 <span className="srm-summary-pts">
@@ -152,7 +152,7 @@ export function ShowResultsModal({dog, year, onClose}: Props) {
                 </span>
                             </div>
 
-                            {/* Список */}
+
                             <div className="srm-list">
                                 {results.map(r => (
                                     <div key={r.id} className="srm-item">

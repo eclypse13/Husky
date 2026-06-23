@@ -15,7 +15,7 @@ export default function Profile() {
                     <section className="search-section">
                         <div className="profile-two-col">
                             <div>
-                                {/* Карточка профиля */}
+
                                 <div className="stat-card">
                                     <div className="stat-icon">👤</div>
 
@@ -73,7 +73,7 @@ export default function Profile() {
                                     </div>
                                 </div>
 
-                                {/* Быстрые ссылки */}
+
                                 <div className="sidebar-card" style={{ marginTop: "2rem" }}>
                                     <h3 className="sidebar-title">📎 Быстрые ссылки</h3>
                                     <ul className="quick-links-ul">

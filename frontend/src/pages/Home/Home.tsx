@@ -1123,7 +1123,7 @@ export default function Home() {
 
     return (
         <div className="home-page">
-            {/* HERO */}
+
             <section className="home-hero">
                 <div className="home-hero-content">
                     <div className="home-hero-text">
@@ -1143,7 +1143,7 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* ── Hero-карточка с реальной собакой ── */}
+
                     <div className="home-hero-visual">
                         {heroDog === "loading" || heroDog === null ? (
                             <p className="home-hero-loading">Загрузка...</p>
@@ -1171,7 +1171,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* MAP */}
+
             <section className="home-interactive-map-section">
                 <div className="home-map-content">
                     <div className="home-head-section-header">
@@ -1183,7 +1183,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* ACTIVITY */}
+
             <section className="home-activity-section">
                 <div className="home-activity-content">
                     <div className="home-head-section-header">
@@ -1194,7 +1194,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* FEATURES */}
+
             <section className="home-features">
                 <div className="home-features-content">
                     <div className="home-head-section-header">
@@ -1259,7 +1259,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* NEWS */}
+
             <section className="home-news-section">
                 <div className="home-news-content">
                     <div className="home-head-section-header">
@@ -1274,7 +1274,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* PUPPIES */}
+
             <section className="home-features">
                 <div className="home-features-content">
                     <div className="home-head-section-header">
@@ -1303,7 +1303,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* CTA */}
+
             <section className="home-cta-section">
                 <div className="home-cta-content">
                     <h2 className="home-cta-title">Готовы присоединиться?</h2>

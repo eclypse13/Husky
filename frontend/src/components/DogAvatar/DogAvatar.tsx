@@ -2,9 +2,9 @@ import type {CSSProperties, MouseEvent, SyntheticEvent} from "react";
 import {DEFAULT_DOG_IMG} from "@/utils/dogPhoto";
 
 export interface DogAvatarProps {
-    /** Приоритетное фото из API (поле dog_photo — теперь это прокси-ссылка на ЯД) */
+    // прокси-ссылка на ЯД
     dog_photo?: string | null;
-    /** Запасное фото из API (поле photo_url — исходник BreedArchive/Zooportal) */
+    // запасное фото
     photo_url?: string | null;
     alt?: string;
     size?: number;
@@ -26,7 +26,7 @@ export function DogAvatar({
                               loading = "lazy",
                               onClick,
                           }: DogAvatarProps) {
-    // порядок показа: прокси (ЯД) → исходник → заглушка; дубликаты убираем
+
     const candidates = Array.from(
         new Set([dog_photo, photo_url].filter(Boolean) as string[])
     );
@@ -34,14 +34,14 @@ export function DogAvatar({
 
     const handleError = (e: SyntheticEvent<HTMLImageElement>) => {
         const el = e.currentTarget;
-        if (el.dataset.done === "1") return;          // заглушка тоже не загрузилась — стоп
+        if (el.dataset.done === "1") return;
         const next = Number(el.dataset.idx ?? "0") + 1;
         if (next < candidates.length) {
             el.dataset.idx = String(next);
-            el.src = candidates[next];                  // следующий кандидат (исходник)
+            el.src = candidates[next];
         } else {
             el.dataset.done = "1";
-            el.src = DEFAULT_DOG_IMG;                    // всё перебрали — заглушка, без зацикливания
+            el.src = DEFAULT_DOG_IMG;
         }
     };
 
