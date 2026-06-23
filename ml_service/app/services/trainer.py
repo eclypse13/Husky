@@ -1,17 +1,50 @@
 """
-Обучение CatBoost моделей — по одной на каждую болезнь.
+Обучение CatBoost моделей .
 """
 
 import logging
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import (
+    roc_auc_score,
+    average_precision_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    accuracy_score,
+    brier_score_loss,
+)
 from sklearn.model_selection import StratifiedKFold
 
 from .model_store import save_model, invalidate_cache
 from ..config import settings, FEATURE_COLS, TARGETS
 
 logger = logging.getLogger(__name__)
+
+# Вычисление метрик
+def _compute_metrics(y_true, proba, threshold: float = 0.5) -> dict:
+    preds = (proba >= threshold).astype(int)
+    return {
+        "roc_auc": roc_auc_score(y_true, proba),
+        "pr_auc": average_precision_score(y_true, proba),
+        "precision": precision_score(y_true, preds, zero_division=0),
+        "recall": recall_score(y_true, preds, zero_division=0),
+        "f1": f1_score(y_true, preds, zero_division=0),
+        "accuracy": accuracy_score(y_true, preds),
+        "brier": brier_score_loss(y_true, proba),
+    }
+
+# Усреднение метрик по фолдам, расчет std для каждой
+def _aggregate_metrics(per_fold_metrics: list[dict]) -> dict:
+    if not per_fold_metrics:
+        return {}
+    keys = per_fold_metrics[0].keys()
+    out = {}
+    for k in keys:
+        values = [m[k] for m in per_fold_metrics]
+        out[k] = round(float(np.mean(values)), 3)
+        out[f"{k}_std"] = round(float(np.std(values)), 3)
+    return out
 
 
 def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
@@ -30,7 +63,7 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
 
     n_splits = min(5, positive)
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-    auc_scores = []
+    per_fold_metrics: list[dict] = []
 
     for train_idx, val_idx in cv.split(X, y):
         X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
@@ -52,8 +85,12 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
             early_stopping_rounds=50,
         )
         proba = fold_model.predict_proba(X_val)[:, 1]
-        auc_scores.append(roc_auc_score(y_val, proba))
+        per_fold_metrics.append(_compute_metrics(y_val.values, proba))
 
+    # Усреднение по фолдам
+    agg = _aggregate_metrics(per_fold_metrics)
+
+    # Финальная модель на всех данных
     final_model = CatBoostClassifier(
         iterations=settings.catboost_iterations,
         learning_rate=settings.catboost_learning_rate,
@@ -65,24 +102,34 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str) -> dict:
         allow_writing_files=False,
     )
     final_model.fit(Pool(X, y))
-
     save_model(final_model, name)
-
-    auc_mean = round(float(np.mean(auc_scores)), 3)
-    auc_std = round(float(np.std(auc_scores)), 3)
 
     importances = dict(zip(
         FEATURE_COLS,
         [round(v, 3) for v in final_model.get_feature_importance()]
     ))
 
-    logger.info(f"trainer {name}: ROC-AUC={auc_mean}±{auc_std}")
+    # Лог в виде красивой строки
+    logger.info(
+        f"trainer {name}: "
+        f"ROC-AUC={agg['roc_auc']}±{agg['roc_auc_std']} | "
+        f"PR-AUC={agg['pr_auc']}±{agg['pr_auc_std']} | "
+        f"Precision={agg['precision']}±{agg['precision_std']} | "
+        f"Recall={agg['recall']}±{agg['recall_std']} | "
+        f"F1={agg['f1']}±{agg['f1_std']} | "
+        f"Accuracy={agg['accuracy']}±{agg['accuracy_std']} | "
+        f"Brier={agg['brier']}±{agg['brier_std']}"
+    )
+
     return {
         "skipped": False,
         "positive": positive,
         "positive_rate": round(rate, 3),
-        "roc_auc": auc_mean,
-        "roc_auc_std": auc_std,
+        # Главная метрика (для обратной совместимости)
+        "roc_auc": agg["roc_auc"],
+        "roc_auc_std": agg["roc_auc_std"],
+        # Полный набор метрик
+        "metrics": agg,
         "feature_importances": importances,
         "best_model": "catboost",
     }
@@ -96,7 +143,6 @@ def train(dataset: list[dict]) -> dict:
     clean = [{k: v for k, v in row.items() if not k.startswith("_")} for row in dataset]
     df = pd.DataFrame(clean)
 
-    # reindex (не df[FEATURE_COLS]): недостающие колонки → NaN вместо KeyError.
     X_full = df.reindex(columns=FEATURE_COLS)
 
     results = {"dataset_size": len(df), "models": {}}
@@ -109,7 +155,6 @@ def train(dataset: list[dict]) -> dict:
             }
             continue
 
-        # Берём только строки с непустой меткой для этой модели
         mask = df[col].notna()
         X_subset = X_full[mask]
         y = df.loc[mask, col].astype(int)
@@ -122,7 +167,7 @@ def train(dataset: list[dict]) -> dict:
             continue
 
         result = _train_one(X_subset, y, short_name)
-        result["labeled_samples"] = len(y)  # сколько строк фактически в обучении
+        result["labeled_samples"] = len(y)
         results["models"][short_name] = result
 
         if not result.get("skipped"):
