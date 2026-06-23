@@ -116,7 +116,7 @@ function convertNode(api: PedigreeNode): TreeNode {
     if (api.dam) ch.push(convertNode(api.dam));
     return {
         id: api.id,
-        name: api.display_name || api.registered_name || "?",
+        name: api.registered_name || api.call_name || "?",
         img: api.dog_photo ?? api.photo_url ?? undefined,
         imgFallback: api.photo_url ?? undefined,
         color: api.color ?? undefined,
@@ -306,8 +306,7 @@ function drawHCompact(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string)
     }
 }
 
-// Раскладка: ТОЛЬКО ТЕКСТ (поколение 5+)
-
+// Раскладка: текст (поколение 5+)
 function drawText(g: G, n: TreeNode, c: CardConfig) {
     const cx = -c.w / 2, cy = -c.h / 2;
     g.append("text").attr("x", cx + 7).attr("y", cy + c.h / 2 + 3)
@@ -328,14 +327,12 @@ function drawCard(g: G, defs: Defs, n: TreeNode, depth: number, uid: string) {
 }
 
 // Расчёт расположения дерева
-
 const MIN_GEN = 3, MAX_GEN = 6;
 // const H_GAP = 12;
 const V_GAP = 46;
 const PAD = {top: 12, bottom: 12, left: 8, right: 12};
 
 // Компонент
-
 export default function Pedigree() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -357,7 +354,7 @@ export default function Pedigree() {
         setError(null);
         getDogPedigree(Number(id), depth)
             .then(p => {
-                setDogName(p.display_name || p.registered_name || "");
+                setDogName(p.registered_name || p.call_name || "");
                 setRawData(convertNode(p));
             })
             .catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
