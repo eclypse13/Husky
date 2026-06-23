@@ -222,7 +222,6 @@ export default function BreedingPage() {
                     </div>
                 </div>
 
-                {/* Selectors */}
                 <div className="breeding-selector-grid">
                     <DogSelector sex={1} selected={sire} onSelect={setSire} onClear={() => {
                         setSire(null);
@@ -234,7 +233,6 @@ export default function BreedingPage() {
                     }}/>
                 </div>
 
-                {/* Button */}
                 <div className="breeding-analyse-wrap">
                     <button className="breeding-analyse-btn" disabled={!canAnalyse || loading} onClick={handleAnalyse}>
                         {loading

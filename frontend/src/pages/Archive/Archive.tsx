@@ -157,7 +157,7 @@ export default function Archive() {
 
             <main className="archive-main">
                 <div className="archive-container">
-                    {/* ПОИСК */}
+                    {/* поиск */}
                     <section className="archive-search-section">
                         <div className="archive-search-head">
                             <h2 className="archive-search-title">Поиск собак</h2>
@@ -210,7 +210,7 @@ export default function Archive() {
                         </div>
                     </section>
 
-                    {/* СТАТИСТИКА */}
+                    {/* статистика */}
                     <section className="archive-stats">
                         {[
                             {
@@ -244,7 +244,7 @@ export default function Archive() {
                         ))}
                     </section>
 
-                    {/* РЕЗУЛЬТАТЫ */}
+                    {/* результаты */}
                     <section className="archive-results-grid">
                         <div className="archive-results">
                             <div className="archive-results-head">
@@ -314,7 +314,7 @@ export default function Archive() {
                                 )}
                             </div>
 
-                            {/* ПАГИНАЦИЯ */}
+                            {/* пагинация */}
                             {totalPages > 1 && (
                                 <div className="archive-pagination">
                                     <button
@@ -358,7 +358,7 @@ export default function Archive() {
                             )}
                         </div>
 
-                        {/* САЙДБАР */}
+                        {/* сайдбар */}
                         <aside className="archive-sidebar">
                             <div className="archive-sidebar-card">
                                 <h3 className="archive-sidebar-title">🚀 Быстрые ссылки</h3>
@@ -396,7 +396,7 @@ export default function Archive() {
                 </div>
             </main>
 
-            {/* МОДАЛКА РАСШИРЕННОГО ПОИСКА */}
+            {/* модалка расширенного поиска */}
             {advOpen && (
                 <div className="archive-modal" onClick={() => setAdvOpen(false)}>
                     <div className="archive-modal-inner" onClick={(e) => e.stopPropagation()}>
