@@ -1130,7 +1130,7 @@ class PhotoCleanupPlaceholdersView(APIView):
 
 
 class DogPhotoRawView(APIView):
-    """/api/dogs/photos/<dog_id>/raw/ — постоянная ссылка, редирект на свежий href ЯД."""
+    """/api/dogs/photos/<dog_id>/raw/"""
     permission_classes = [AllowAny]
 
     def get(self, request, dog_id: int):
@@ -1143,7 +1143,7 @@ class DogPhotoRawView(APIView):
             raise Http404
 
         resp = HttpResponseRedirect(href)
-        resp["Cache-Control"] = "public, max-age=86400"
+        resp["Cache-Control"] = "public, max-age=500"
         return resp
 
 
