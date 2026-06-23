@@ -3,7 +3,7 @@ name: Sync to GitLab
 on:
   push:
     branches:
-      - '**'   # синхронизировать все ветки
+      - '**'
   delete:
 
 jobs:
@@ -13,12 +13,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # тянем всю историю
+          fetch-depth: 0
 
       - name: Push to GitLab mirror
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_EVELINA }}
         run: |
           git remote add gitlab https://oauth2:${GITLAB_TOKEN}@git.kpfu.ru/EVDerezhenko/Husky.git
+          git push gitlab --all --force
+          git push gitlab --tags --force
+
+      - name: Push to GitLab mirror
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_YAZGUL }}
+        run: |
+          git remote add gitlab https://oauth2:${GITLAB_TOKEN}@git.kpfu.ru:YKKhasanshina/Husky.git
           git push gitlab --all --force
           git push gitlab --tags --force
