@@ -23,10 +23,10 @@ jobs:
           git push gitlab --all --force
           git push gitlab --tags --force
 
-      - name: Push to GitLab mirror
+      - name: Push to Yazgul's GitLab mirror
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_YAZGUL }}
         run: |
-          git remote add gitlab https://oauth2:${GITLAB_TOKEN}@git.kpfu.ru:YKKhasanshina/Husky.git
-          git push gitlab --all --force
-          git push gitlab --tags --force
+          git remote add gitlab-yazgul https://oauth2:${GITLAB_TOKEN}@git.kpfu.ru/YKKhasanshina/Husky.git
+          git push gitlab-yazgul --all --force
+          git push gitlab-yazgul --tags --force
