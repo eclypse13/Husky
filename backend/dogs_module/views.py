@@ -178,7 +178,32 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
         qs = show_repo.get_results_for_dog(pk, date_from, date_to)
         return Response(ShowResultSerializer(qs, many=True).data)
 
-    # Rating
+    @extend_schema(
+        summary='Рейтинг конкретной собаки за сезон',
+        description=(
+                'Баллы и место собаки в рейтинге по каждой номинации, где у неё есть очки '
+                '(main/junior/veteran/working).'
+        ),
+        parameters=[
+            OpenApiParameter('year', OpenApiTypes.INT, OpenApiParameter.QUERY, required=False,
+                             description='Рейтинговый сезон (1 дек — 30 ноя). По умолчанию — текущий.'),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+        tags=['Dogs'],
+    )
+    @action(detail=True, methods=['get'])
+    def rating_summary(self, request, pk=None):
+        from .services.show_service import get_dog_rating_summary
+
+        year = request.query_params.get('year')
+        try:
+            rating_year = int(year) if year else None
+        except (TypeError, ValueError):
+            return Response({'error': 'year должен быть числом'}, status=400)
+
+        data = get_dog_rating_summary(pk, rating_year)
+        return Response(data)
+
     @action(detail=False, methods=['get'])
     def rating(self, request):
         from .services.show_service import get_rating_leaderboard, get_rating_year

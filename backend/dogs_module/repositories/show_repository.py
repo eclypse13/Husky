@@ -177,3 +177,23 @@ def get_top_dog_id_for_year(year: int, nomination: str = 'main') -> Optional[int
         .values_list('dog_id', flat=True)
         .first()
     )
+
+# Баллы собаки за сезон по каждой номинации
+def get_dog_yearly_ratings(dog_id: int, year: int) -> list:
+    from ..models import ShowYearlyRating
+    return list(
+        ShowYearlyRating.objects.using('dogs_db')
+        .filter(dog_id=dog_id, year=year, points__gt=0)
+        .values('nomination', 'points')
+        .order_by('-points')
+    )
+
+
+# Сколько собак набрали строго больше очков в этой номинации/сезоне
+def count_dogs_with_more_points(year: int, nomination: str, points: int) -> int:
+    from ..models import ShowYearlyRating
+    return (
+        ShowYearlyRating.objects.using('dogs_db')
+        .filter(year=year, nomination=nomination, points__gt=points)
+        .count()
+    )

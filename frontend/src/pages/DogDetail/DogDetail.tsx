@@ -7,6 +7,7 @@ import "./DogDetail.css";
 import HealthModal from "@/components/HealthModal/HealthModal";
 import {PLACEHOLDER_URLS} from "@/utils/dogPhoto";
 import {DogAvatar} from "@/components/DogAvatar/DogAvatar";
+import { DogDetailShowResultModal } from "@/components/DogDetailShowResultModal/DogDetailShowResultModal";
 
 const SEX_LABEL: Record<number, string> = {1: "♂ Кобель", 2: "♀ Сука"};
 
@@ -77,6 +78,7 @@ export default function DogDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [healthOpen, setHealthOpen] = useState(false);
+    const [showsOpen, setShowsOpen] = useState(false);
 
     const [photoOpen, setPhotoOpen] = useState(false);
 
@@ -362,7 +364,10 @@ export default function DogDetail() {
                             <Link to="/archive" className="dd-btn">← Назад в архив</Link>
                             <div style={{display: "flex", gap: ".6rem"}}>
                                 <button className="dd-btn" onClick={() => setHealthOpen(true)}>
-                                    🩺 Здоровье
+                                    Здоровье
+                                </button>
+                                <button className="dd-btn" onClick={() => setShowsOpen(true)}>
+                                    Выступления
                                 </button>
                                 <Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">
                                     Родословная
@@ -378,6 +383,18 @@ export default function DogDetail() {
                     dogId={dog.id}
                     dogName={dog.registered_name}
                     onClose={() => setHealthOpen(false)}
+                />
+            )}
+
+            {showsOpen && dog && (
+                <DogDetailShowResultModal
+                    dog={{
+                        id: dog.id,
+                        name: dog.registered_name || dog.call_name,
+                        dog_photo: dog.dog_photo,
+                        photo_url: dog.photo_url,
+                    }}
+                    onClose={() => setShowsOpen(false)}
                 />
             )}
         </div>
