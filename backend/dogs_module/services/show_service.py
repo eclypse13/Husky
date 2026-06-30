@@ -387,3 +387,20 @@ def get_hero_dog(rating_year: int = None):
 
     fallback = dog_repo.search_by_name(HERO_FALLBACK_NAME)
     return fallback[0] if fallback else None
+
+
+# Баллы и место конкретной собаки в рейтинге за сезон, по каждой номинации
+# где у неё есть очки. Место — count(строго больше баллов) + 1
+def get_dog_rating_summary(dog_id: int, rating_year: int = None) -> list:
+    year = rating_year or get_rating_year()
+    rows = show_repo.get_dog_yearly_ratings(dog_id, year)
+
+    result = []
+    for row in rows:
+        higher = show_repo.count_dogs_with_more_points(year, row['nomination'], row['points'])
+        result.append({
+            'nomination': row['nomination'],
+            'points': row['points'],
+            'place': higher + 1,
+        })
+    return result

@@ -76,6 +76,12 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour='*/20', minute=0),  # каждые 20 часов
     },
 
+    'sync-breedarchive-browse': {
+        'task': 'dogs_module.sync_breedarchive_browse',
+        'schedule': crontab(hour=3, minute=0, day_of_month='*/3'),
+        'kwargs': {'recent_days': 5},
+    },
+
 }
 
 
