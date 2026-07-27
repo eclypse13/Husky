@@ -110,16 +110,16 @@ class BrowserManager:
                 page.goto(url, wait_until='networkidle', timeout=PLAYWRIGHT_TIMEOUT)
 
                 if wait_selector:
-                    try:
-                        page.wait_for_selector(wait_selector, timeout=15000)
-                        page.wait_for_function(
-                            f"() => {{ const el = document.querySelector('{wait_selector}'); "
-                            f"return el && el.innerText && el.innerText.trim().length > 0; }}",
-                            timeout=10000,
-                        )
-                    except Exception as e:
-                        # Таймаут селектора — не критично, страница загружена
-                        logger.warning(f"  Селектор '{wait_selector}' не дождался: {e}")
+                    # try:
+                    page.wait_for_selector(wait_selector, timeout=25000)
+                    page.wait_for_function(
+                        f"() => {{ const el = document.querySelector('{wait_selector}'); "
+                        f"return el && el.innerText && el.innerText.trim().length > 0; }}",
+                        timeout=10000,
+                    )
+                    # except Exception as e:
+                    #     # Таймаут селектора — не критично, страница загружена
+                    #     logger.warning(f"  Селектор '{wait_selector}' не дождался: {e}")
 
                 html = page.content()
                 if not html or len(html) < 100:

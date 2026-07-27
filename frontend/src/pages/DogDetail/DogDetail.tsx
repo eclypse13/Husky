@@ -7,7 +7,7 @@ import "./DogDetail.css";
 import HealthModal from "@/components/HealthModal/HealthModal";
 import {PLACEHOLDER_URLS} from "@/utils/dogPhoto";
 import {DogAvatar} from "@/components/DogAvatar/DogAvatar";
-import { DogDetailShowResultModal } from "@/components/DogDetailShowResultModal/DogDetailShowResultModal";
+import {DogDetailShowResultModal} from "@/components/DogDetailShowResultModal/DogDetailShowResultModal";
 
 const SEX_LABEL: Record<number, string> = {1: "♂ Кобель", 2: "♀ Сука"};
 
@@ -216,17 +216,35 @@ export default function DogDetail() {
                                 {dog.kennel && <p className="dd-kennel">🏠 {dog.kennel}</p>}
 
                                 <div className="dd-actions">
-                                    {dog.zooportal_id && (
-                                        <a href={`https://zooportal.pro/pedigree/view/${dog.zooportal_id}/`}
-                                           target="_blank" rel="noopener noreferrer" className="dd-btn">
-                                            🔗 Zooportal
-                                        </a>
-                                    )}
-                                    {dog.uuid && (
-                                        <a href={`https://siberianhusky.breedarchive.com/animal/view/${dog.link_name}-${dog.uuid}`}
-                                           target="_blank" rel="noopener noreferrer" className="dd-btn">
-                                            📋 BreedArchive
-                                        </a>
+                                    <div className="dd-actions-row">
+                                        <Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">
+                                            Родословная
+                                        </Link>
+
+                                        <button className="dd-btn dd-btn--primary" onClick={() => setHealthOpen(true)}>
+                                            Здоровье
+                                        </button>
+
+                                        <button className="dd-btn dd-btn--primary" onClick={() => setShowsOpen(true)}>
+                                            Выступления
+                                        </button>
+                                    </div>
+
+                                    {(dog.zooportal_id || dog.uuid) && (
+                                        <div className="dd-actions-row">
+                                            {dog.zooportal_id && (
+                                                <a href={`https://zooportal.pro/pedigree/view/${dog.zooportal_id}/`}
+                                                   target="_blank" rel="noopener noreferrer" className="dd-btn">
+                                                    Zooportal<span className="dd-external-icon">↗</span>
+                                                </a>
+                                            )}
+                                            {dog.uuid && (
+                                                <a href={`https://siberianhusky.breedarchive.com/animal/view/${dog.link_name}-${dog.uuid}`}
+                                                   target="_blank" rel="noopener noreferrer" className="dd-btn">
+                                                    BreedArchive<span className="dd-external-icon">↗</span>
+                                                </a>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -362,17 +380,6 @@ export default function DogDetail() {
 
                         <div className="dd-nav">
                             <Link to="/archive" className="dd-btn">← Назад в архив</Link>
-                            <div style={{display: "flex", gap: ".6rem"}}>
-                                <button className="dd-btn" onClick={() => setHealthOpen(true)}>
-                                    Здоровье
-                                </button>
-                                <button className="dd-btn" onClick={() => setShowsOpen(true)}>
-                                    Выступления
-                                </button>
-                                <Link to={`/archive/pedigree/${dog.id}`} className="dd-btn dd-btn--primary">
-                                    Родословная
-                                </Link>
-                            </div>
                         </div>
                     </>
                 )}

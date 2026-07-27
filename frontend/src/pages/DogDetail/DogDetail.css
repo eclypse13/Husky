@@ -238,6 +238,12 @@
 
 .dd-actions {
     display: flex;
+    flex-direction: column;
+    gap: .6rem;
+}
+
+.dd-actions-row {
+    display: flex;
     flex-wrap: wrap;
     gap: .6rem;
 }
@@ -267,6 +273,12 @@
     background: var(--bright-blue);
     color: var(--snow-white);
     border-color: transparent;
+}
+
+.dd-external-icon {
+    margin-left: .3rem;
+    font-size: .85em;
+    opacity: .65;
 }
 
 
@@ -558,7 +570,15 @@
         padding-top: 0;
     }
 
-    .dd-title-badges, .dd-chips, .dd-actions {
+    .dd-title-badges, .dd-chips {
+        justify-content: center;
+    }
+
+    .dd-actions {
+        align-items: center;
+    }
+
+    .dd-actions-row {
         justify-content: center;
     }
 

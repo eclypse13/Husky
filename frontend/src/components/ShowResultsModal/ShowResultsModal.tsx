@@ -72,8 +72,7 @@ export function ShowResultsModal({dog, year, onClose}: Props) {
             .catch(() => setResults([]));
     }, [dog.id, year]);
 
-    const total = results?.reduce((sum, r) => sum + r.rating_points, 0) ?? 0;
-
+    // баллы с бэкенда
     return (
         <div
             className="srm-backdrop"
@@ -148,7 +147,7 @@ export function ShowResultsModal({dog, year, onClose}: Props) {
                             <div className="srm-summary">
                                 <span>{results.length} выступлений</span>
                                 <span className="srm-summary-pts">
-                  Итого: <strong>{total}</strong> баллов
+                  Итого: <strong>{dog.points}</strong> баллов
                 </span>
                             </div>
 

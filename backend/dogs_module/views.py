@@ -646,7 +646,8 @@ class ImportShowResultsView(APIView):
         d = ser.validated_data
         from .tasks.tasks_shows import import_show_results_task
         task = import_show_results_task.apply_async(
-            args=[d['show_id'], d.get('import_missing_dogs', True)], countdown=1
+            args=[d['show_id'], d.get('import_missing_dogs', True), d.get('update_existing_dogs', True)],
+            countdown=1,
         )
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -802,6 +803,7 @@ class ImportResultsForDateRangeView(APIView):
                 'date_to': date_to,
                 'only_without_results': d['only_without_results'],
                 'import_missing_dogs': d['import_missing_dogs'],
+                'update_existing_dogs': d.get('update_existing_dogs', True),
             },
             countdown=1,
         )

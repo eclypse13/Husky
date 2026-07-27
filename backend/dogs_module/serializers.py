@@ -447,7 +447,6 @@ class ImportOFABulkByNameSerializer(_OFABulkBase):
 
 
 # ИМПОРТ — ВЫСТАВКИ
-
 class ImportShowListSerializer(serializers.Serializer):
     date_str = serializers.CharField(help_text='Дата в формате DD.MM.YYYY (например 07.01.2026)')
 
@@ -455,6 +454,7 @@ class ImportShowListSerializer(serializers.Serializer):
 class ImportShowResultsSerializer(serializers.Serializer):
     show_id = serializers.CharField(help_text='Zooportal ID мероприятия')
     import_missing_dogs = serializers.BooleanField(default=True)
+    update_existing_dogs = serializers.BooleanField(required=False, default=True)
 
 
 class ImportShowDateRangeSerializer(serializers.Serializer):
@@ -497,6 +497,10 @@ class ImportResultsForDateRangeSerializer(DateRangeValidatorMixin, serializers.S
         default=True,
         help_text='True = запускать импорт собак которых нет в БД'
     )
+    update_existing_dogs = serializers.BooleanField(required=False,
+                                                    default=True,
+                                                    help_text='True = запускать обновление импорт собак которые есть в БД'
+                                                    )
 
 
 # Yandex Photo
