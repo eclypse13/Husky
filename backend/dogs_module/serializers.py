@@ -220,16 +220,20 @@ class PedigreeSerializer(serializers.ModelSerializer):
 
 
 # ВЫСТАВКИ
-
 class ShowEventSerializer(serializers.ModelSerializer):
+    results_count = serializers.SerializerMethodField()
+
     class Meta:
         model = ShowEvent
         fields = [
             'id', 'zooportal_show_id', 'title', 'event_date', 'date_end',
             'show_type', 'multiplier',
             'organizer', 'rank', 'city', 'address', 'judges', 'status',
-            'results_parsed_at', 'created_at',
+            'results_parsed_at', 'created_at', 'results_count',
         ]
+
+    def get_results_count(self, obj):
+        return obj.results.count()
 
 
 class ShowResultSerializer(serializers.ModelSerializer):
@@ -252,6 +256,23 @@ class ShowResultSerializer(serializers.ModelSerializer):
             'titles_won',
             'catalog_count',
             'bonus_points',
+            'rating_points',
+            'nomination',
+        ]
+
+
+class EventShowResultSerializer(serializers.ModelSerializer):
+    dog = DogListSerializer(read_only=True)
+
+    class Meta:
+        model = ShowResult
+        fields = [
+            'id',
+            'dog',
+            'show_class',
+            'grade',
+            'place',
+            'titles_won',
             'rating_points',
             'nomination',
         ]

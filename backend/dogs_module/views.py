@@ -47,7 +47,7 @@ from .serializers import (
     ImportResultsForDateRangeSerializer,
     PhotoUploadBulkSerializer,
     PhotoBackfillHashesSerializer,
-    PhotoBackfillHashesFromSourceSerializer,
+    PhotoBackfillHashesFromSourceSerializer, EventShowResultSerializer,
 )
 from .utils.coi_calculator import calculate_coi, save_coi
 
@@ -278,7 +278,7 @@ class ShowEventViewSet(viewsets.ReadOnlyModelViewSet):
         from .repositories import show_repository as show_repo
         event = self.get_object()
         results = show_repo.get_results_for_event(event)
-        return Response(ShowResultSerializer(results, many=True).data)
+        return Response(EventShowResultSerializer(results, many=True).data)
 
 
 # СТАТУС ЗАДАЧИ
