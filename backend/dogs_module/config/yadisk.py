@@ -9,9 +9,9 @@ from .scraping import USER_AGENT
 YADISK_API = "https://cloud-api.yandex.net/v1/disk/resources"
 YADISK_PUBLIC_DOWNLOADER = "https://downloader.disk.yandex.ru/public/files"
 YADISK_FOLDER = "dogs/photos"
-# YANDEX_DISK_TOKEN = _config("YANDEX_DISK_TOKEN", default="")
+YANDEX_DISK_TOKEN = _config("YANDEX_DISK_TOKEN", default="")
 # для dev и дебага
-YANDEX_DISK_TOKEN = _config("", default="")
+# YANDEX_DISK_TOKEN = _config("", default="")
 
 # Таймауты HTTP, сек
 YADISK_TIMEOUT = 30  # обычные API-вызовы ЯД
