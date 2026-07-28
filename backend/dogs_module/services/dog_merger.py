@@ -41,7 +41,7 @@ def normalize_ba_data(data: Dict, ba_base_url: str) -> Dict:
         'registered_name': data.get('registered_name') or data.get('registeredName'),
         'call_name': data.get('call_name') or data.get('callName'),
         'link_name': data.get('link_name') or data.get('linkName'),
-        'sex': data.get('sex', 0),
+        'sex': data.get('sex', 0) or None,
         'date_of_birth': parse_date(data.get('date_of_birth') or assemble_partial_date(data, 'birth')),
         'date_of_death': parse_date(data.get('date_of_death') or assemble_partial_date(data, 'death')),
         'year_of_birth': parse_int(data.get('year_of_birth') or data.get('yearOfBirth'), default=None),
@@ -58,7 +58,7 @@ def normalize_ba_data(data: Dict, ba_base_url: str) -> Dict:
         'suffix_titles': data.get('suffix_titles') or data.get('suffixTitles') or None,
         'photo_url': photo_url or None,
         'coi': coi,
-        'neutered': data.get('neutered', False),
+        'neutered': data.get('neutered') if data.get('neutered') is not None else None,
         'incomplete_pedigree': data.get('incomplete_pedigree') or data.get('incompletePedigree', False),
         'source': SOURCE_BA,
 
@@ -290,3 +290,8 @@ def build_zoo_patch(dog, zoo_raw: Dict, zoo_id: str) -> Dict:
                     pass
 
     return update
+
+# BA: патч полей с приоритетом BA (перезаписывает даже непустые значения, но не пустотой)
+def build_ba_patch(data: Dict, ba_base_url: str) -> Dict:
+    normalized = normalize_ba_data(data, ba_base_url)
+    return {k: v for k, v in normalized.items() if v not in (None, '')}
