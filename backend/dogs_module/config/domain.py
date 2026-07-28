@@ -9,6 +9,8 @@ ZOOPORTAL_SHOW_THEMES = 1209  # выставки
 ZOOPORTAL_SHOW_FCI_5_GROUP_ID = 32499  # FCI Группа 5
 ZOOPORTAL_SHOW_SH_BREED_ID = 6551  # Сибирский Хаски
 
+SPECIALITY_BREED_NAME_SH = 'Сибирский хаски'
+
 # Рейтинговые очки за титулы.
 TITLE_POINTS = {
     'ПК': 15,  # титул, полученный на монопородной выставке ранга ПК

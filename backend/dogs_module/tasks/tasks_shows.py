@@ -101,11 +101,13 @@ def import_show_results_task(
 
     results = parsed['results']
     rank = parsed.get('rank')
+    is_speciality_breed = parsed.get('is_speciality_breed', False)
 
     from ..services import show_service as show_serv
-    event = show_serv.refresh_show_type_from_rank(event, rank)
+    event = show_serv.refresh_show_type_from_rank(event, rank, is_speciality_breed)
 
     if not results:
+        mark_results_parsed(event)
         return {'status': 'success', 'show_id': show_id, 'found': 0, 'saved': 0}
 
     saved, failed, pending_count = save_show_results(event, results)
@@ -315,3 +317,47 @@ def _dispatch_dog_imports(results: list, import_missing: bool = True, update_exi
             f"(import_missing={import_missing}, update_existing={update_existing})"
         )
     return len(target_ids)
+
+
+@shared_task(bind=True, name='dogs_module.weekly_show_list')
+def weekly_show_list_task(self) -> dict:
+    today = datetime.now().date()
+    date_to = today - timedelta(days=1)
+    date_from = date_to - timedelta(days=6)
+    date_from_str = date_from.strftime('%d.%m.%Y')
+    date_to_str = date_to.strftime('%d.%m.%Y')
+    task = import_show_date_range_task.apply_async(args=[date_from_str, date_to_str])
+    return {'status': 'dispatched', 'date_from': date_from_str, 'date_to': date_to_str, 'task_id': task.id}
+
+
+@shared_task(bind=True, name='dogs_module.weekly_show_results')
+def weekly_show_results_task(self) -> dict:
+    list_task_ran_on = datetime.now().date() - timedelta(days=1)
+    date_to = list_task_ran_on - timedelta(days=1)
+    date_from = date_to - timedelta(days=6)
+    date_from_str = date_from.strftime('%d.%m.%Y')
+    date_to_str = date_to.strftime('%d.%m.%Y')
+    task = import_results_for_date_range_task.apply_async(
+        kwargs={
+            'date_from': date_from_str,
+            'date_to': date_to_str,
+            'only_without_results': True,
+            'import_missing_dogs': True,
+            'update_existing_dogs': True,
+        },
+    )
+    return {'status': 'dispatched', 'date_from': date_from_str, 'date_to': date_to_str, 'task_id': task.id}
+
+
+@shared_task(bind=True, name='dogs_module.weekly_recalculate_ratings_task')
+def weekly_recalculate_ratings_task(self) -> dict:
+    today = datetime.now()
+
+    # Определяем отчетный год
+    if today.month >= 12:  # декабрь
+        report_year = today.year + 1
+    else:
+        report_year = today.year
+
+    result = recalculate_all_ratings(rating_year=report_year)
+    return {'status': 'success', 'year': report_year, **result}

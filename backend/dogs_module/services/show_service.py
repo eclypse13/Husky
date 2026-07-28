@@ -34,12 +34,10 @@ _EXHIBITION_MARKERS = ['выставк', 'exhibition']
 
 HERO_FALLBACK_NAME = "Chudni Medvezhonok Gold Sensation"
 
-def classify_by_rank(rank: str) -> str:
-    """
-    классификация по значению поля «Ранг» со страницы результатов
-    """
+
+def classify_by_rank(rank: str, is_speciality_breed: bool = False) -> str:
     if not rank:
-        return ShowType.OTHER
+        return ShowType.SPECIALITY if is_speciality_breed else ShowType.OTHER
     text = rank.lower()
     for kw in _WORLD_KEYWORDS:
         if kw in text: return ShowType.WORLD
@@ -53,6 +51,8 @@ def classify_by_rank(rank: str) -> str:
         return ShowType.PK
     for kw in _SPECIALITY_KEYWORDS:
         if kw in text: return ShowType.SPECIALITY
+    if is_speciality_breed:
+        return ShowType.SPECIALITY
     return ShowType.OTHER
 
 def detect_show_type(title: str, rank: str = '') -> str:
@@ -181,18 +181,13 @@ def save_show_event(event_data: dict):
     return obj
 
 
-def refresh_show_type_from_rank(event, rank: str):
-    """
-    Пересчитывает show_type события по точному рангу со страницы результатов.
-    Возвращает обновлённый event.
-    """
+def refresh_show_type_from_rank(event, rank: str, is_speciality_breed: bool = False):
     from ..repositories import show_repository as show_repo
 
-    if not rank:
+    if not rank and not is_speciality_breed:
         return event
 
-    # new_show_type = detect_show_type(event.title or '', rank)
-    new_show_type = classify_by_rank(rank)
+    new_show_type = classify_by_rank(rank, is_speciality_breed)
     if new_show_type == event.show_type and rank == event.rank:
         return event
 

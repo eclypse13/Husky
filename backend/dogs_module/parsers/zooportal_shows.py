@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 from bs4 import BeautifulSoup
 
-from ..config import ZOOPORTAL_BASE_URL
+from ..config import ZOOPORTAL_BASE_URL, SPECIALITY_BREED_NAME_SH
 from .zooportal import BrowserManager
 
 from ..config import (
@@ -168,7 +168,6 @@ def _parse_show_list_html(html: str) -> list[dict]:
                 })
 
     logger.info(f"Найдено {len(results)} мероприятий")
-    logger.info(f"DICT HTML ZOOPORTAL_SHOW: {results}")
     return results
 
 
@@ -176,7 +175,7 @@ def _parse_show_results_html(html: str) -> dict:
     soup = BeautifulSoup(html, 'html.parser')
 
     rows = soup.select('.view-row.line')
-    rank = _extract_rank_from_provisions(soup)
+    signals = _extract_provisions_signals(soup)
     results = []
 
     current_sex = None
@@ -249,7 +248,11 @@ def _parse_show_results_html(html: str) -> dict:
     names = ', '.join(r['dog_name'] for r in results)
     logger.info(f"Найдено {len(results)} результатов: {names}")
 
-    return {'results': results, 'rank': rank}
+    return {
+        'results': results,
+        'rank': signals['rank'],
+        'is_speciality_breed': signals['is_speciality_breed'],
+    }
 
 def _text(el) -> str:
     if el is None:
@@ -291,19 +294,41 @@ def _parse_assessment(text: str):
             pass
     return grade, place
 
-
-def _extract_rank_from_provisions(soup: BeautifulSoup) -> Optional[str]:
+def _extract_provisions_signals(soup: BeautifulSoup) -> dict:
     container = soup.select_one('.b1t-z-edv-c')
     if not container:
-        return None
+        return {'rank': None, 'is_speciality_breed': False}
+
+    rank = None
+    federations = ''
+    speciality_breeds = set()
+
     for field in container.select('div.mt-10'):
         label = field.find(string=True, recursive=False)
         label = label.strip() if label else ''
+
         if label == 'Ранг':
             link = field.find('a')
-            value = link.get_text(strip=True) if link else field.get_text(separator=' ', strip=True)
-            return value or None
-    return None
+            rank = link.get_text(strip=True) if link else field.get_text(separator=' ', strip=True)
+            rank = rank or None
+
+        elif label == 'Федерации':
+            federations = field.get_text(separator=' ', strip=True)
+
+        elif 'breeds' in (field.get('class') or []):
+            spoiler = field.select_one('.b1t-spoiler')
+            if spoiler:
+                body = spoiler.select_one('.body')
+                if body:
+                    parts = body.get_text(separator='|', strip=True).split('|')
+                    speciality_breeds.update(p.strip() for p in parts if p.strip())
+
+    is_speciality_breed = (
+            'ркф' in federations.lower()
+            and SPECIALITY_BREED_NAME_SH in speciality_breeds
+    )
+
+    return {'rank': rank, 'is_speciality_breed': is_speciality_breed}
 
 def _extract_rank(title: str) -> Optional[str]:
     if not title:
