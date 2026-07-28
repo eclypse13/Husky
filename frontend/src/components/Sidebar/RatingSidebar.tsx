@@ -1,8 +1,12 @@
+import {useState} from "react";
 import "./RatingSidebar.css";
+import {ShowsListModal} from "@/components/ShowsListModal/ShowsListModal";
 
 const REGULATION_URL = "/docs/ПОЛОЖЕНИЕ_О_проведении_рейтинга_НКП_СИБИРСКИЙ_ХАСКИ_ФИНАЛ.docx";
 
 export default function RatingSidebar() {
+    const [showsListOpen, setShowsListOpen] = useState(false);
+
     return (
         <aside className="sidebar">
             <div className="sidebar-card">
@@ -64,6 +68,33 @@ export default function RatingSidebar() {
                 </a>
             </div>
 
+            <div className="sidebar-card">
+                <h3 className="sidebar-title">📋 Список выставок</h3>
+                <p style={{fontSize: ".95rem", color: "var(--text-light)", marginBottom: "1rem"}}>
+                    Все выставки сезона.
+                </p>
+                <button
+                    onClick={() => setShowsListOpen(true)}
+                    style={{
+                        background: "var(--ice-blue)",
+                        color: "var(--bright-blue)",
+                        padding: "1rem",
+                        borderRadius: "12px",
+                        display: "block",
+                        width: "100%",
+                        textAlign: "center",
+                        font: "inherit",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        appearance: "none",
+                        WebkitAppearance: "none",
+                    }}
+                >
+                    Открыть список
+                </button>
+            </div>
+
             {/*<div className="sidebar-card">*/}
             {/*  <h3 className="sidebar-title">🏅 История победителей</h3>*/}
             {/*  <ul style={{ listStyle: "none", paddingLeft: 0, fontSize: ".95rem", lineHeight: 1.6 }}>*/}
@@ -72,6 +103,10 @@ export default function RatingSidebar() {
             {/*    <li><a href="#" style={{ color: "var(--bright-blue)", textDecoration: "none" }}>2022 — Polaris Bright Flame</a></li>*/}
             {/*  </ul>*/}
             {/*</div>*/}
+
+            {showsListOpen && (
+                <ShowsListModal onClose={() => setShowsListOpen(false)}/>
+            )}
         </aside>
     );
 }

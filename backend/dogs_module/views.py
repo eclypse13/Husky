@@ -47,7 +47,7 @@ from .serializers import (
     ImportResultsForDateRangeSerializer,
     PhotoUploadBulkSerializer,
     PhotoBackfillHashesSerializer,
-    PhotoBackfillHashesFromSourceSerializer,
+    PhotoBackfillHashesFromSourceSerializer, EventShowResultSerializer,
 )
 from .utils.coi_calculator import calculate_coi, save_coi
 
@@ -278,7 +278,7 @@ class ShowEventViewSet(viewsets.ReadOnlyModelViewSet):
         from .repositories import show_repository as show_repo
         event = self.get_object()
         results = show_repo.get_results_for_event(event)
-        return Response(ShowResultSerializer(results, many=True).data)
+        return Response(EventShowResultSerializer(results, many=True).data)
 
 
 # СТАТУС ЗАДАЧИ
@@ -646,7 +646,8 @@ class ImportShowResultsView(APIView):
         d = ser.validated_data
         from .tasks.tasks_shows import import_show_results_task
         task = import_show_results_task.apply_async(
-            args=[d['show_id'], d.get('import_missing_dogs', True)], countdown=1
+            args=[d['show_id'], d.get('import_missing_dogs', True), d.get('update_existing_dogs', True)],
+            countdown=1,
         )
         return Response({
             'task_id': task.id, 'status': 'PENDING',
@@ -802,6 +803,7 @@ class ImportResultsForDateRangeView(APIView):
                 'date_to': date_to,
                 'only_without_results': d['only_without_results'],
                 'import_missing_dogs': d['import_missing_dogs'],
+                'update_existing_dogs': d.get('update_existing_dogs', True),
             },
             countdown=1,
         )

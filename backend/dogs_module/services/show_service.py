@@ -1,4 +1,3 @@
-# dogs_module/services/show_service.py
 """
 Сервис для работы с выставочными данными.
 """
@@ -6,13 +5,14 @@
 import re
 import logging
 from datetime import datetime, date
+from typing import List
 
 from ..repositories import dog_repository as dog_repo  # get_by_zooportal_id, set_rating, reset_ratings_except
 from . import pending_results_cache as pending_cache
 from ..constants.show_types import ShowType
 from ..repositories import show_repository as show_repo
 from ..repositories import dog_repository as dog_repo
-from ..config import TITLE_POINTS, SHOW_MULTIPLIERS, BOB_TITLES
+from ..config import TITLE_POINTS, SHOW_MULTIPLIERS, BOB_TITLES, SPORT_TITLES, ALLOWED_TITLES_BY_SHOW_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -20,45 +20,85 @@ logger = logging.getLogger(__name__)
 SHOW_TYPE_OTHER = ShowType.OTHER
 
 # Типы выставок
-_PK_KEYWORDS = ['ранга пк', 'нкп', 'национальн', 'монопородн', 'племенной смотр']
+_PK_KEYWORDS = ['ранга пк', 'племенной смотр']
 _SPECIALITY_KEYWORDS = ['специализирован', 'speciality', 'specialty']
 _KCHK_KEYWORDS = ['ранга кчк', 'кчк в каждом']
 _SPORT_KEYWORDS = ['соревнован', 'испытан', 'кубок', 'чемпионат']
 _WORLD_KEYWORDS = ['world dog show', 'euro dog show']
 _EXCLUDE_RANKS = ['cac', 'сас', 'cacib', 'сасиб']
+_KCHK_STANDALONE = re.compile(r'(?<![а-яё])кчк(?![а-яё])')
+_PK_STANDALONE = re.compile(r'(?<![а-яё])пк(?![а-яё])')
+
+# Признак того, что мероприятие — конформационная выставка
+_EXHIBITION_MARKERS = ['выставк', 'exhibition']
 
 HERO_FALLBACK_NAME = "Chudni Medvezhonok Gold Sensation"
+
+
+def classify_by_rank(rank: str, is_speciality_breed: bool = False) -> str:
+    if not rank:
+        return ShowType.SPECIALITY if is_speciality_breed else ShowType.OTHER
+    text = rank.lower()
+    for kw in _WORLD_KEYWORDS:
+        if kw in text: return ShowType.WORLD
+    for kw in _KCHK_KEYWORDS:
+        if kw in text: return ShowType.KCHK
+    if _KCHK_STANDALONE.search(text):
+        return ShowType.KCHK
+    for kw in _PK_KEYWORDS:
+        if kw in text: return ShowType.PK
+    if _PK_STANDALONE.search(text):
+        return ShowType.PK
+    for kw in _SPECIALITY_KEYWORDS:
+        if kw in text: return ShowType.SPECIALITY
+    if is_speciality_breed:
+        return ShowType.SPECIALITY
+    return ShowType.OTHER
 
 def detect_show_type(title: str, rank: str = '') -> str:
     text = (title + ' ' + (rank or '')).lower()
     for kw in _WORLD_KEYWORDS:
         if kw in text: return ShowType.WORLD
+    for kw in _KCHK_KEYWORDS:
+        if kw in text: return ShowType.KCHK
     for kw in _PK_KEYWORDS:
         if kw in text: return ShowType.PK
     for kw in _SPECIALITY_KEYWORDS:
         if kw in text: return ShowType.SPECIALITY
-    for kw in _KCHK_KEYWORDS:
-        if kw in text: return ShowType.KCHK
-    for kw in _SPORT_KEYWORDS:
-        if kw in text: return ShowType.SPORT
+    if _KCHK_STANDALONE.search(text):
+        return ShowType.KCHK
+    if _PK_STANDALONE.search(text):
+        return ShowType.PK
+    is_exhibition = any(m in text for m in _EXHIBITION_MARKERS)
+    if not is_exhibition:
+        for kw in _SPORT_KEYWORDS:
+            if kw in text: return ShowType.SPORT
     for ex in _EXCLUDE_RANKS:
         if ex in text: return ShowType.OTHER
     return ShowType.OTHER
 
 
 # Подсчёт очков
-def calc_base_points(titles_won: str) -> tuple[int, bool]:
+def calc_base_points(titles_won: str, show_type: str) -> tuple[int, bool]:
     if not titles_won:
         return 0, False
+    allowed = ALLOWED_TITLES_BY_SHOW_TYPE.get(show_type, set())
     total = 0
     is_bob = False
+    bob_already_counted = False
     for part in re.split(r'[,;/]', titles_won):
         key = part.strip().upper()
+        if not key or key not in allowed:
+            continue
+        if key in BOB_TITLES:
+            is_bob = True
+            if not bob_already_counted:
+                total += TITLE_POINTS.get(key, 0)
+                bob_already_counted = True
+            continue
         pts = TITLE_POINTS.get(key, 0)
         if pts:
             total += pts
-            if key in BOB_TITLES:
-                is_bob = True
     return total, is_bob
 
 
@@ -71,7 +111,7 @@ def calc_result_points(
     if show_type == ShowType.OTHER:
         return 0
     multiplier = SHOW_MULTIPLIERS.get(show_type, 1.0)
-    base_pts, is_bob = calc_base_points(titles_won)
+    base_pts, is_bob = calc_base_points(titles_won, show_type)
     total = int(base_pts * multiplier)
     total += catalog_count if is_bob else 0
     total += bonus_points
@@ -84,8 +124,11 @@ def detect_nomination(show_class: str, titles_won: str = '') -> str:
         return 'junior'
     if any(w in combined for w in ['ветеран', 'veteran', 'вкчк', 'всс', 'впк']):
         return 'veteran'
-    if any(w in combined for w in ['рабочий', 'working', 'cact']):
+    if any(w in combined for w in ['рабочий', 'working']):
         return 'working'
+    for part in re.split(r'[,;/]', titles_won or ''):
+        if part.strip().upper() in SPORT_TITLES:
+            return 'working'
     return 'main'
 
 
@@ -103,7 +146,7 @@ def get_rating_period(rating_year: int) -> tuple[date, date]:
 def save_show_event(event_data: dict):
     show_id = event_data.get('zooportal_show_id')
     if not show_id:
-        logger.error('save_show_event: нет zooportal_show_id')
+        logger.info('save_show_event: нет zooportal_show_id')
         return None
 
     title = event_data.get('title') or ''
@@ -138,31 +181,72 @@ def save_show_event(event_data: dict):
     return obj
 
 
+def refresh_show_type_from_rank(event, rank: str, is_speciality_breed: bool = False):
+    from ..repositories import show_repository as show_repo
+
+    if not rank and not is_speciality_breed:
+        return event
+
+    new_show_type = classify_by_rank(rank, is_speciality_breed)
+    if new_show_type == event.show_type and rank == event.rank:
+        return event
+
+    new_multiplier = SHOW_MULTIPLIERS.get(new_show_type, 0.0)
+
+    logger.info(
+        f"refresh_show_type_from_rank: event={event.zooportal_show_id} "
+        f"rank={event.rank!r}->{rank!r} show_type={event.show_type!r}->{new_show_type!r} "
+        f"multiplier={new_multiplier}"
+    )
+    updated_event, _ = show_repo.upsert_event(event.zooportal_show_id, {
+        'show_type': new_show_type,
+        'rank': rank,
+        'multiplier': new_multiplier,
+    })
+    return updated_event
+
 # Сохранение результатов
 def save_show_results(event, results: list) -> tuple[int, int, int]:
     saved = 0
     failed = 0
     to_pend = []
+    catalog_count = len(results)
 
     for rec in results:
+        rec['catalog_count'] = catalog_count
         zoo_id = rec.get('zooportal_dog_id')
         if not zoo_id:
             failed += 1
             continue
 
         dog = dog_repo.get_by_zooportal_id(zoo_id)
-
         if dog is None:
             to_pend.append(rec)
+
+            logger.info(
+                f"save_show_results: поиск zoo_id={zoo_id} ({rec.get('dog_name')!r}) — "
+                f"{'НЕ найдена в БД'}"
+            )
+
             continue
+
+        logger.info(
+            f"save_show_results: поиск zoo_id={zoo_id} ({rec.get('dog_name')!r}) — "
+            f"{'найдена, dog_id=' + str(dog.id)}"
+        )
 
         try:
             _save_single_result(event, dog, rec)
             saved += 1
-            _refresh_dog_rating(dog.id)
+            _refresh_dog_rating(dog.id, event.event_date)
+
+            logger.info(
+                f"save_show_results: сохранено — {rec.get('dog_name')!r} "
+                f"dog_id={dog.id} titles={rec.get('titles_won')!r}"
+            )
         except Exception as e:
             failed += 1
-            logger.warning(f"save_show_results: ошибка zoo_id={zoo_id}: {e}")
+            logger.info(f"save_show_results: ошибка zoo_id={zoo_id}: {e}")
 
     if to_pend:
         pending_cache.store(event.zooportal_show_id, to_pend)
@@ -182,6 +266,12 @@ def _save_single_result(event, dog, rec: dict) -> None:
     bonus_points = rec.get('bonus_points') or 0
     points = calc_result_points(titles_won, event.show_type, catalog_count, bonus_points)
     nomination = detect_nomination(show_class, titles_won)
+
+    logger.info(
+        f"_save_single_result: dog_id={dog.id} ({dog.registered_name!r}) "
+        f"event={event.zooportal_show_id} show_type={event.show_type} "
+        f"titles={titles_won!r} -> points={points} nomination={nomination!r}"
+    )
 
     place = rec.get('place')
     if place is not None:
@@ -217,7 +307,7 @@ def process_pending_results(show_id: str) -> dict:
 
     event = show_repo.get_event_by_show_id(show_id)
     if not event:
-        logger.warning(f"process_pending_results: выставка {show_id} не найдена")
+        logger.info(f"process_pending_results: выставка {show_id} не найдена")
         return {'saved': 0, 'still_pending': len(pending)}
 
     saved = 0
@@ -234,9 +324,9 @@ def process_pending_results(show_id: str) -> dict:
         try:
             _save_single_result(event, dog, rec)
             saved += 1
-            _refresh_dog_rating(dog.id)
+            _refresh_dog_rating(dog.id, event.event_date)
         except Exception as e:
-            logger.warning(f"process_pending_results: ошибка zoo_id={zoo_id}: {e}")
+            logger.info(f"process_pending_results: ошибка zoo_id={zoo_id}: {e}")
             still_pending.append(rec)
 
     if still_pending:
@@ -278,6 +368,23 @@ def recalculate_dog_rating(dog_id: int, rating_year: int = None) -> int:
     return total
 
 
+# Точечно пересчитывает ShowYearlyRating одной собаки за указанный год
+def refresh_dog_yearly_rating(dog_id: int, rating_year: int) -> int:
+    date_from, date_to = get_rating_period(rating_year)
+
+    main_total = show_repo.sum_points_for_dog(dog_id, date_from, date_to)
+    show_repo.upsert_yearly_rating(dog_id, rating_year, 'main', main_total)
+
+    for nomination in ('junior', 'veteran', 'working'):
+        total = show_repo.sum_points_for_dog(dog_id, date_from, date_to, nomination=nomination)
+        show_repo.upsert_yearly_rating(dog_id, rating_year, nomination, total)
+
+    if rating_year == get_rating_year():
+        dog_repo.set_rating(dog_id, main_total)
+
+    return main_total
+
+
 # Пересчитывает рейтинг за год
 def recalculate_all_ratings(rating_year: int = None) -> dict:
     year = rating_year or get_rating_year()
@@ -290,7 +397,9 @@ def recalculate_all_ratings(rating_year: int = None) -> dict:
 
     rows_by_nomination = {}
     for nomination in ('main', 'junior', 'veteran', 'working'):
-        rows = show_repo.sum_points_grouped(date_from, date_to, nomination=nomination)
+
+        filter_nomination = None if nomination == 'main' else nomination
+        rows = show_repo.sum_points_grouped(date_from, date_to, nomination=filter_nomination)
         rows_by_nomination[nomination] = rows
 
     # Пишем в DogYearlyRating, история сохраняется
@@ -350,7 +459,8 @@ def get_rating_leaderboard_data(
     if not dog_pts:
         # Fallback: пересчитываем на лету если таблица пустая (первый запуск)
         date_from, date_to = get_rating_period(year)
-        live_rows = show_repo.sum_points_grouped(date_from, date_to, nomination=nomination, limit=limit)
+        filter_nomination = None if nomination == 'main' else nomination
+        live_rows = show_repo.sum_points_grouped(date_from, date_to, nomination=filter_nomination, limit=limit)
         dog_pts = {r['dog_id']: r['total'] for r in live_rows}
 
     dogs = dog_repo.get_by_ids(list(dog_pts.keys()))
@@ -369,11 +479,13 @@ def get_shows_needing_results(date_from, date_to) -> list:
     return show_repo.get_events_in_range(date_from, date_to, only_without_results=True)
 
 
-def _refresh_dog_rating(dog_id: int) -> None:
+def _refresh_dog_rating(dog_id: int, event_date=None) -> None:
     try:
-        recalculate_dog_rating(dog_id)
+        year = get_rating_year(event_date) if event_date else get_rating_year()
+        refresh_dog_yearly_rating(dog_id, year)
     except Exception as e:
-        logger.warning(f"_refresh_dog_rating dog_id={dog_id}: {e}")
+        logger.info(f"_refresh_dog_rating dog_id={dog_id}: {e}")
+
 
 # Самая рейтинговая собака за текущий год (для Home страницы)
 def get_hero_dog(rating_year: int = None):
@@ -404,3 +516,6 @@ def get_dog_rating_summary(dog_id: int, rating_year: int = None) -> list:
             'place': higher + 1,
         })
     return result
+
+def get_events_in_range(date_from, date_to, only_without_results: bool = False) -> List:
+    return show_repo.get_events_in_range(date_from, date_to, only_without_results=only_without_results)

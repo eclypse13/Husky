@@ -184,16 +184,23 @@ export default function Rating() {
         const root = pageRef.current;
         if (!root) return;
         const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const els = root.querySelectorAll<HTMLElement>(".rating-section, .rating-card, .rsb__card");
+
+        // контент должен быть виден сразу, а не после скролла
+        const els = root.querySelectorAll<HTMLElement>(".rating-card, .rsb__card");
         if (reduced) {
             els.forEach(el => el.setAttribute("data-visible", "1"));
             return;
         }
         const io = new IntersectionObserver(
-            entries => entries.forEach(e => e.isIntersecting && e.target.setAttribute("data-visible", "1")),
+            entries => entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                e.target.setAttribute("data-visible", "1");
+                io.unobserve(e.target);
+            }),
             {threshold: 0.12, rootMargin: "0px 0px -50px 0px"}
         );
         els.forEach(el => {
+            if (el.getAttribute("data-visible") === "1") return; // уже показан — не мигаем заново
             el.setAttribute("data-visible", "0");
             io.observe(el);
         });

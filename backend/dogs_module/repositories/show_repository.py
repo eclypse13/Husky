@@ -78,18 +78,17 @@ def upsert_result(event, dog, defaults: dict) -> None:
     )
 
 
-def sum_points_for_dog(dog_id: int, date_from, date_to) -> int:
+def sum_points_for_dog(dog_id: int, date_from, date_to, nomination: str = None) -> int:
     from ..models import ShowResult
     from django.db.models import Sum
-    return (
-            ShowResult.objects.using('dogs_db')
-            .filter(
-                dog_id=dog_id,
-                event__event_date__gte=date_from,
-                event__event_date__lte=date_to,
-            )
-            .aggregate(total=Sum('rating_points'))['total'] or 0
+    qs = ShowResult.objects.using('dogs_db').filter(
+        dog_id=dog_id,
+        event__event_date__gte=date_from,
+        event__event_date__lte=date_to,
     )
+    if nomination is not None:
+        qs = qs.filter(nomination=nomination)
+    return qs.aggregate(total=Sum('rating_points'))['total'] or 0
 
 
 def get_results_for_dog(dog_id: int, date_from=None, date_to=None):
@@ -118,6 +117,7 @@ def get_results_for_event(event):
 def sum_points_grouped(date_from, date_to, nomination: str = None, limit: int = None) -> list:
     from ..models import ShowResult
     from django.db.models import Sum
+
     qs = (
         ShowResult.objects.using('dogs_db')
         .filter(
@@ -129,9 +129,12 @@ def sum_points_grouped(date_from, date_to, nomination: str = None, limit: int = 
     if nomination is not None:
         qs = qs.filter(nomination=nomination)
 
-    qs = qs.values('dog_id').annotate(total=Sum('rating_points'))
-    if nomination is not None:
-        qs = qs.filter(total__gt=0).order_by('-total')
+    qs = (
+        qs.values('dog_id')
+        .annotate(total=Sum('rating_points'))
+        .filter(total__gt=0)
+        .order_by('-total')
+    )
     if limit is not None:
         qs = qs[:limit]
     return list(qs)
@@ -177,6 +180,7 @@ def get_top_dog_id_for_year(year: int, nomination: str = 'main') -> Optional[int
         .values_list('dog_id', flat=True)
         .first()
     )
+
 
 # Баллы собаки за сезон по каждой номинации
 def get_dog_yearly_ratings(dog_id: int, year: int) -> list:

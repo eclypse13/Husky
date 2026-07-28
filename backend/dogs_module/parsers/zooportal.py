@@ -99,7 +99,7 @@ class BrowserManager:
         if cookies:
             self.context.add_cookies(cookies)
 
-    def fetch_page(self, url: str, retries: int = 5, wait_selector: Optional[str] = None) -> str:
+    def fetch_page(self, url: str, retries: int = 5, wait_selector: Optional[str] = None, selector_timeout: int = 30000) -> str:
         _CRASH_ERRORS = ('crashed', 'ERR_SSL', 'net::', 'Target closed')
 
         for attempt in range(retries):
@@ -107,20 +107,23 @@ class BrowserManager:
             try:
                 page = self.context.new_page()
                 logger.info(f"  [{attempt + 1}/{retries}] Загрузка: {url}")
-                page.goto(url, wait_until='networkidle', timeout=PLAYWRIGHT_TIMEOUT)
+                page.goto(url, wait_until='domcontentloaded', timeout=PLAYWRIGHT_TIMEOUT)
+
+                error_banners = page.query_selector_all('.b1t-ssm.errortext')
+                error_text = next(
+                    (t for b in error_banners if (t := b.inner_text().strip())),
+                    None,
+                )
+                if error_text:
+                    raise RuntimeError(f"Сайт вернул ошибку: {error_text}")
 
                 if wait_selector:
-                    try:
-                        page.wait_for_selector(wait_selector, timeout=15000)
-                        page.wait_for_function(
-                            f"() => {{ const el = document.querySelector('{wait_selector}'); "
-                            f"return el && el.innerText && el.innerText.trim().length > 0; }}",
-                            timeout=10000,
-                        )
-                    except Exception as e:
-                        # Таймаут селектора — не критично, страница загружена
-                        logger.warning(f"  Селектор '{wait_selector}' не дождался: {e}")
-
+                    page.wait_for_selector(wait_selector, timeout=selector_timeout)
+                    page.wait_for_function(
+                        f"() => {{ const el = document.querySelector('{wait_selector}'); "
+                        f"return el && el.innerText && el.innerText.trim().length > 0; }}",
+                        timeout=10000,
+                    )
                 html = page.content()
                 if not html or len(html) < 100:
                     raise RuntimeError(f"Пустой HTML ({len(html) if html else 0} байт)")
@@ -128,7 +131,22 @@ class BrowserManager:
 
             except Exception as e:
                 err_str = str(e)
+                # (пока без кастомной exception) если недоступны результаты из за приватности, скипаем
+                if err_str.startswith("Сайт вернул ошибку"):
+                    logger.info(f"  ℹ️  {err_str}")
+                    raise
+
                 is_crash = any(c in err_str for c in _CRASH_ERRORS)
+
+                if page:
+                    try:
+                        page.screenshot(path=f"/tmp/debug_{attempt}.png", full_page=True)
+                        with open(f"/tmp/debug_{attempt}.html", "w") as f:
+                            f.write(page.content())
+                        logger.error(f"  🐛 Дебаг-снимок сохранён: /tmp/debug_{attempt}.png")
+                    except Exception as debug_e:
+                        logger.error(f"  🐛 Не удалось сделать дебаг-снимок: {debug_e}")
+
 
                 if is_crash:
                     logger.error(
@@ -220,7 +238,7 @@ class ZooportalParser:
             f"&F%5BRAION%5D=0&F%5BCITY%5D=0&F%5BPUNKT%5D=0"
             f"&PAGEN_1={page_num}"
         )
-        html = browser.fetch_page(url, wait_selector='span.item-wrapper')
+        html = browser.fetch_page(url, wait_selector='span.item-wrapper', selector_timeout=45000)
         dogs = self._parse_search_html(html)
 
         if dogs:
@@ -246,7 +264,7 @@ class ZooportalParser:
 
         url = f"{ZOOPORTAL_BASE_URL}{ZOOPORTAL_DOG_PATH}/{dog_id}/?COUNT_GENERATIONS={generations}"
         # html = browser.fetch_page(url)
-        html = browser.fetch_page(url, wait_selector='span.item-wrapper')
+        html = browser.fetch_page(url, wait_selector='td[code]', selector_timeout=45000)
         data = self._parse_dog_html(html, dog_id)
         logger.info(f"💾 {data.get('registered_name')}")
 
