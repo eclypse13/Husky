@@ -9,7 +9,9 @@ from .scraping import USER_AGENT
 YADISK_API = "https://cloud-api.yandex.net/v1/disk/resources"
 YADISK_PUBLIC_DOWNLOADER = "https://downloader.disk.yandex.ru/public/files"
 YADISK_FOLDER = "dogs/photos"
-YANDEX_DISK_TOKEN = _config("YANDEX_DISK_TOKEN", default="")
+# YANDEX_DISK_TOKEN = _config("YANDEX_DISK_TOKEN", default="")
+# для dev и дебага
+YANDEX_DISK_TOKEN = _config("", default="")
 
 # Таймауты HTTP, сек
 YADISK_TIMEOUT = 30  # обычные API-вызовы ЯД
@@ -32,7 +34,7 @@ DEFAULT_PHOTO_HASHES = frozenset({
     "7f666ee537b86dcf93c9dbd16935fc2ada5c7551583c14b9b3bca9f2d3ca6ba0",  # серая заглушка zooportal
 })
 
-# Дешёвый префильтр по URL — отсекаем явные заглушки без скачивания.
+# Префильтр по URL — отсекаем заглушки без скачивания
 PLACEHOLDER_URL_PATTERNS = (
     "noimage", "no_photo", "nophoto", "no-photo",
     "placeholder", "default", "dummy", "blank", "stub",

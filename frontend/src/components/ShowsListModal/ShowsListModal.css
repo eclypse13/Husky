@@ -1,0 +1,179 @@
+.slm-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--dark-slate) 55%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    z-index: 1000;
+}
+
+.slm-modal {
+    background: var(--snow-white);
+    border-radius: 20px;
+    box-shadow: var(--shadow-soft);
+    width: 100%;
+    max-width: 680px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.slm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 1.75rem 1rem;
+}
+
+.slm-title {
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.slm-close {
+    background: var(--arctic-gray);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: .4rem;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.slm-close:hover {
+    color: var(--bright-blue);
+    border-color: var(--bright-blue);
+}
+
+.slm-year-tabs {
+    padding: 0 1.75rem 1rem;
+}
+
+.slm-body {
+    overflow-y: auto;
+    border-top: 1px solid var(--border-light);
+    padding: 0 1.75rem 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+}
+
+.slm-body:has(.rt-shows-empty) {
+    justify-content: center;
+}
+
+.slm-event {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.slm-event:last-child {
+    border-bottom: none;
+}
+
+.slm-show-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .85rem 0;
+}
+
+.slm-show-item--clickable {
+    cursor: pointer;
+}
+
+.slm-show-item .rt-show-event {
+    flex: 1;
+    min-width: 0;
+}
+
+.slm-status-slot {
+    width: 150px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: var(--text-light);
+}
+
+.slm-status {
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--text-light);
+    text-align: right;
+    white-space: normal;
+}
+
+.slm-expand {
+    background: var(--arctic-gray);
+    border-radius: 12px;
+    padding: .5rem .85rem;
+    margin: 0 0 .85rem;
+}
+
+.slm-section {
+    margin-top: .85rem;
+}
+
+.slm-section:first-child {
+    margin-top: .5rem;
+}
+
+.slm-section-title {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-light);
+    margin: 0 0 .3rem;
+}
+
+.slm-dog-list {
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.slm-dog-item {
+    display: flex;
+    align-items: flex-start;
+    gap: .85rem;
+    padding: .85rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.slm-dog-item:last-child {
+    border-bottom: none;
+}
+
+.slm-dog-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.slm-dog-name {
+    display: block;
+    font-weight: 700;
+    font-size: .95rem;
+}
+
+.slm-dog-grade {
+    font-size: .82rem;
+    color: var(--text-light);
+    margin: .2rem 0 0;
+}
+
+.slm-dog-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin-top: .5rem;
+}
+

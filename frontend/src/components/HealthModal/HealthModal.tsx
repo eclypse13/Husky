@@ -66,7 +66,9 @@ export default function HealthModal({dogId, dogName: _dogName, onClose}: Props) 
         <div className="hm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
             <div className="hm-inner">
                 <div className="hm-head">
-                    <h3 className="hm-title">Медицинские тесты</h3>
+                    <div className="hm-title-badge">
+                        <h3 className="hm-title">Медицинские тесты</h3>
+                    </div>
                     <button className="hm-close" onClick={onClose}>✕</button>
                 </div>
 

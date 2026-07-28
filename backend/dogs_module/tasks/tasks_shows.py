@@ -76,7 +76,11 @@ def import_show_list_task(self, date_str: str) -> dict:
     retry_backoff_max=120,
     retry_jitter=True,
 )
-def import_show_results_task(self, show_id: str, import_missing_dogs: bool = True) -> dict:
+def import_show_results_task(
+        self, show_id: str,
+        import_missing_dogs: bool = True,
+        update_existing_dogs: bool = True,
+) -> dict:
     start = time.time()
     from ..repositories import show_repository as show_repo
     from ..constants.show_types import ShowType
@@ -89,23 +93,37 @@ def import_show_results_task(self, show_id: str, import_missing_dogs: bool = Tru
         )
 
     try:
-        results = fetch_show_results(show_id)
+        parsed = fetch_show_results(show_id)
+
     except Exception as e:
         logger.error(f"import_show_results_task show_id={show_id}: {e}")
         return {'status': 'error', 'show_id': show_id, 'error': str(e)}
 
+    results = parsed['results']
+    rank = parsed.get('rank')
+    is_speciality_breed = parsed.get('is_speciality_breed', False)
+
+    from ..services import show_service as show_serv
+    event = show_serv.refresh_show_type_from_rank(event, rank, is_speciality_breed)
+
     if not results:
+        mark_results_parsed(event)
         return {'status': 'success', 'show_id': show_id, 'found': 0, 'saved': 0}
 
     saved, failed, pending_count = save_show_results(event, results)
     mark_results_parsed(event)
 
     dogs_dispatched = 0
-    if import_missing_dogs and pending_count > 0:
-        dogs_dispatched = _dispatch_missing_dogs(results)
-        if dogs_dispatched > 0:
-            countdown = min(max(dogs_dispatched * 30, 120), 900)
-            process_pending_results_task.apply_async(args=[show_id], countdown=countdown)
+    if update_existing_dogs or (import_missing_dogs and pending_count > 0):
+        dogs_dispatched = _dispatch_dog_imports(
+            results,
+            import_missing=import_missing_dogs,
+            update_existing=update_existing_dogs,
+        )
+
+    if dogs_dispatched > 0:
+        countdown = min(max(dogs_dispatched * 30, 120), 900)
+        process_pending_results_task.apply_async(args=[show_id], countdown=countdown)
 
     return {
         'status': 'success', 'show_id': show_id,
@@ -162,6 +180,7 @@ def import_show_date_range_task(self, date_from: str, date_to: str, countdown_be
 def import_results_for_date_range_task(
         self, date_from: str, date_to: str = None,
         only_without_results: bool = True, import_missing_dogs: bool = True,
+        update_existing_dogs: bool = True,
 ) -> dict:
     if not date_to:
         date_to = date_from
@@ -171,8 +190,8 @@ def import_results_for_date_range_task(
     except ValueError as e:
         return {'status': 'error', 'error': f'Неверный формат даты: {e}'}
 
-    from ..repositories import show_repository as show_repo
-    events = show_repo.get_events_in_range(
+    from ..services import show_service as show_serv
+    events = show_serv.get_events_in_range(
         dt_from, dt_to, only_without_results=only_without_results
     )
 
@@ -186,7 +205,10 @@ def import_results_for_date_range_task(
     for idx, event in enumerate(events):
         import_show_results_task.apply_async(
             args=[event.zooportal_show_id],
-            kwargs={'import_missing_dogs': import_missing_dogs},
+            kwargs={
+                'import_missing_dogs': import_missing_dogs,
+                'update_existing_dogs': update_existing_dogs,
+            },
             countdown=idx * 5,  # небольшой разброс чтобы не навалить сразу
         )
         dispatched += 1
@@ -273,13 +295,69 @@ def recalculate_ratings_task(self, year: int = None) -> dict:
     return {'status': 'success', **result}
 
 
-# Диспатчит import_zooportal_dog_task для каждой отсутствующей собаки
-def _dispatch_missing_dogs(results: list) -> int:
+# Диспатчит import_zooportal_dog_task.
+# import_missing — импортировать собак, которых нет в БД
+# update_existing — форсировать переимпорт собак, которые в БД уже есть
+def _dispatch_dog_imports(results: list, import_missing: bool = True, update_existing: bool = False) -> int:
     from ..tasks.tasks_zooportal import import_zooportal_dog_task
-    zoo_ids = [r['zooportal_dog_id'] for r in results if r.get('zooportal_dog_id')]
-    missing_ids = get_missing_zoo_ids(zoo_ids)
-    for idx, zoo_id in enumerate(missing_ids):
+    zoo_ids = list(dict.fromkeys(r['zooportal_dog_id'] for r in results if r.get('zooportal_dog_id')))
+    missing_ids = set(get_missing_zoo_ids(zoo_ids))
+
+    target_ids = [
+        zoo_id for zoo_id in zoo_ids
+        if (zoo_id in missing_ids and import_missing)
+           or (zoo_id not in missing_ids and update_existing)
+    ]
+
+    for idx, zoo_id in enumerate(target_ids):
         import_zooportal_dog_task.apply_async(args=[zoo_id], countdown=idx * 3)
-    if missing_ids:
-        logger.info(f"Диспатчен импорт {len(missing_ids)} отсутствующих собак")
-    return len(missing_ids)
+    if target_ids:
+        logger.info(
+            f"Диспатчен импорт {len(target_ids)} собак "
+            f"(import_missing={import_missing}, update_existing={update_existing})"
+        )
+    return len(target_ids)
+
+
+@shared_task(bind=True, name='dogs_module.weekly_show_list')
+def weekly_show_list_task(self) -> dict:
+    today = datetime.now().date()
+    date_to = today - timedelta(days=1)
+    date_from = date_to - timedelta(days=6)
+    date_from_str = date_from.strftime('%d.%m.%Y')
+    date_to_str = date_to.strftime('%d.%m.%Y')
+    task = import_show_date_range_task.apply_async(args=[date_from_str, date_to_str])
+    return {'status': 'dispatched', 'date_from': date_from_str, 'date_to': date_to_str, 'task_id': task.id}
+
+
+@shared_task(bind=True, name='dogs_module.weekly_show_results')
+def weekly_show_results_task(self) -> dict:
+    list_task_ran_on = datetime.now().date() - timedelta(days=1)
+    date_to = list_task_ran_on - timedelta(days=1)
+    date_from = date_to - timedelta(days=6)
+    date_from_str = date_from.strftime('%d.%m.%Y')
+    date_to_str = date_to.strftime('%d.%m.%Y')
+    task = import_results_for_date_range_task.apply_async(
+        kwargs={
+            'date_from': date_from_str,
+            'date_to': date_to_str,
+            'only_without_results': True,
+            'import_missing_dogs': True,
+            'update_existing_dogs': True,
+        },
+    )
+    return {'status': 'dispatched', 'date_from': date_from_str, 'date_to': date_to_str, 'task_id': task.id}
+
+
+@shared_task(bind=True, name='dogs_module.weekly_recalculate_ratings_task')
+def weekly_recalculate_ratings_task(self) -> dict:
+    today = datetime.now()
+
+    # Определяем отчетный год
+    if today.month >= 12:  # декабрь
+        report_year = today.year + 1
+    else:
+        report_year = today.year
+
+    result = recalculate_all_ratings(rating_year=report_year)
+    return {'status': 'success', 'year': report_year, **result}

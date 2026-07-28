@@ -3,7 +3,7 @@ from decouple import config as _config
 
 BASE_URL = "https://siberianhusky.breedarchive.com"
 SEARCH_RECENT_DOGS = f"{BASE_URL}/ng_animal/get_entries"
-SEARCH_BY_NAME_URL = f"{BASE_URL}/ng_animal/data"
+SEARCH_BY_NAME_URL = f"{BASE_URL}/animal/data"
 SEARCH_BROWSE = f"{BASE_URL}/animal/browse"
 SEARCH_DOG_GET_ANCESTORS = f"{BASE_URL}/animal/get_ancestors"
 SEARCH_DOG_BASE_NO_ANCESTORS = f"{BASE_URL}/animal/get_animal"

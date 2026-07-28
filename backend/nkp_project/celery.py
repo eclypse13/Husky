@@ -82,6 +82,21 @@ app.conf.beat_schedule = {
         'kwargs': {'recent_days': 5},
     },
 
+    'weekly-show-list': {
+        'task': 'dogs_module.weekly_show_list',
+        'schedule': crontab(hour=2, minute=0, day_of_week=1),  # каждый понедельник в 2:00
+    },
+
+    'weekly-show-results': {
+        'task': 'dogs_module.weekly_show_results',
+        'schedule': crontab(hour=3, minute=0, day_of_week=1),  # каждый понедельник в 3:00
+    },
+
+    'weekly-recalculate-ratings-task': {
+        'task': 'dogs_module.weekly_recalculate_ratings_task',
+        'schedule': crontab(hour=5, minute=0, day_of_week=1),  # каждый понедельник в 5:00
+    },
+
 }
 
 

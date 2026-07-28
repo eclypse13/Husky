@@ -137,6 +137,7 @@ def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
     logger.info(f"🔍 BA поиск: '{dog_name}' → варианты: {variants}")
 
     client = _create_ba_client()
+    had_error = False  # 401/сеть/не-200 — не значит "не найдена", не кешируем
 
     try:
         for variant in variants:
@@ -153,14 +154,18 @@ def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
                 if response.status_code == 401:
                     from ..utils.cookie_refresher import on_ba_401
                     on_ba_401()
-                    logger.error(f"❌ BA: 401 для '{variant}' — куки обновлены, повторите запрос")
-                    break
+                    logger.error(f"❌ BA: 401 для '{variant}' — куки обновлены, пробуем остальные варианты")
+                    had_error = True
+                    client.close()
+                    client = _create_ba_client()
+                    continue
 
                 if response.status_code != 200:
                     logger.warning(
                         f"  BA: статус {response.status_code} для '{variant}' "
                         f"(тело: {response.text[:150]})"
                     )
+                    had_error = True
                     continue
 
                 data = response.json()
@@ -180,7 +185,6 @@ def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
                         c.set(key, uuid, timeout=_TTL_NAME_SEARCH)
                         return uuid
 
-                # Нет точного — первый результат
                 first_uuid = records[0].get('uuid')
                 first_name = records[0].get('registeredName', '?')
                 if first_uuid:
@@ -193,11 +197,17 @@ def search_breedarchive_by_name(dog_name: str) -> Optional[str]:
 
             except httpx.RequestError as e:
                 logger.warning(f"  BA: сетевая ошибка для '{variant}': {e}")
+                had_error = True
                 time.sleep(1)
             except Exception as e:
                 logger.warning(f"  BA: ошибка для '{variant}': {e}")
+                had_error = True
     finally:
         client.close()
+
+    if had_error:
+        logger.warning(f"⚠️ BA: '{dog_name}' — были ошибки/401 при поиске, NOT_FOUND НЕ кешируем")
+        return None
 
     logger.info(f"❌ BA: '{dog_name}' не найдена")
     c.set(key, _NOT_FOUND, timeout=_TTL_NAME_SEARCH)
