@@ -342,24 +342,43 @@ def merge_zoo_stub_into_ba(ba_dog_pk: int, zoo_hash: str, ba_dog_fields: dict) -
     return merge_update
 
 
+def get_dog_for_update_by_uuid(uuid: str):
+    from ..models import Dog
+    return Dog.objects.using('dogs_db').select_for_update(nowait=False).filter(uuid=uuid).first()
+
+
+def get_stub_candidates_for_update(sex: int, year_of_birth: int = None, year_window: int = 1, limit: int = 200):
+    from ..models import Dog
+    qs = (
+        Dog.objects.using('dogs_db')
+        .select_for_update(nowait=False)
+        .filter(sex=sex, uuid__isnull=True)
+    )
+    if year_of_birth:
+        qs = qs.filter(
+            year_of_birth__gte=year_of_birth - year_window,
+            year_of_birth__lte=year_of_birth + year_window,
+        )
+    return list(qs[:limit])
+
 def create_dog(fields: dict) -> "Dog":
     from ..models import Dog
     return Dog.objects.using('dogs_db').create(**fields)
 
 
-def upsert_ba_dog(uuid: str, defaults: dict) -> tuple:
-    from ..models import Dog
-    try:
-        return Dog.objects.using('dogs_db').update_or_create(
-            uuid=uuid, defaults=defaults
-        )
-    except Dog.MultipleObjectsReturned:
-        dog = Dog.objects.using('dogs_db').filter(uuid=uuid).order_by('id').first()
-        for k, v in defaults.items():
-            setattr(dog, k, v)
-        dog.save(using='dogs_db')
-        return dog, False
-
+# def upsert_ba_dog(uuid: str, defaults: dict) -> tuple:
+#     from ..models import Dog
+#     try:
+#         return Dog.objects.using('dogs_db').update_or_create(
+#             uuid=uuid, defaults=defaults
+#         )
+#     except Dog.MultipleObjectsReturned:
+#         dog = Dog.objects.using('dogs_db').filter(uuid=uuid).order_by('id').first()
+#         for k, v in defaults.items():
+#             setattr(dog, k, v)
+#         dog.save(using='dogs_db')
+#         return dog, False
+#
 
 def upsert_zoo_fallback(zooportal_id: str, defaults: dict) -> "Dog":
     from ..models import Dog

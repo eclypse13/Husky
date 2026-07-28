@@ -3,7 +3,7 @@
 """
 import logging
 import time
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from ..models import Dog
 from ..parsers.zooportal import BrowserManager, zooportal_parser
@@ -21,6 +21,7 @@ from ..services.dog_merger import (
     build_zoo_dog_fields,
     merge_zoo_ba_data,
     build_zoo_patch,
+    build_ba_patch,
     SOURCE_ZOO as _SOURCE_ZOO,
     SOURCE_BA as _SOURCE_BA,
 )
@@ -403,31 +404,56 @@ def _merge_zoo_twin(dog: Dog, zoo_hash: str, defaults: Dict) -> None:
 
 
 # СОХРАНЕНИЕ BA-СОБАКИ
+# def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
+#     uuid = data.get('uuid')
+#     if not uuid:
+#         raise ValueError("UUID обязателен")
+#
+#     from ..config.breedarchive import BASE_URL as _ba_base_url
+#     normalized = normalize_ba_data(data, _ba_base_url)
+#     defaults = {k: v for k, v in normalized.items() if v is not None and v != ''}
+#     # defaults['dam'] = dam
+#     # defaults['sire'] = sire
+#     if dam is not None:
+#         defaults['dam'] = dam
+#     if sire is not None:
+#         defaults['sire'] = sire
+#
+#     dog, created = dog_repo.upsert_ba_dog(uuid, defaults)
+#
+#     # Слияние с Zoo-записью по zoo_hash (только при создании новой записи)
+#     if created:
+#         name = defaults.get('registered_name', '')
+#         sex = defaults.get('sex', 0)
+#         zoo_hash = Dog.compute_zoo_hash(name, sex)
+#         _merge_zoo_twin(dog, zoo_hash, defaults)
+#
+#     # FK dam/sire
+#     fk_update: Dict = {}
+#     if dam is not None and dam.pk:
+#         fk_update['dam_id'] = dam.pk
+#     if sire is not None and sire.pk:
+#         fk_update['sire_id'] = sire.pk
+#     if fk_update:
+#         dog_repo.update_by_pk(dog.pk, fk_update)
+#         for k, v in fk_update.items():
+#             setattr(dog, k, v)
+#
+#     logger.info(
+#         f"  {'✅ Создана' if created else '🔄 Обновлена'}: "
+#         f"{dog.registered_name} (uuid={uuid})"
+#     )
+#     return dog
 def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     uuid = data.get('uuid')
     if not uuid:
         raise ValueError("UUID обязателен")
 
     from ..config.breedarchive import BASE_URL as _ba_base_url
-    normalized = normalize_ba_data(data, _ba_base_url)
-    defaults = {k: v for k, v in normalized.items() if v is not None and v != ''}
-    # defaults['dam'] = dam
-    # defaults['sire'] = sire
-    if dam is not None:
-        defaults['dam'] = dam
-    if sire is not None:
-        defaults['sire'] = sire
 
-    dog, created = dog_repo.upsert_ba_dog(uuid, defaults)
+    defaults = build_ba_patch(data, _ba_base_url)
+    dog, created = _find_or_create_ba_dog(uuid, defaults)
 
-    # Слияние с Zoo-записью по zoo_hash (только при создании новой записи)
-    if created:
-        name = defaults.get('registered_name', '')
-        sex = defaults.get('sex', 0)
-        zoo_hash = Dog.compute_zoo_hash(name, sex)
-        _merge_zoo_twin(dog, zoo_hash, defaults)
-
-    # FK dam/sire
     fk_update: Dict = {}
     if dam is not None and dam.pk:
         fk_update['dam_id'] = dam.pk
@@ -438,12 +464,8 @@ def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
         for k, v in fk_update.items():
             setattr(dog, k, v)
 
-    logger.info(
-        f"  {'✅ Создана' if created else '🔄 Обновлена'}: "
-        f"{dog.registered_name} (uuid={uuid})"
-    )
+    logger.info(f"  {'✅ Создана' if created else '🔄 Обновлена'}: {dog.registered_name} (uuid={uuid})")
     return dog
-
 
 # Сохраняет заводчиков, владельцев, титулы, сиблингов и помёты из BA
 def _save_ba_relations(dog: Dog, data: Dict) -> None:
@@ -1162,6 +1184,53 @@ def _schedule_photo_upload(dog, photo_bytes: bytes = None) -> None:
     except Exception as e:
         logger.warning(f"📷 Не удалось запланировать фото dog_id={dog.id}: {e}")
 
+
+def _find_or_create_ba_dog(uuid: str, fields: Dict) -> Tuple[Dog, bool]:
+    from django.db import transaction
+    from ..utils.dog_matcher import classify_duplicate
+
+    registered_name = fields.get('registered_name', '')
+    sex = fields.get('sex', 0)
+
+    with transaction.atomic(using='dogs_db'):
+        target = dog_repo.get_dog_for_update_by_uuid(uuid)
+
+        if not target and sex:
+            candidates = dog_repo.get_stub_candidates_for_update(
+                sex=sex, year_of_birth=fields.get('year_of_birth'),
+            )
+            new_data = {
+                'registered_name': registered_name, 'sex': sex,
+                'year_of_birth': fields.get('year_of_birth'),
+                'sire_name': fields.get('sire_name'), 'dam_name': fields.get('dam_name'),
+            }
+            best, best_score, best_reason = None, 0.0, ''
+            for cand in candidates:
+                cand_data = {
+                    'registered_name': cand.registered_name, 'sex': cand.sex,
+                    'year_of_birth': cand.year_of_birth,
+                    'sire_name': cand.sire_name, 'dam_name': cand.dam_name,
+                }
+                verdict, score, reason = classify_duplicate(new_data, cand_data)
+                if verdict == 'merge' and score > best_score:
+                    best, best_score, best_reason = cand, score, reason
+            if best:
+                target = best
+                logger.info(
+                    f"  🔗 BA fuzzy-match '{registered_name}' → dog_id={target.pk} "
+                    f"({best_reason}, score={best_score:.2f})"
+                )
+
+        update_fields = dict(fields)
+        update_fields['uuid'] = uuid
+
+        if target:
+            dog_repo.update_by_pk(target.pk, update_fields)
+            target.refresh_from_db(using='dogs_db')
+            return target, False
+
+        dog = dog_repo.create_dog(update_fields)
+        return dog, True
 
 # Достаёт (sire_name, dam_name) из распарсенной родословной Zoo
 def _zoo_parent_names(zoo_raw: dict) -> tuple:
