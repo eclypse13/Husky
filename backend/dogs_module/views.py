@@ -262,6 +262,7 @@ class MedicalRecordViewSet(viewsets.ReadOnlyModelViewSet):
 class ShowEventViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ShowEvent.objects.using('dogs_db').none()
     serializer_class = ShowEventSerializer
+    pagination_class = None
 
     def get_queryset(self):
         from .repositories import show_repository as show_repo
