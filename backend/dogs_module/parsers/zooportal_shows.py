@@ -306,14 +306,15 @@ def _extract_provisions_signals(soup: BeautifulSoup) -> dict:
     for field in container.select('div.mt-10'):
         label = field.find(string=True, recursive=False)
         label = label.strip() if label else ''
+        full_text = field.get_text(separator=' ', strip=True)
 
         if label == 'Ранг':
             link = field.find('a')
-            rank = link.get_text(strip=True) if link else field.get_text(separator=' ', strip=True)
+            rank = link.get_text(strip=True) if link else full_text
             rank = rank or None
 
-        elif label == 'Федерации':
-            federations = field.get_text(separator=' ', strip=True)
+        elif full_text.startswith('Федерации'):
+            federations = full_text[len('Федерации'):].strip()
 
         elif 'breeds' in (field.get('class') or []):
             spoiler = field.select_one('.b1t-spoiler')
