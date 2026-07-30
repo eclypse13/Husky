@@ -123,6 +123,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    init: true
 
   # Playwright-воркер: строго 1 браузер в любой момент
   # Zooportal блокирует если видит несколько параллельных запросов с одного IP
@@ -153,6 +154,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    init: true
 
 
   celery-photos:
@@ -182,6 +184,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    init: true
 
 
   celery_beat:
