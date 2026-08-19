@@ -157,14 +157,15 @@
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 2rem;
+    gap: 1.25rem;
 }
 
 .site-header__nav-link {
     color: var(--text-dark);
     text-decoration: none;
     font-weight: 600;
-    padding: .8rem 1rem;
+    padding: .8rem .75rem;
+    white-space: nowrap;
     border-radius: 12px;
     transition: background .2s ease, color .2s ease, transform .2s ease;
 }
