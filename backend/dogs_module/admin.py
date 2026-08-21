@@ -449,6 +449,17 @@ class COIRecalculateForm(forms.Form):
     )
 
 
+# ФОРМА: правка имени собаки по id
+class DogNameEditForm(forms.Form):
+    NAME_FIELDS = [
+        ('registered_name', 'Регистрационное имя'),
+        ('call_name', 'Кличка (call_name)'),
+    ]
+    dog_id = forms.IntegerField(label='ID собаки', min_value=1)
+    field_name = forms.ChoiceField(label='Поле', choices=NAME_FIELDS)
+    new_value = forms.CharField(label='Новое значение', max_length=500)
+
+
 # ACTIONS ДЛЯ МОДЕЛИ DOG
 @admin.action(description="🐾 BA: загрузить полную родословную (все поколения)")
 def sync_full_pedigree_action(modeladmin, request, queryset):
@@ -670,6 +681,13 @@ class ImportPanelAdmin(admin.ModelAdmin):
                         ('coi_recalculate', 'Пересчитать COI', forms_map['coi_recalculate']),
                     ],
                 },
+                {
+                    'label': 'Правки данных',
+                    'badge': 'edit',
+                    'cards': [
+                        ('dog_name_edit', 'Изменить имя собаки', forms_map['dog_name_edit']),
+                    ],
+                },
 
             ],
         }
@@ -714,6 +732,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'ml_train': MLTrainForm(_post('ml_train'), prefix='ml_train'),
             'ml_predict': MLPredictForm(_post('ml_predict'), prefix='ml_predict'),
             'coi_recalculate': COIRecalculateForm(_post('coi_recalculate'), prefix='coi_recalculate'),
+            'dog_name_edit': DogNameEditForm(_post('dog_name_edit'), prefix='dog_name_edit'),
         }
 
     def _dispatch(self, request, action: str) -> dict:
@@ -751,6 +770,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'ml_train': self._ml_train,
             'ml_predict': self._ml_predict,
             'coi_recalculate': self._coi_recalculate,
+            'dog_name_edit': self._dog_name_edit,
         }
         handler = handlers.get(action)
         if not handler:
@@ -1161,6 +1181,28 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'task_id': task.id,
             'message': f'Пересчёт COI {label}, {d["generations"]} поколений запущен. '
                        f'Прогресс виден через GET /api/dogs/import/status/{{task_id}}/',
+        }
+
+    def _dog_name_edit(self, request):
+        """Правка имени собаки (registered_name/call_name) по id."""
+        form = DogNameEditForm(request.POST, prefix='dog_name_edit')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+        from .repositories import dog_repository as dog_repo
+
+        dog = dog_repo.get_by_id(d['dog_id'])
+        if not dog:
+            return {'error': f"Собака id={d['dog_id']} не найдена"}
+
+        old_value = getattr(dog, d['field_name'])
+        dog_repo.update_by_pk(dog.pk, {d['field_name']: d['new_value']})
+
+        return {
+            'message': (
+                f"✏️ {dog.display_name} (id={dog.pk}): {d['field_name']} "
+                f"'{old_value}' → '{d['new_value']}'"
+            )
         }
 
 

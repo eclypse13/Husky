@@ -188,3 +188,7 @@ def normalize_for_similarity(name: str) -> str:
         s = s.replace(ch, "")
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())
+
+# Буква E / Ë
+def _normalize_yo(s: str) -> str:
+    return s.replace('ё', 'е').replace('Ё', 'Е')

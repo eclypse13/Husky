@@ -19,7 +19,6 @@ from .serializers import (
     OwnerSerializer,
     TitleSerializer,
     # LitterSerializer,
-    PedigreeSerializer,
     MedicalRecordSerializer,
     ShowEventSerializer,
     ShowResultSerializer,
@@ -92,15 +91,21 @@ class DogViewSet(viewsets.ReadOnlyModelViewSet):
             country=p.get('country'),
         )
 
+    # Жёсткий потолок глубины — защита от аномальных/битых данных
+    MAX_PEDIGREE_GENERATIONS = 25
+
     @action(detail=True, methods=['get'])
     def pedigree(self, request, pk=None):
+        from .services.dog_pedigree_tree import build_pedigree_tree
         dog = self.get_object()
-        generations = max(1, min(int(request.query_params.get('generations', 3)), 10))
-        serializer = PedigreeSerializer(
-            dog,
-            context={'request': request, 'depth': generations, 'current_depth': 1}
+        generations = max(
+            1,
+            min(
+                int(request.query_params.get('generations', 3)),
+                self.MAX_PEDIGREE_GENERATIONS,
+            ),
         )
-        return Response(serializer.data)
+        return Response(build_pedigree_tree(dog, generations))
 
     @action(detail=True, methods=['get'])
     def siblings(self, request, pk=None):

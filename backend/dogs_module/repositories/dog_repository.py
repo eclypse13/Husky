@@ -4,6 +4,8 @@
 
 import logging
 from typing import Optional
+from django.db.models import F, Value
+from django.db.models.functions import Replace
 
 logger = logging.getLogger(__name__)
 
@@ -586,7 +588,15 @@ def search_filtered(
         .prefetch_related('breeders')
     )
     if search:
-        qs = qs.filter(registered_name__icontains=search)
+        from ..utils.text import _normalize_yo
+        search_norm = _normalize_yo(search)
+        qs = qs.annotate(
+            _name_norm=Replace(
+                Replace(F('registered_name'), Value('ё'), Value('е')),
+                Value('Ё'), Value('Е'),
+            )
+        ).filter(_name_norm__icontains=search_norm)
+        # qs = qs.filter(registered_name__icontains=search)
     if sex:
         qs = qs.filter(sex=sex)
     if year:

@@ -23,6 +23,11 @@ type TreeNode = {
     children?: TreeNode[];
 };
 
+// Элемент "хлебных крошек" — история перехода по предкам:
+// пока пользователь идёт вглубь родословной (клик по предку → он
+// становится новым корнем), сюда добавляется запись; "Назад" её убирает.
+type TrailItem = { id: number; name: string };
+
 type CardLayout = "vertical" | "horizontal" | "hcompact" | "textonly";
 
 interface CardConfig {
@@ -177,6 +182,28 @@ function mkPhoto(g: G, defs: Defs, uid: string, srcs: string[], x: number, y: nu
         .attr("rx", r).attr("fill", "none").attr("stroke", "#e5e7eb").attr("stroke-width", .6);
 }
 
+// Значок "···" в углу карточки — открыть страницу собаки целиком.
+// Отдельно от клика по самой карточке, который вместо этого "идёт" к
+// собаке как к новому корню родословной (см. goToAncestor).
+function drawProfileLink(g: G, c: CardConfig, onClick: () => void) {
+    if (c.h < 40) return; // слишком маленькая карточка — некуда его деть
+    const r = 8;
+    const cx = c.w / 2 - r - 4;
+    const cy = -c.h / 2 + r + 4;
+    const btn = g.append("g")
+        .attr("class", "pdg-node-menu")
+        .attr("transform", `translate(${cx},${cy})`)
+        .on("click", (event: any) => {
+            event.stopPropagation();
+            onClick();
+        });
+    btn.append("circle").attr("r", r).attr("fill", "#fff")
+        .attr("stroke", "#e5e7eb").attr("stroke-width", .6);
+    btn.append("text").attr("text-anchor", "middle").attr("dominant-baseline", "central")
+        .attr("y", -.5).attr("font-size", 10).attr("font-weight", 700).attr("fill", "#9ca3af")
+        .text("\u22EF");
+}
+
 // Раскладка: ВЕРТИКАЛЬНАЯ (поколения 0-1)
 function drawVertical(g: G, defs: Defs, n: TreeNode, c: CardConfig, uid: string) {
     const cx = -c.w / 2, cy = -c.h / 2;
@@ -327,6 +354,12 @@ function drawCard(g: G, defs: Defs, n: TreeNode, depth: number, uid: string) {
 }
 
 // Расчёт расположения дерева
+// MAX_GEN — потолок для одной "плоской" отрисовки за раз. Показать весь
+// известный массив предков (как на breedarchive, иногда 10+ поколений) в
+// одном SVG нечитаемо и медленно, поэтому вместо этого — переход по
+// предкам (см. TrailItem / goToAncestor): открыли 6 поколений, кликнули
+// на прабабушку — она стала новым корнем и от неё открылось ещё столько
+// же более древних предков, с возможностью вернуться назад.
 const MIN_GEN = 3, MAX_GEN = 6;
 // const H_GAP = 12;
 const V_GAP = 46;
@@ -343,23 +376,66 @@ export default function Pedigree() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Хлебные крошки перехода по предкам. trail[0] — собака из URL (с ней
+    // открыли страницу), последний элемент — текущий корень дерева.
+    const [trail, setTrail] = useState<TrailItem[]>([]);
+    const focusId = trail.length ? trail[trail.length - 1].id : (id ? Number(id) : null);
+
     const frameRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const gRef = useRef<SVGGElement>(null);
 
+    // Сброс истории переходов при открытии страницы для другой собаки
+    // (переход по ссылке "Родословная" из карточки другой собаки).
     useEffect(() => {
         if (!id) return;
+        setTrail([{id: Number(id), name: ""}]);
+    }, [id]);
+
+    useEffect(() => {
+        if (focusId == null) return;
         setLoading(true);
         setError(null);
-        getDogPedigree(Number(id), depth)
+        getDogPedigree(focusId, depth)
             .then(p => {
-                setDogName(p.registered_name || p.call_name || "");
+                const name = p.registered_name || p.call_name || "";
+                setDogName(name);
                 setRawData(convertNode(p));
+                // Имя текущего узла хлебных крошек узнаём только после
+                // загрузки — проставляем его туда постфактум.
+                setTrail(t => {
+                    if (!t.length) return t;
+                    const last = t[t.length - 1];
+                    if (last.id !== focusId || last.name === name) return t;
+                    const next = t.slice();
+                    next[next.length - 1] = {...last, name};
+                    return next;
+                });
             })
             .catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
             .finally(() => setLoading(false));
-    }, [id, depth]);
+    }, [focusId, depth]);
+
+    // Клик по предку в дереве: делаем его новым корнем и подгружаем его
+    // собственную родословную на ту же глубину. Клик по самому корню
+    // (глубина 0) ни на что не влияет — сравнение id защищает от лишнего фетча.
+    const goToAncestor = useCallback((nodeId: number, nodeName: string) => {
+        setTrail(t => {
+            if (t.length && t[t.length - 1].id === nodeId) return t;
+            return [...t, {id: nodeId, name: nodeName}];
+        });
+    }, []);
+
+    // "Назад" — на шаг вверх по истории переходов.
+    const goBack = useCallback(() => {
+        setTrail(t => (t.length > 1 ? t.slice(0, -1) : t));
+    }, []);
+
+    // Клик по конкретной крошке — переход сразу к ней (обрезаем хвост истории).
+    const jumpToTrail = useCallback((index: number) => {
+        setTrail(t => (index < t.length - 1 ? t.slice(0, index + 1) : t));
+    }, []);
 
     const renderTree = useCallback(() => {
         const frame = frameRef.current, scroll = scrollRef.current;
@@ -456,13 +532,25 @@ export default function Pedigree() {
         });
 
         nodes.forEach((nd, i) => {
+            const c = getConfig(nd.depth);
+            const isRoot = nd.depth === 0;
             const ng = gSel.append<SVGGElement>("g").attr("class", "pdg-node")
                 .attr("transform", `translate(${PAD.left + hw + nd.y},${bt + nd.x})`)
-                .style("cursor", "pointer")
-                .on("click", () => navigate(`/archive/dog/${nd.data.id}`));
+                .style("cursor", isRoot ? "default" : "pointer")
+                .on("click", () => {
+                    // Клик по любому предку (не по текущему корню) — "идём к нему":
+                    // он становится новым корнем, от него открывается ещё столько
+                    // же более древних поколений. Вернуться назад — кнопка/крошки
+                    // над деревом.
+                    if (isRoot) return;
+                    goToAncestor(nd.data.id, nd.data.name);
+                });
             drawCard(ng as any, defs as any, nd.data, nd.depth, `c${i}`);
+            // Отдельный значок "···" — открыть карточку собаки целиком,
+            // не путать с кликом по самой карточке (тот ведёт вглубь родословной).
+            drawProfileLink(ng as any, c, () => navigate(`/archive/dog/${nd.data.id}`));
         });
-    }, [rawData, navigate]);
+    }, [rawData, navigate, goToAncestor]);
 
     useEffect(() => {
         renderTree();
@@ -489,6 +577,25 @@ export default function Pedigree() {
                     ))}
                 </div>
             </div>
+            {trail.length > 1 && (
+                <div className="pedigree-trail">
+                    <button className="pedigree-trail-back" onClick={goBack}>← Назад</button>
+                    <div className="pedigree-trail-crumbs">
+                        {trail.map((t, i) => (
+                            <span key={t.id} className="pedigree-trail-crumb-wrap">
+                                {i > 0 && <span className="pedigree-trail-sep">›</span>}
+                                <button
+                                    className={`pedigree-trail-crumb${i === trail.length - 1 ? " is-current" : ""}`}
+                                    disabled={i === trail.length - 1}
+                                    onClick={() => jumpToTrail(i)}
+                                >
+                                    {t.name || "…"}
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
             {error && <div className="pedigree-error">⚠️ {error}</div>}
             {loading && <div className="pedigree-loading">
                 <div className="pedigree-spinner"/>
