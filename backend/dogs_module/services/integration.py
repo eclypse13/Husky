@@ -402,48 +402,6 @@ def _merge_zoo_twin(dog: Dog, zoo_hash: str, defaults: Dict) -> None:
     except Exception as e:
         logger.warning(f"  ⚠️ Слияние Zoo→BA пропущено: {e}")
 
-
-# СОХРАНЕНИЕ BA-СОБАКИ
-# def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
-#     uuid = data.get('uuid')
-#     if not uuid:
-#         raise ValueError("UUID обязателен")
-#
-#     from ..config.breedarchive import BASE_URL as _ba_base_url
-#     normalized = normalize_ba_data(data, _ba_base_url)
-#     defaults = {k: v for k, v in normalized.items() if v is not None and v != ''}
-#     # defaults['dam'] = dam
-#     # defaults['sire'] = sire
-#     if dam is not None:
-#         defaults['dam'] = dam
-#     if sire is not None:
-#         defaults['sire'] = sire
-#
-#     dog, created = dog_repo.upsert_ba_dog(uuid, defaults)
-#
-#     # Слияние с Zoo-записью по zoo_hash (только при создании новой записи)
-#     if created:
-#         name = defaults.get('registered_name', '')
-#         sex = defaults.get('sex', 0)
-#         zoo_hash = Dog.compute_zoo_hash(name, sex)
-#         _merge_zoo_twin(dog, zoo_hash, defaults)
-#
-#     # FK dam/sire
-#     fk_update: Dict = {}
-#     if dam is not None and dam.pk:
-#         fk_update['dam_id'] = dam.pk
-#     if sire is not None and sire.pk:
-#         fk_update['sire_id'] = sire.pk
-#     if fk_update:
-#         dog_repo.update_by_pk(dog.pk, fk_update)
-#         for k, v in fk_update.items():
-#             setattr(dog, k, v)
-#
-#     logger.info(
-#         f"  {'✅ Создана' if created else '🔄 Обновлена'}: "
-#         f"{dog.registered_name} (uuid={uuid})"
-#     )
-#     return dog
 def _save_ba_dog(data: Dict, dam: Optional[Dog], sire: Optional[Dog]) -> Dog:
     uuid = data.get('uuid')
     if not uuid:
@@ -1244,3 +1202,8 @@ def _ensure_photo(dog) -> None:
     if dog and dog.photo_url and not dog.photo_yadisk_path:
         from ..tasks.tasks_photos import photo_upload_one
         photo_upload_one.apply_async(kwargs={"dog_id": dog.id}, countdown=2)
+
+
+# Собаки (для breedarhive) из БД (по DB id, не uuid)
+def get_dogs_for_ba_refresh(id_from: int, id_to: int = None, limit: int = 1000) -> List[Dict]:
+    return dog_repo.get_dogs_with_uuid(id_from=id_from, id_to=id_to, limit=limit)

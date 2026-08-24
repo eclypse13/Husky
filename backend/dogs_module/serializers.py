@@ -141,6 +141,10 @@ class DogDetailSerializer(serializers.ModelSerializer):
     medical_records = MedicalRecordSerializer(many=True, read_only=True)
     # birth_litter = LitterSerializer(read_only=True)
 
+    bestrussian_url = serializers.SerializerMethodField()
+    bestrussian_position = serializers.SerializerMethodField()
+    bestrussian_points = serializers.SerializerMethodField()
+
     class Meta:
         model = Dog
         fields = [
@@ -161,6 +165,9 @@ class DogDetailSerializer(serializers.ModelSerializer):
             'breeders', 'owners',
             'titles', 'medical_records',
             'dog_photo',
+            'bestrussian_url',
+            'bestrussian_position',
+            'bestrussian_points',
             # 'birth_litter',
         ]
 
@@ -171,6 +178,21 @@ class DogDetailSerializer(serializers.ModelSerializer):
     def get_is_alive(self, obj): return obj.is_alive
 
     def get_dog_photo(self, obj): return best_dog_photo_url(obj)
+
+    def _latest_bestrussian(self, obj):
+        return max(obj.bestrussian_ratings.all(), key=lambda r: r.year, default=None)
+
+    def get_bestrussian_url(self, obj):
+        latest = self._latest_bestrussian(obj)
+        return f'https://bestrussian.dog/breeds-rating/?g=5&y={latest.year}' if latest else None
+
+    def get_bestrussian_position(self, obj):
+        latest = self._latest_bestrussian(obj)
+        return latest.position if latest else None
+
+    def get_bestrussian_points(self, obj):
+        latest = self._latest_bestrussian(obj)
+        return latest.points if latest else None
 
 
 # ВЫСТАВКИ
@@ -539,3 +561,7 @@ class PhotoBackfillHashesFromSourceSerializer(serializers.Serializer):
         default=None,
         help_text="Конечный dog_id (включительно). Пусто = до конца",
     )
+
+# bestrussian
+class SyncBestrussianRatingSerializer(serializers.Serializer):
+    year = serializers.IntegerField(required=False, allow_null=True)

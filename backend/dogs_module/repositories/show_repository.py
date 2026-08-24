@@ -1,5 +1,5 @@
 """
-Доступ к данным ShowEvent и ShowResult.
+Доступ к данным ShowEvent, ShowResult, DogBestrussianRating.
 """
 
 import logging
@@ -200,4 +200,12 @@ def count_dogs_with_more_points(year: int, nomination: str, points: int) -> int:
         ShowYearlyRating.objects.using('dogs_db')
         .filter(year=year, nomination=nomination, points__gt=points)
         .count()
+    )
+
+
+def upsert_bestrussian_rating(dog_id: int, year: int, position, points) -> None:
+    from ..models import DogBestrussianRating
+    DogBestrussianRating.objects.using('dogs_db').update_or_create(
+        dog_id=dog_id, year=year,
+        defaults={'position': position, 'points': points},
     )

@@ -229,8 +229,24 @@ export default function DogDetail() {
                                             Выступления
                                         </button>
                                     </div>
-
-                                    {(dog.zooportal_id || dog.uuid) && (
+                                    {/*старые бейджи*/}
+                                    {/*{(dog.zooportal_id || dog.uuid) && (*/}
+                                    {/*    <div className="dd-actions-row">*/}
+                                    {/*        {dog.zooportal_id && (*/}
+                                    {/*            <a href={`https://zooportal.pro/pedigree/view/${dog.zooportal_id}/`}*/}
+                                    {/*               target="_blank" rel="noopener noreferrer" className="dd-btn">*/}
+                                    {/*                Zooportal<span className="dd-external-icon">↗</span>*/}
+                                    {/*            </a>*/}
+                                    {/*        )}*/}
+                                    {/*        {dog.uuid && (*/}
+                                    {/*            <a href={`https://siberianhusky.breedarchive.com/animal/view/${dog.link_name}-${dog.uuid}`}*/}
+                                    {/*               target="_blank" rel="noopener noreferrer" className="dd-btn">*/}
+                                    {/*                BreedArchive<span className="dd-external-icon">↗</span>*/}
+                                    {/*            </a>*/}
+                                    {/*        )}*/}
+                                    {/*    </div>*/}
+                                    {/*)}*/}
+                                    {(dog.zooportal_id || dog.uuid || dog.bestrussian_url) && (
                                         <div className="dd-actions-row">
                                             {dog.zooportal_id && (
                                                 <a href={`https://zooportal.pro/pedigree/view/${dog.zooportal_id}/`}
@@ -242,6 +258,13 @@ export default function DogDetail() {
                                                 <a href={`https://siberianhusky.breedarchive.com/animal/view/${dog.link_name}-${dog.uuid}`}
                                                    target="_blank" rel="noopener noreferrer" className="dd-btn">
                                                     BreedArchive<span className="dd-external-icon">↗</span>
+                                                </a>
+                                            )}
+                                            {dog.bestrussian_url && (
+                                                <a href={dog.bestrussian_url}
+                                                   target="_blank" rel="noopener noreferrer"
+                                                   className="dd-btn">
+                                                    Лучшая собака России<span className="dd-external-icon">↗</span>
                                                 </a>
                                             )}
                                         </div>

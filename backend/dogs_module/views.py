@@ -46,7 +46,7 @@ from .serializers import (
     ImportResultsForDateRangeSerializer,
     PhotoUploadBulkSerializer,
     PhotoBackfillHashesSerializer,
-    PhotoBackfillHashesFromSourceSerializer, EventShowResultSerializer,
+    PhotoBackfillHashesFromSourceSerializer, EventShowResultSerializer, SyncBestrussianRatingSerializer,
 )
 from .utils.coi_calculator import calculate_coi, save_coi
 
@@ -1196,3 +1196,21 @@ class PopulationStatsView(APIView):
         except Exception as e:
             logger.error(f"PopulationStatsView: {e}", exc_info=True)
             return Response({"error": "Ошибка получения статистики"}, status=500)
+
+# bestrussian
+class SyncBestrussianRatingView(APIView):
+    @extend_schema(summary='Синхронизация рейтинга bestrussian.dog',
+                   request=SyncBestrussianRatingSerializer,
+                   responses={202: OpenApiTypes.OBJECT}, tags=['Import Shows'])
+    def post(self, request):
+        ser = SyncBestrussianRatingSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        year = ser.validated_data.get('year')
+        from .tasks.tasks_bestrussian import sync_bestrussian_rating_task
+        task = sync_bestrussian_rating_task.apply_async(args=[year])
+        return Response({
+            'task_id': task.id, 'status': 'PENDING',
+            'message': f'Синхронизация bestrussian.dog за {year or "текущий год"} запущена',
+            'check_status_url': f'/api/dogs/import/status/{task.id}/',
+        }, status=202)

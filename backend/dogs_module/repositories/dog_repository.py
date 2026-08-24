@@ -19,18 +19,29 @@ def get_by_id(dog_id: int) -> Optional["Dog"]:
         return None
 
 
-# Одним запросом получаем breeders / owners / titles / medical_records
+# Одним запросом получаем breeders / owners / titles / medical_records / bestrussian_ratings
 def get_detail(dog_id) -> "Dog | None":
     from ..models import Dog
     try:
         return (
             Dog.objects.using('dogs_db')
             .select_related('dam', 'sire')
-            .prefetch_related('breeders', 'owners', 'titles', 'medical_records')
+            .prefetch_related('breeders', 'owners', 'titles', 'medical_records', 'bestrussian_ratings')
             .get(pk=dog_id)
         )
     except Dog.DoesNotExist:
         return None
+
+
+def iter_id_registered_names():
+    from ..models import Dog
+    return (
+        Dog.objects.using('dogs_db')
+        .exclude(registered_name__isnull=True)
+        .exclude(registered_name='')
+        .values_list('id', 'registered_name')
+        .iterator()
+    )
 
 # Из списка zooportal_id возвращает те, которых нет в БД
 def get_missing_zoo_ids(zoo_ids: list) -> list:
@@ -548,6 +559,23 @@ def get_dogs_with_reg_number(
     return list(
         qs.order_by('id')[:limit]
         .values('id', 'registered_name', 'registration_number', 'sex')
+    )
+
+
+def get_dogs_with_uuid(
+        id_from: int = 1, id_to: int = None, limit: int = 1000,
+) -> list:
+    from ..models import Dog
+    qs = (
+        Dog.objects.using('dogs_db')
+        .filter(uuid__isnull=False, id__gte=id_from)
+        .exclude(uuid='')
+    )
+    if id_to is not None:
+        qs = qs.filter(id__lte=id_to)
+    return list(
+        qs.order_by('id')[:limit]
+        .values('id', 'uuid', 'registered_name')
     )
 
 
