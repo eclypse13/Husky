@@ -260,6 +260,23 @@ class Dog(models.Model):
 #         date = self.date_of_birth.strftime('%d.%m.%Y') if self.date_of_birth else '?'
 #         return f'{dam_name} × {sire_name} ({date})'
 
+class DogBestrussianRating(models.Model):
+    dog = models.ForeignKey(Dog, on_delete=models.CASCADE, related_name='bestrussian_ratings')
+    year = models.PositiveSmallIntegerField()
+    position = models.PositiveSmallIntegerField(blank=True, null=True)
+    points = models.PositiveSmallIntegerField(blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        managed = True
+        db_table = 'dog_bestrussian_rating'
+        app_label = 'dogs_module'
+        unique_together = [('dog', 'year')]
+        verbose_name = 'Рейтинг Best Russian Dog'
+        verbose_name_plural = 'Рейтинги Best Russian Dog'
+
+    def __str__(self):
+        return f'{self.dog_id} — {self.year}: #{self.position}'
 
 class Dogbreederlink(models.Model):
     dog = models.ForeignKey(Dog, on_delete=models.CASCADE, db_column='dog_id')

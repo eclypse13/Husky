@@ -3,6 +3,7 @@
 """
 
 import re
+import uuid
 import logging
 from datetime import datetime, date
 from typing import List
@@ -517,5 +518,40 @@ def get_dog_rating_summary(dog_id: int, rating_year: int = None) -> list:
         })
     return result
 
+
 def get_events_in_range(date_from, date_to, only_without_results: bool = False) -> List:
     return show_repo.get_events_in_range(date_from, date_to, only_without_results=only_without_results)
+
+
+# Создаёт ShowEvent без парсинга — источник данных: сам НКП/владелец
+def create_manual_show_event(data: dict):
+    show_id = f"manual-{uuid.uuid4().hex[:12]}"
+    show_type = data['show_type']
+    multiplier = SHOW_MULTIPLIERS.get(show_type, 0.0)
+
+    event, _ = show_repo.upsert_event(show_id, {
+        'title': data['title'][:1000],
+        'event_date': data.get('event_date'),
+        'organizer': (data.get('organizer') or '')[:500],
+        'rank': (data.get('rank') or '')[:255],
+        'show_type': show_type,
+        'multiplier': multiplier,
+        'city': (data.get('city') or '')[:255],
+    })
+    logger.info(f"ShowEvent создан вручную: id={show_id} type={show_type} — {data['title'][:60]}")
+    return event
+
+
+# Добавляет ShowResult собаке на уже существующем мероприятии (парсенном или ручном)
+def save_manual_result(show_id: str, dog_id: int, rec: dict):
+    event = show_repo.get_event_by_show_id(show_id)
+    if not event:
+        raise ValueError(f"Мероприятие {show_id} не найдено")
+
+    dog = dog_repo.get_by_id(dog_id)
+    if not dog:
+        raise ValueError(f"Собака dog_id={dog_id} не найдена")
+
+    _save_single_result(event, dog, rec)
+    _refresh_dog_rating(dog.id, event.event_date)
+    return event, dog

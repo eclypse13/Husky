@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import Dog, ImportTaskProxy
+from .models import Dog, ImportTaskProxy, DogBestrussianRating
 from .tasks.tasks_zooportal import (
     import_zooportal_dog_task,
     import_zooportal_page_task,
@@ -20,6 +20,7 @@ from .tasks.tasks_breedarchive import (
     import_hybrid_full_dog_task,
     import_hybrid_full_page_task,
     import_hybrid_full_range_task,
+    refresh_ba_pedigree_by_db_range_task,
 )
 from .tasks.tasks_shows import (
     import_show_list_task,
@@ -53,6 +54,7 @@ from .tasks.tasks_ml import (
     predict_breeding_task,
 )
 from .tasks.tasks_coi import recalculate_all_coi_task
+from .tasks.tasks_bestrussian import sync_bestrussian_rating_task
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +103,20 @@ class BreedarchiveRecentForm(forms.Form):
 
 class BreedarchiveBrowseForm(forms.Form):
     recent_days = forms.IntegerField(label='За последние дней', min_value=1, max_value=30, initial=1)
+
+
+class BARefreshByDbRangeForm(forms.Form):
+    id_from = forms.IntegerField(label='DB id от', min_value=1, initial=1)
+    id_to = forms.IntegerField(
+        label='DB id до (пусто = только id_from, одна собака)',
+        required=False, min_value=1,
+    )
+    force_update = forms.BooleanField(
+        label='Сбросить BA-кеш (обновить даже если уже полностью распарсено)',
+        required=False, initial=True,
+    )
+    countdown_between = forms.IntegerField(label='Пауза между собаками (сек)', min_value=1, initial=30)
+    limit = forms.IntegerField(label='Макс. собак за раз', min_value=1, max_value=5000, initial=1000)
 
 
 class HybridFullDogForm(forms.Form):
@@ -213,6 +229,44 @@ class ShowRecalculateRatingsForm(forms.Form):
         required=False,
         label='Год (необязательно)',
         help_text='Пусто = текущий рейтинговый год',
+    )
+
+
+class ManualShowEventForm(forms.Form):
+    title = forms.CharField(label='Название', max_length=500)
+    event_date = forms.CharField(label='Дата (DD.MM.YYYY)', max_length=20)
+    show_type = forms.ChoiceField(label='Тип', choices=[
+        ('pk', 'Монопородная ПК'),
+        ('kchk', 'Монопородная КЧК'),
+        ('speciality', 'Специализированная'),
+        ('sport', 'Спортивные соревнования'),
+        ('world', 'World/Euro Dog Show'),
+        ('other', 'Не учитывается'),
+    ])
+    city = forms.CharField(label='Город', max_length=255, required=False)
+    organizer = forms.CharField(label='Организатор', max_length=500, required=False)
+    rank = forms.CharField(label='Ранг (CAC, CACIB...)', max_length=255, required=False)
+
+
+class ManualShowResultForm(forms.Form):
+    show_id = forms.CharField(
+        label='ID мероприятия',
+        help_text='zooportal_show_id существующей выставки, или id вида manual-..., выданный формой выше',
+    )
+    dog_id = forms.IntegerField(label='Dog ID')
+    titles_won = forms.CharField(
+        label='Титулы', max_length=500, required=False,
+        help_text='Через запятую: CW, CAC, ЧФ, СС',
+    )
+    show_class = forms.CharField(label='Класс', max_length=100, required=False)
+    grade = forms.CharField(label='Оценка', max_length=50, required=False)
+    place = forms.IntegerField(label='Место', required=False)
+
+class BestrussianSyncForm(forms.Form):
+    year = forms.IntegerField(
+        required=False,
+        label='Год (необязательно)',
+        help_text='Пусто = текущий год',
     )
 
 
@@ -449,6 +503,20 @@ class COIRecalculateForm(forms.Form):
     )
 
 
+# ФОРМА: правка данных собаки по id
+class DogNameEditForm(forms.Form):
+    NAME_FIELDS = [
+        ('registered_name', 'Регистрационное имя'),
+        ('call_name', 'Кличка (call_name)'),
+        ('zooportal_id', 'Zooportal ID'),
+        ('uuid', 'BreedArchive UUID'),
+        ('link_name', 'BreedArchive link_name'),
+    ]
+    dog_id = forms.IntegerField(label='ID собаки', min_value=1)
+    field_name = forms.ChoiceField(label='Поле', choices=NAME_FIELDS)
+    new_value = forms.CharField(label='Новое значение', max_length=500)
+
+
 # ACTIONS ДЛЯ МОДЕЛИ DOG
 @admin.action(description="🐾 BA: загрузить полную родословную (все поколения)")
 def sync_full_pedigree_action(modeladmin, request, queryset):
@@ -547,6 +615,11 @@ class ImportPanelAdmin(admin.ModelAdmin):
                         ('ba_dog_full', 'По UUID (все предки)', forms_map['ba_dog_full']),
                         ('ba_recent', 'Последние обновления', forms_map['ba_recent']),
                         ('ba_browse', 'Browse (все предки)', forms_map['ba_browse']),
+                        (
+                            'ba_refresh_by_db_range',
+                            'Обновить данные по ID собак из БД (одна или диапазон)',
+                            forms_map['ba_refresh_by_db_range'],
+                        ),
                     ],
                 },
                 {
@@ -648,7 +721,28 @@ class ImportPanelAdmin(admin.ModelAdmin):
                             'Пересчитать рейтинговые баллы всех собак за год',
                             forms_map['show_recalculate'],
                         ),
+                        (
+                            'show_event_manual',
+                            'Добавить мероприятие вручную',
+                            forms_map['show_event_manual'],
+                        ),
+                        (
+                            'show_result_manual',
+                            'Добавить выступление собаки на мероприятии',
+                            forms_map['show_result_manual'],
+                        ),
 
+                    ],
+                },
+                {
+                    'label': 'Best Russian Dog',
+                    'badge': 'bestrussian',
+                    'cards': [
+                        (
+                            'bestrussian_sync',
+                            'Синхронизировать рейтинг хаски за год',
+                            forms_map['bestrussian_sync'],
+                        ),
                     ],
                 },
                 {
@@ -670,6 +764,14 @@ class ImportPanelAdmin(admin.ModelAdmin):
                         ('coi_recalculate', 'Пересчитать COI', forms_map['coi_recalculate']),
                     ],
                 },
+                {
+                    'label': 'Правки данных',
+                    'badge': 'edit',
+                    'cards': [
+                        ('dog_name_edit', 'Изменить имя или ссылку собаки (Zooportal/BreedArchive)',
+                         forms_map['dog_name_edit']),
+                    ],
+                },
 
             ],
         }
@@ -684,6 +786,8 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'zoo_page': ZooportalPageForm(_post('zoo_page'), prefix='zoo_page'),
             'zoo_range': ZooportalRangeForm(_post('zoo_range'), prefix='zoo_range'),
             'ba_dog': BreedarchiveDogForm(_post('ba_dog'), prefix='ba_dog'),
+            'ba_refresh_by_db_range': BARefreshByDbRangeForm(_post('ba_refresh_by_db_range'),
+                                                             prefix='ba_refresh_by_db_range'),
             'ba_dog_full': BreedarchiveFullPedigreeForm(_post('ba_dog_full'), prefix='ba_dog_full'),
             'ba_recent': BreedarchiveRecentForm(_post('ba_recent'), prefix='ba_recent'),
             'ba_browse': BreedarchiveBrowseForm(_post('ba_browse'), prefix='ba_browse'),
@@ -697,6 +801,9 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'show_full': ShowImportFullForm(_post('show_full'), prefix='show_full'),
             'show_pending': forms.Form(_post('show_pending'), prefix='show_pending'),
             'show_recalculate': ShowRecalculateRatingsForm(_post('show_recalculate'), prefix='show_recalculate'),
+            'show_event_manual': ManualShowEventForm(_post('show_event_manual'), prefix='show_event_manual'),
+            'show_result_manual': ManualShowResultForm(_post('show_result_manual'), prefix='show_result_manual'),
+            'bestrussian_sync': BestrussianSyncForm(_post('bestrussian_sync'), prefix='bestrussian_sync'),
             'photo_stats': PhotoStatsForm(_post('photo_stats'), prefix='photo_stats'),
             'photo_bulk': PhotoUploadBulkForm(_post('photo_bulk'), prefix='photo_bulk'),
             'photo_single': PhotoSingleDogForm(_post('photo_single'), prefix='photo_single'),
@@ -714,6 +821,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'ml_train': MLTrainForm(_post('ml_train'), prefix='ml_train'),
             'ml_predict': MLPredictForm(_post('ml_predict'), prefix='ml_predict'),
             'coi_recalculate': COIRecalculateForm(_post('coi_recalculate'), prefix='coi_recalculate'),
+            'dog_name_edit': DogNameEditForm(_post('dog_name_edit'), prefix='dog_name_edit'),
         }
 
     def _dispatch(self, request, action: str) -> dict:
@@ -723,6 +831,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'zoo_range': self._zoo_range,
             'ba_dog': self._ba_dog,
             'ba_dog_full': self._ba_dog_full,
+            'ba_refresh_by_db_range': self._ba_refresh_by_db_range,
             'ba_recent': self._ba_recent,
             'ba_browse': self._ba_browse,
             'hybrid_full_dog': self._hybrid_full_dog,
@@ -735,6 +844,9 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'show_full': self._show_full,
             'show_pending': self._show_pending,
             'show_recalculate': self._show_recalculate,
+            'show_event_manual': self._show_event_manual,
+            'show_result_manual': self._show_result_manual,
+            'bestrussian_sync': self._bestrussian_sync,
             'photo_stats': self._photo_stats,
             'photo_bulk': self._photo_bulk,
             'photo_single': self._photo_single,
@@ -751,6 +863,7 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'ml_train': self._ml_train,
             'ml_predict': self._ml_predict,
             'coi_recalculate': self._coi_recalculate,
+            'dog_name_edit': self._dog_name_edit,
         }
         handler = handlers.get(action)
         if not handler:
@@ -803,6 +916,27 @@ class ImportPanelAdmin(admin.ModelAdmin):
         d = form.cleaned_data
         task = fetch_full_pedigree_task.apply_async(args=[d['uuid'], d['force_update']])
         return {'task_id': task.id, 'message': f"Загрузка полной родословной uuid={d['uuid']} запущена"}
+
+    def _ba_refresh_by_db_range(self, request):
+        form = BARefreshByDbRangeForm(request.POST, prefix='ba_refresh_by_db_range')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+        id_to = d['id_to'] or d['id_from']
+
+        task = refresh_ba_pedigree_by_db_range_task.apply_async(
+            kwargs={
+                'id_from': d['id_from'], 'id_to': id_to,
+                'force_update': d['force_update'],
+                'countdown_between': d['countdown_between'],
+                'limit': d['limit'],
+            },
+            countdown=1,
+        )
+        return {
+            'task_id': task.id,
+            'message': f"Обновление BA для собак id={d['id_from']}–{id_to} из БД запущено",
+        }
 
     def _ba_recent(self, request):
         form = BreedarchiveRecentForm(request.POST, prefix='ba_recent')
@@ -1072,6 +1206,67 @@ class ImportPanelAdmin(admin.ModelAdmin):
         year_label = str(year) if year else 'текущий'
         return {'task_id': task.id, 'message': f'Пересчёт рейтинга за {year_label} год запущен'}
 
+
+    def _show_event_manual(self, request):
+        form = ManualShowEventForm(request.POST, prefix='show_event_manual')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+
+        from datetime import datetime
+        try:
+            event_date = datetime.strptime(d['event_date'], '%d.%m.%Y').date()
+        except ValueError:
+            return {'error': f"Неверный формат даты: {d['event_date']}"}
+
+        from .services.show_service import create_manual_show_event
+        event = create_manual_show_event({
+            'title': d['title'],
+            'event_date': event_date,
+            'show_type': d['show_type'],
+            'city': d['city'],
+            'organizer': d['organizer'],
+            'rank': d['rank'],
+        })
+        return {
+            'message': f"Мероприятие создано: id={event.zooportal_show_id} — {event.title}. "
+                       f"Этот id нужен для добавления результатов ниже."
+        }
+
+    def _show_result_manual(self, request):
+        form = ManualShowResultForm(request.POST, prefix='show_result_manual')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+
+        from .services.show_service import save_manual_result
+        try:
+            event, dog = save_manual_result(d['show_id'], d['dog_id'], {
+                'titles_won': d['titles_won'],
+                'show_class': d['show_class'],
+                'grade': d['grade'],
+                'place': d['place'],
+            })
+        except ValueError as e:
+            return {'error': str(e)}
+
+        return {'message': f"Результат сохранён: {dog.display_name} @ {event.title} ({event.event_date})"}
+
+
+    def _bestrussian_sync(self, request):
+        form = BestrussianSyncForm(request.POST, prefix='bestrussian_sync')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        year = form.cleaned_data.get('year')
+        result = sync_bestrussian_rating_task.apply_async(kwargs={'year': year}, countdown=1)
+        data = result.get(timeout=60)
+        return {
+            'message': (
+                f"Год {data['year']}: точных {data['matched']}, заявок на проверку {data['pending']} "
+                f"из {data['total_on_site']} на сайте, не найдено — {data['unmatched']}"
+            )
+        }
+
     def _ofa_dog(self, request):
         """Импорт OFA тестов для одной собаки."""
         form = OFADogForm(request.POST, prefix='ofa_dog')
@@ -1161,6 +1356,28 @@ class ImportPanelAdmin(admin.ModelAdmin):
             'task_id': task.id,
             'message': f'Пересчёт COI {label}, {d["generations"]} поколений запущен. '
                        f'Прогресс виден через GET /api/dogs/import/status/{{task_id}}/',
+        }
+
+    def _dog_name_edit(self, request):
+        """Правка имени собаки (registered_name/call_name) по id."""
+        form = DogNameEditForm(request.POST, prefix='dog_name_edit')
+        if not form.is_valid():
+            return {'error': str(form.errors)}
+        d = form.cleaned_data
+        from .repositories import dog_repository as dog_repo
+
+        dog = dog_repo.get_by_id(d['dog_id'])
+        if not dog:
+            return {'error': f"Собака id={d['dog_id']} не найдена"}
+
+        old_value = getattr(dog, d['field_name'])
+        dog_repo.update_by_pk(dog.pk, {d['field_name']: d['new_value']})
+
+        return {
+            'message': (
+                f"✏️ {dog.display_name} (id={dog.pk}): {d['field_name']} "
+                f"'{old_value}' → '{d['new_value']}'"
+            )
         }
 
 
@@ -1253,19 +1470,77 @@ def delete_photos_action(modeladmin, request, queryset):
         )
 
 
+@admin.action(description="✅ Bestrussian: подтвердить совпадение")
+def confirm_bestrussian_match_action(modeladmin, request, queryset):
+    from .services.bestrussian_service import resolve_pending_match
+    done = skipped = 0
+    for dog in queryset:
+        if resolve_pending_match(dog.id, approve=True):
+            done += 1
+        else:
+            skipped += 1
+    if done:
+        modeladmin.message_user(request, f"✅ Подтверждено {done} совпадений", messages.SUCCESS)
+    if skipped:
+        modeladmin.message_user(request, f"⚠️ У {skipped} собак не было заявки", messages.WARNING)
+
+
+@admin.action(description="❌ Bestrussian: отклонить совпадение")
+def reject_bestrussian_match_action(modeladmin, request, queryset):
+    from .services.bestrussian_service import resolve_pending_match
+    done = skipped = 0
+    for dog in queryset:
+        if resolve_pending_match(dog.id, approve=False):
+            done += 1
+        else:
+            skipped += 1
+    if done:
+        modeladmin.message_user(request, f"❌ Отклонено {done} заявок", messages.SUCCESS)
+    if skipped:
+        modeladmin.message_user(request, f"⚠️ У {skipped} собак не было заявки", messages.WARNING)
+
+
+class BestrussianPendingFilter(admin.SimpleListFilter):
+    title = 'заявка Bestrussian'
+    parameter_name = 'bestrussian_pending'
+
+    def lookups(self, request, model_admin):
+        return [('yes', 'Есть заявка на рассмотрение')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.filter(conflicts__has_key='bestrussian_pending_match')
+        return queryset
+
+
 @admin.register(Dog)
 class DogAdmin(admin.ModelAdmin):
-    list_display = ('registered_name', 'uuid', 'sex', 'year_of_birth', 'source')
+    list_display = ('registered_name', 'uuid', 'sex', 'year_of_birth', 'source', 'bestrussian_pending')
     search_fields = ('registered_name', 'uuid', 'call_name')
-    list_filter = ('sex', 'source', 'year_of_birth')
+    list_filter = ('sex', 'source', 'year_of_birth', 'has_conflicts', BestrussianPendingFilter)
     actions = [
         sync_full_pedigree_action,
         sync_hybrid_full_pedigree_action,
         upload_photos_to_yadisk_action,
         backfill_hashes_action,
         delete_photos_action,
+        confirm_bestrussian_match_action,
+        reject_bestrussian_match_action,
     ]
     readonly_fields = (
         'uuid', 'zooportal_id', 'zoo_hash', 'source',
         'dam', 'sire', 'coi', 'incomplete_pedigree',
     )
+
+    def bestrussian_pending(self, obj):
+        pending = (obj.conflicts or {}).get('bestrussian_pending_match')
+        if not pending:
+            return '—'
+        return f"{pending['site_name']} ({pending['score']})"
+    bestrussian_pending.short_description = 'Bestrussian: заявка'
+
+@admin.register(DogBestrussianRating)
+class DogBestrussianRatingAdmin(admin.ModelAdmin):
+    list_display = ('dog', 'year', 'position', 'points', 'updated_at')
+    list_filter = ('year',)
+    search_fields = ('dog__registered_name',)

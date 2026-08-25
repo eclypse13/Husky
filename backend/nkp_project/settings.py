@@ -221,6 +221,10 @@ CELERY_TASK_ROUTES = {
     # ml: HTTP к ML-сервису
     'dogs_module.train_ml_model_task': {'queue': 'celery'},
     'dogs_module.predict_breeding_task': {'queue': 'celery'},
+
+    # bestrussian show sync (скачиваем данные / инфо про рейтинг собак)
+    'dogs_module.sync_bestrussian_rating': {'queue': 'celery'},
+
 }
 
 # Password validation
