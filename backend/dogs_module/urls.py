@@ -59,7 +59,7 @@ from .views import (
     PhotoCleanupPlaceholdersView,
 
     PopulationStatsView,
-    PhotoBackfillHashesFromSourceView, DogPhotoRawView,
+    PhotoBackfillHashesFromSourceView, DogPhotoRawView, SyncBestrussianRatingView,
 )
 
 router = DefaultRouter()
@@ -248,4 +248,11 @@ urlpatterns = [
 
     # dog breed stats
     path('dogs/stats/population/', PopulationStatsView.as_view(), name='population-stats'),
+
+    # bestrussian
+    path(
+        'dogs/import/shows/sync-bestrussian/',
+         SyncBestrussianRatingView.as_view(),
+         name='sync-bestrussian-rating'
+    ),
 ]

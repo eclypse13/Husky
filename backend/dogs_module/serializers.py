@@ -5,13 +5,7 @@ from .models import (
     Dog, Breeder, Owner, Title, MedicalRecord,
     ShowEvent, ShowResult,
 )
-
-
-def _best_dog_photo_url(dog) -> Optional[str]:
-    """Ссылка для dog_photo: стабильный прокси на ЯД, иначе исходник."""
-    if dog.photo_yadisk_path:
-        return f"/api/dogs/photos/{dog.id}/raw/"
-    return dog.photo_url or None
+from .utils.dog_utils import best_dog_photo_url
 
 
 # Общие миксины валидации
@@ -101,7 +95,7 @@ class DogParentSerializer(serializers.ModelSerializer):
 
     def get_sex_display(self, obj):  return obj.sex_display
 
-    def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
+    def get_dog_photo(self, obj): return best_dog_photo_url(obj)
 
 
 class DogListSerializer(serializers.ModelSerializer):
@@ -130,7 +124,7 @@ class DogListSerializer(serializers.ModelSerializer):
 
     def get_breeder_names(self, obj): return [b.name for b in obj.breeders.all()]
 
-    def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
+    def get_dog_photo(self, obj): return best_dog_photo_url(obj)
 
 
 class DogDetailSerializer(serializers.ModelSerializer):
@@ -146,6 +140,10 @@ class DogDetailSerializer(serializers.ModelSerializer):
     titles = TitleSerializer(many=True, read_only=True)
     medical_records = MedicalRecordSerializer(many=True, read_only=True)
     # birth_litter = LitterSerializer(read_only=True)
+
+    bestrussian_url = serializers.SerializerMethodField()
+    bestrussian_position = serializers.SerializerMethodField()
+    bestrussian_points = serializers.SerializerMethodField()
 
     class Meta:
         model = Dog
@@ -167,6 +165,9 @@ class DogDetailSerializer(serializers.ModelSerializer):
             'breeders', 'owners',
             'titles', 'medical_records',
             'dog_photo',
+            'bestrussian_url',
+            'bestrussian_position',
+            'bestrussian_points',
             # 'birth_litter',
         ]
 
@@ -176,47 +177,22 @@ class DogDetailSerializer(serializers.ModelSerializer):
 
     def get_is_alive(self, obj): return obj.is_alive
 
-    def get_dog_photo(self, obj): return _best_dog_photo_url(obj)
+    def get_dog_photo(self, obj): return best_dog_photo_url(obj)
 
+    def _latest_bestrussian(self, obj):
+        return max(obj.bestrussian_ratings.all(), key=lambda r: r.year, default=None)
 
-class PedigreeSerializer(serializers.ModelSerializer):
-    display_name = serializers.SerializerMethodField()
-    dam = serializers.SerializerMethodField()
-    sire = serializers.SerializerMethodField()
-    dog_photo = serializers.SerializerMethodField()
+    def get_bestrussian_url(self, obj):
+        latest = self._latest_bestrussian(obj)
+        return f'https://bestrussian.dog/breeds-rating/?g=5&y={latest.year}' if latest else None
 
-    class Meta:
-        model = Dog
-        fields = [
-            'id', 'uuid', 'display_name', 'registered_name', 'call_name',
-            'sex', 'year_of_birth', 'date_of_birth', 'photo_url', 'color',
-            'land_of_birth', 'prefix_titles', 'suffix_titles', 'coi',
-            'dam', 'sire', 'dog_photo',
-        ]
+    def get_bestrussian_position(self, obj):
+        latest = self._latest_bestrussian(obj)
+        return latest.position if latest else None
 
-    def get_display_name(self, obj):
-        return obj.display_name
-
-    def get_dog_photo(self, obj):
-        return _best_dog_photo_url(obj)
-
-    def get_dam(self, obj):
-        depth = self.context.get('depth', 3)
-        current = self.context.get('current_depth', 0)
-        if obj.dam and current < depth:
-            return PedigreeSerializer(
-                obj.dam, context={**self.context, 'current_depth': current + 1}
-            ).data
-        return None
-
-    def get_sire(self, obj):
-        depth = self.context.get('depth', 3)
-        current = self.context.get('current_depth', 0)
-        if obj.sire and current < depth:
-            return PedigreeSerializer(
-                obj.sire, context={**self.context, 'current_depth': current + 1}
-            ).data
-        return None
+    def get_bestrussian_points(self, obj):
+        latest = self._latest_bestrussian(obj)
+        return latest.points if latest else None
 
 
 # ВЫСТАВКИ
@@ -585,3 +561,7 @@ class PhotoBackfillHashesFromSourceSerializer(serializers.Serializer):
         default=None,
         help_text="Конечный dog_id (включительно). Пусто = до конца",
     )
+
+# bestrussian
+class SyncBestrussianRatingSerializer(serializers.Serializer):
+    year = serializers.IntegerField(required=False, allow_null=True)

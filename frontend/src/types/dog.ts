@@ -95,6 +95,10 @@ export interface DogDetail {
     breeders: { id: number; name: string; kennel: string | null }[];
     owners: { id: number; name: string; kennel: string | null }[];
     titles: DogTitle[];
+
+    bestrussian_url: string | null;
+    bestrussian_position: number | null;
+    bestrussian_points: number | null;
 }
 
 export interface PedigreeNode {

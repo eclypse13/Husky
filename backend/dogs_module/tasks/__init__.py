@@ -15,6 +15,7 @@ from .tasks_breedarchive import (
     import_hybrid_full_page_task,
     import_hybrid_full_range_task,
     refresh_cookies_task,
+    refresh_ba_pedigree_by_db_range_task,
 )
 
 from .tasks_ofa import (
@@ -54,4 +55,8 @@ from .tasks_photos import (
     photo_delete_one,
     photo_backfill_hashes,
     photo_cleanup_placeholders,
+)
+
+from .tasks_bestrussian import (
+    sync_bestrussian_rating_task,
 )

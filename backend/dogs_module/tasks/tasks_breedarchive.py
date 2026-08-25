@@ -316,3 +316,46 @@ def refresh_cookies_task(self) -> Dict:
     results['zoo'] = f"ok ({len(zoo)} cookies)" if zoo else "failed"
     logger.info(f"Cookie refresh: {results}")
     return results
+
+
+# Обновляет BA-дерево для собак из БД по диапазону DB-id (не uuid).
+# Для одной собаки: id_from == id_to.
+@shared_task(
+    base=BaseBATask,
+    name='dogs_module.refresh_ba_pedigree_by_db_range',
+    bind=True,
+    soft_time_limit=7200,
+    time_limit=7500,
+)
+def refresh_ba_pedigree_by_db_range_task(
+        self,
+        id_from: int,
+        id_to: int = None,
+        force_update: bool = True,
+        countdown_between: int = 30,
+        limit: int = 1000,
+) -> Dict:
+    start_time = time.time()
+    from ..services.integration import get_dogs_for_ba_refresh
+
+    dogs = get_dogs_for_ba_refresh(id_from=id_from, id_to=id_to, limit=limit)
+    if not dogs:
+        return {'status': 'success', 'found': 0, 'dispatched': 0,
+                'processing_time': time.time() - start_time}
+
+    dispatched = []
+    for idx, row in enumerate(dogs):
+        task = fetch_full_pedigree_task.apply_async(
+            args=[row['uuid']],
+            kwargs={'force_update': force_update},
+            countdown=idx * countdown_between,
+        )
+        dispatched.append({'dog_id': row['id'], 'uuid': row['uuid'], 'task_id': task.id})
+
+    return {
+        'status': 'dispatched',
+        'found': len(dogs),
+        'dispatched': len(dispatched),
+        'tasks': dispatched,
+        'processing_time': time.time() - start_time,
+    }
