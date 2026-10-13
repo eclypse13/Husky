@@ -1,6 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getDict, pickValue } from "@/lib/dict";
+import { useAuth } from "@/lib/auth";
 import "./Header.css";
 import logo from "@/assets/logo.png";
 
@@ -9,6 +10,7 @@ export default function Header() {
   const headerRef = useRef<HTMLElement | null>(null);
   const [h, setH] = useState(0);
   const [logoText, setLogoText] = useState<string>("НКП Сибирский Хаски");
+  const { isAuthenticated, user, logout } = useAuth();
 
   useLayoutEffect(() => {
     const measure = () => setH(headerRef.current?.offsetHeight ?? 0);
@@ -100,7 +102,23 @@ export default function Header() {
               <li><NavLink to="/archive" className="site-header__nav-link">Архив</NavLink></li>
               <li><NavLink to="/rating" className="site-header__nav-link">Рейтинг</NavLink></li>
               <li><NavLink to="/breeding" className="site-header__nav-link">Вязка</NavLink></li>
-              <li><Link to="/join" className="site-header__cta-button">Стать членом</Link></li>
+              <li><NavLink to="/puppies" className="site-header__nav-link">Щенки</NavLink></li>
+              {isAuthenticated ? (
+                <>
+                  <li>
+                    <NavLink to="/profile" className="site-header__nav-link" title={user?.email}>
+                      👤 {user?.first_name || user?.name || "Кабинет"}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <button type="button" className="site-header__nav-link site-header__logout" onClick={logout}>
+                      Выйти
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <li><Link to="/login" className="site-header__cta-button">Войти</Link></li>
+              )}
             </ul>
           </nav>
 

@@ -33,11 +33,15 @@ router.register(r'me/achievements', MyAchievementViewSet, basename='my-achieveme
 router.register(r"sports-seasons", SeasonViewSet, basename="sports-seasons")
 router.register(r"sports-races", RaceViewSet, basename="sports-races")
 
+# Щенки на продажу
+router.register(r"puppies", PuppyListingViewSet, basename="puppies")
+
 urlpatterns = [
 
     # Auth
     path('auth/login/', login_view, name='login'),
     path('auth/logout/', logout_view, name='logout'),
+    path('auth/register/', register_view, name='register'),
     
     # Home
     path('home/', home_api, name='home'),

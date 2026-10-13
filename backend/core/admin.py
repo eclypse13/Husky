@@ -673,6 +673,7 @@ ADMIN_GROUPS = OrderedDict([
             'Kennel',
             'Dog',
             'Litter',
+            'PuppyListing',
             'Achievement',
         ]
     }),
@@ -773,6 +774,36 @@ class SiteBannerSettingsAdmin(admin.ModelAdmin):
     list_display = ["id", "is_enabled", "updated_at"]
     fields = ["is_enabled", "message"]
     search_fields = ["message"]
+
+
+class PuppyPhotoInline(admin.TabularInline):
+    model = dj_models.PuppyPhoto
+    extra = 1
+    fields = ("image", "order")
+
+
+@admin.register(dj_models.PuppyListing)
+class PuppyListingAdmin(admin.ModelAdmin):
+    list_display = ("name", "kennel_name", "owner", "price", "status", "is_nkp_member", "is_published", "created_at")
+    list_filter = ("status", "is_published", "is_nkp_member", "created_at")
+    search_fields = ("name", "kennel_name", "owner__email", "city")
+    list_editable = ("is_published", "status")
+    inlines = [PuppyPhotoInline]
+
+    def save_formset(self, request, form, formset, change):
+        """Нормализуем размеры фото, добавленных через админку."""
+        from .images import normalize_image
+        instances = formset.save(commit=False)
+        for obj in getattr(formset, "deleted_objects", []):
+            obj.delete()
+        for instance in instances:
+            if isinstance(instance, dj_models.PuppyPhoto) and instance.image and hasattr(instance.image, "file"):
+                try:
+                    instance.image = normalize_image(instance.image)
+                except Exception:
+                    pass
+            instance.save()
+        formset.save_m2m()
 
 
 DJANGO_MODELS = [

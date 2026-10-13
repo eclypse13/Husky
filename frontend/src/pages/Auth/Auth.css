@@ -1,0 +1,149 @@
+.auth-main {
+    max-width: 520px;
+    margin-inline: auto;
+    padding: clamp(16px, 4vw, 40px) var(--page-pad) 64px;
+}
+
+.auth-card {
+    background: var(--snow-white);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+}
+
+.auth-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 16px;
+    border: 0;
+    background: var(--arctic-gray);
+    color: var(--text-light);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .2s, background .2s;
+}
+
+.auth-tab.is-active {
+    background: var(--snow-white);
+    color: var(--bright-blue);
+    box-shadow: inset 0 -3px 0 var(--bright-blue);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: clamp(20px, 4vw, 32px);
+}
+
+.auth-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    /* grid-элемент: по умолчанию min-width: auto не даёт колонке сжаться
+       уже «родной» ширины <input>, из-за чего правые поля вылезали за карточку. */
+    min-width: 0;
+}
+
+.auth-field > span {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.auth-field input {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    font-size: 1rem;
+    color: var(--text-dark);
+    background: var(--arctic-gray);
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.auth-field input:focus {
+    outline: none;
+    border-color: var(--bright-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .15);
+    background: var(--snow-white);
+}
+
+.auth-error {
+    background: var(--accent-red-bg);
+    color: var(--danger-text);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: .9rem;
+}
+
+.auth-submit {
+    margin-top: 4px;
+    padding: 14px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--gradient-primary);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .2s, opacity .2s;
+}
+
+.auth-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow);
+}
+
+.auth-submit:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+.auth-switch,
+.auth-back {
+    text-align: center;
+    margin: 0;
+    padding: 0 24px;
+    color: var(--text-light);
+    font-size: .9rem;
+}
+
+.auth-back {
+    padding-bottom: 24px;
+    padding-top: 8px;
+}
+
+.auth-back a {
+    color: var(--bright-blue);
+    text-decoration: none;
+}
+
+.auth-link {
+    border: 0;
+    background: none;
+    color: var(--bright-blue);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+}
+
+@media (max-width: 480px) {
+    .auth-row {
+        grid-template-columns: 1fr;
+    }
+}
