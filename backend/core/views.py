@@ -9,7 +9,7 @@ from django.utils.decorators import method_decorator
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from . import models_django as models
 from .serializers import *
-from .permissions import IsNKPMember, IsOwnerOrReadOnly
+from .permissions import IsNKPMember, IsOwnerOrReadOnly, IsOwnerOrAdminOrReadOnly
 
 
 # Контент-справочник
@@ -381,33 +381,90 @@ class MyAchievementViewSet(viewsets.ReadOnlyModelViewSet):
     },
     responses={200: {'description': 'Login successful'}}
 )
+def _build_auth_response(auth_user, email):
+    """Формирует единый ответ авторизации: токен + профиль."""
+    from rest_framework.authtoken.models import Token
+    token, _ = Token.objects.get_or_create(user=auth_user)
+
+    payload = {
+        'success': True,
+        'token': token.key,
+        'user': {
+            'email': email,
+            'name': '',
+            'first_name': '',
+            'last_name': '',
+            'is_nkp_member': False,
+            'is_staff': bool(auth_user.is_staff or auth_user.is_superuser),
+        },
+    }
+    try:
+        profile = models.User.objects.get(email=email)
+        payload['user'].update({
+            'name': f'{profile.first_name} {profile.last_name}'.strip(),
+            'first_name': profile.first_name,
+            'last_name': profile.last_name,
+            'is_nkp_member': profile.is_nkp_member,
+        })
+    except models.User.DoesNotExist:
+        pass
+    return payload
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    """Вход в систему"""
-    email = request.data.get('email')
+    """Вход в систему. Возвращает токен для дальнейших запросов."""
+    email = (request.data.get('email') or '').strip().lower()
     password = request.data.get('password')
 
-    # Django auth
     user = authenticate(request, username=email, password=password)
     if user:
         login(request, user)
+        return Response(_build_auth_response(user, email))
 
-        # Получаем MongoDB пользователя
-        try:
-            mongo_user = models.User.objects.get(email=email)
-            return Response({
-                'success': True,
-                'user': {
-                    'email': mongo_user.email,
-                    'name': f"{mongo_user.first_name} {mongo_user.last_name}",
-                    'is_nkp_member': mongo_user.is_nkp_member
-                }
-            })
-        except:
-            return Response({'success': True, 'user': {'email': email}})
+    return Response({'error': 'Неверный email или пароль'}, status=401)
 
-    return Response({'error': 'Invalid credentials'}, status=401)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_view(request):
+    """
+    Регистрация нового пользователя.
+
+    Создаёт запись в django.contrib.auth (для входа) и профиль core.User,
+    связанные по email. Возвращает токен и профиль.
+    """
+    from django.contrib.auth.models import User as AuthUser
+    from django.contrib.auth.hashers import make_password
+
+    serializer = RegisterSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    email = data['email']
+
+    if AuthUser.objects.filter(username=email).exists() or models.User.objects.filter(email=email).exists():
+        return Response({'error': 'Пользователь с таким email уже существует'}, status=400)
+
+    auth_user = AuthUser.objects.create_user(
+        username=email,
+        email=email,
+        password=data['password'],
+        first_name=data.get('first_name', ''),
+        last_name=data.get('last_name', ''),
+    )
+
+    models.User.objects.create(
+        email=email,
+        first_name=data.get('first_name', ''),
+        last_name=data.get('last_name', ''),
+        phone=data.get('phone', ''),
+        city=data.get('city', ''),
+        password_hash=make_password(data['password']),
+    )
+
+    login(request, auth_user)
+    return Response(_build_auth_response(auth_user, email), status=201)
 
 
 @api_view(['POST'])
@@ -469,6 +526,154 @@ def activity_feed(request):
         return Response({"results": []})
 
     return Response({"results": data})
+
+
+# ============================================
+# ЩЕНКИ НА ПРОДАЖУ
+# ============================================
+
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from .images import normalize_image
+
+
+class PuppyListingViewSet(viewsets.ModelViewSet):
+    """
+    Объявления о щенках.
+
+    - list / retrieve — публично (только опубликованные; автор и админ видят свои черновики).
+    - create / update / delete — автор объявления либо администратор.
+
+    Фото загружаются через multipart полем `photos` (можно несколько за раз)
+    и приводятся к единому размеру. Удаление фото — поле `remove_photo_ids`
+    (id через запятую) при обновлении.
+    """
+    serializer_class = PuppyListingSerializer
+    permission_classes = [IsOwnerOrAdminOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def _current_profile(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return None
+        return models.User.objects.filter(email=user.email).first()
+
+    @staticmethod
+    def _parse_bool(value, default=False):
+        """Разбор булева флага из multipart/JSON (строки '1'/'true'/'on')."""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in ('1', 'true', 'on', 'yes')
+
+    def get_queryset(self):
+        qs = models.PuppyListing.objects.all().prefetch_related('photos').select_related('owner')
+        user = self.request.user
+
+        # Полный доступ администратору
+        if user and user.is_authenticated and (user.is_staff or user.is_superuser):
+            base = qs
+        elif user and user.is_authenticated:
+            # Автор видит свои непубличные + все публичные
+            from django.db.models import Q
+            profile = self._current_profile()
+            if profile:
+                base = qs.filter(Q(is_published=True) | Q(owner=profile))
+            else:
+                base = qs.filter(is_published=True)
+        else:
+            base = qs.filter(is_published=True)
+
+        # Фильтры
+        params = self.request.query_params
+        search = params.get('q')
+        if search:
+            from django.db.models import Q
+            base = base.filter(
+                Q(name__icontains=search) |
+                Q(kennel_name__icontains=search) |
+                Q(city__icontains=search)
+            )
+        sex = params.get('sex')
+        if sex:
+            base = base.filter(sex=sex)
+        status_f = params.get('status')
+        if status_f:
+            base = base.filter(status=status_f)
+        if params.get('nkp') in ('1', 'true', 'True'):
+            base = base.filter(is_nkp_member=True)
+
+        return base
+
+    def _save_photos(self, listing, files):
+        start = listing.photos.count()
+        for i, f in enumerate(files):
+            models.PuppyPhoto.objects.create(
+                listing=listing,
+                image=normalize_image(f),
+                order=start + i,
+            )
+
+    def _remove_photos(self, listing, raw_ids):
+        try:
+            ids = [int(x) for x in str(raw_ids).split(',') if str(x).strip()]
+        except ValueError:
+            ids = []
+        if ids:
+            listing.photos.filter(id__in=ids).delete()
+
+    def perform_create(self, serializer):
+        profile = self._current_profile()
+        if profile is None:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Профиль пользователя не найден')
+
+        listing = serializer.save(
+            owner=profile,
+            is_nkp_member=profile.is_nkp_member,
+            # Новое объявление по умолчанию публикуется; владелец может сразу
+            # создать его скрытым, прислав is_published=false.
+            is_published=self._parse_bool(self.request.data.get('is_published'), default=True),
+        )
+        self._save_photos(listing, self.request.FILES.getlist('photos'))
+
+    def perform_update(self, serializer):
+        listing = serializer.save()
+
+        user = self.request.user
+        is_admin = bool(user and (user.is_staff or user.is_superuser))
+
+        update_fields = []
+        # НКП-метку меняет только администратор
+        if is_admin and 'is_nkp_member' in self.request.data:
+            listing.is_nkp_member = self._parse_bool(
+                self.request.data.get('is_nkp_member'), default=listing.is_nkp_member
+            )
+            update_fields.append('is_nkp_member')
+        # Публикацию (скрыть / вернуть) может менять владелец объявления или админ —
+        # доступ к update уже ограничен IsOwnerOrAdminOrReadOnly.
+        if 'is_published' in self.request.data:
+            listing.is_published = self._parse_bool(
+                self.request.data.get('is_published'), default=listing.is_published
+            )
+            update_fields.append('is_published')
+        if update_fields:
+            listing.save(update_fields=update_fields)
+
+        remove_ids = self.request.data.get('remove_photo_ids')
+        if remove_ids:
+            self._remove_photos(listing, remove_ids)
+        self._save_photos(listing, self.request.FILES.getlist('photos'))
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def mine(self, request):
+        """Мои объявления."""
+        profile = self._current_profile()
+        if profile is None:
+            return Response([], status=200)
+        qs = models.PuppyListing.objects.filter(owner=profile).prefetch_related('photos')
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
 
 
 @api_view(["GET"])

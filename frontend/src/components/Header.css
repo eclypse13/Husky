@@ -176,6 +176,14 @@
     transform: translateY(-2px);
 }
 
+.site-header__logout {
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+}
+
 .site-header__cta-button {
     background: var(--gradient-primary);
     color: var(--snow-white);

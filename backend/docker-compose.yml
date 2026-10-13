@@ -6,7 +6,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py migrate --database=dogs_db &&
-             gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+             gunicorn nkp_project.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
