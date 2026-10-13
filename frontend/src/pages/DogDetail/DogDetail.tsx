@@ -420,7 +420,7 @@ export default function DogDetail() {
                 <DogDetailShowResultModal
                     dog={{
                         id: dog.id,
-                        name: dog.registered_name || dog.call_name,
+                        name: dog.registered_name || dog.call_name || "",
                         dog_photo: dog.dog_photo,
                         photo_url: dog.photo_url,
                     }}

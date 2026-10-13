@@ -1,5 +1,4 @@
 import {useEffect, useMemo, useState} from "react";
-import {DogAvatar} from "@/components/DogAvatar/DogAvatar";
 import "./DogDetailShowResultModal.css";
 
 const API_BASE = "/api";
