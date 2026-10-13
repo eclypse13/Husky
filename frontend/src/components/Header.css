@@ -19,11 +19,11 @@
 .site-header__content {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 2rem;
+    gap: 1.25rem;
 }
 
 .site-header__logo-section {
@@ -157,14 +157,14 @@
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: .6rem;
 }
 
 .site-header__nav-link {
     color: var(--text-dark);
     text-decoration: none;
     font-weight: 600;
-    padding: .8rem .75rem;
+    padding: .7rem .55rem;
     white-space: nowrap;
     border-radius: 12px;
     transition: background .2s ease, color .2s ease, transform .2s ease;
@@ -187,8 +187,9 @@
 .site-header__cta-button {
     background: var(--gradient-primary);
     color: var(--snow-white);
-    padding: .8rem 2rem;
+    padding: .7rem 1.4rem;
     border-radius: 50px;
+    white-space: nowrap;
     text-decoration: none;
     font-weight: 700;
     box-shadow: var(--shadow-soft);
@@ -254,7 +255,7 @@
 }
 
 /* Responsive */
-@media (max-width:1280px) {
+@media (max-width:1300px) {
     .site-header__burger {
         display: inline-flex;
         z-index: 1002;
