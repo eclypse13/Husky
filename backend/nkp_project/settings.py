@@ -246,6 +246,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Загрузка фото объявлений: несколько файлов в одном multipart-запросе.
+# Файлы крупнее FILE_UPLOAD_MAX_MEMORY_SIZE стримятся во временный файл на диск.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024   # 50 МБ
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 МБ
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework

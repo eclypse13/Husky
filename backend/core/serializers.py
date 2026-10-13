@@ -314,3 +314,72 @@ class AchievementSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Achievement
         fields = '__all__'
+
+
+# ============================================
+# ЩЕНКИ НА ПРОДАЖУ
+# ============================================
+
+class PuppyPhotoSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.PuppyPhoto
+        fields = ('id', 'image', 'order')
+
+    def get_image(self, obj):
+        if not obj.image:
+            return None
+        request = self.context.get('request')
+        url = obj.image.url
+        return request.build_absolute_uri(url) if request else url
+
+
+class PuppyListingSerializer(serializers.ModelSerializer):
+    photos = PuppyPhotoSerializer(many=True, read_only=True)
+    owner_name = serializers.SerializerMethodField(read_only=True)
+    can_edit = serializers.SerializerMethodField(read_only=True)
+    sex_display = serializers.CharField(source='get_sex_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = models.PuppyListing
+        fields = (
+            'id', 'name', 'sex', 'sex_display', 'description',
+            'date_of_birth', 'color', 'city', 'price',
+            'kennel_name', 'kennel_url', 'breeder_contact',
+            'sire_archive_id', 'sire_name', 'dam_archive_id', 'dam_name',
+            'is_nkp_member', 'status', 'status_display', 'is_published',
+            'photos', 'owner', 'owner_name', 'can_edit',
+            'created_at', 'updated_at',
+        )
+        read_only_fields = (
+            'owner', 'is_nkp_member', 'is_published', 'created_at', 'updated_at',
+        )
+
+    def get_owner_name(self, obj):
+        if not obj.owner:
+            return ''
+        full = f'{obj.owner.first_name} {obj.owner.last_name}'.strip()
+        return full or obj.owner.email
+
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff or user.is_superuser:
+            return True
+        return bool(obj.owner and obj.owner.email == user.email)
+
+
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=6, write_only=True)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    city = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        return value.strip().lower()

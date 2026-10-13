@@ -20,6 +20,7 @@ from .models_django import (
     MemberBenefit, ProtectedMaterial,
     SiteMonitor, AuditLog,
     SiteBannerSettings,
+    PuppyListing, PuppyPhoto,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     'MemberBenefit', 'ProtectedMaterial',
     'SiteMonitor', 'AuditLog',
     'SiteBannerSettings',
+    'PuppyListing', 'PuppyPhoto',
 ]

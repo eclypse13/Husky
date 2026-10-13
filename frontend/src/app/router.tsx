@@ -25,6 +25,9 @@ import DogDetail from "@/pages/DogDetail/DogDetail";
 import BreedingPage from "@/pages/Breeding/Breeding";
 import Stats from "@/pages/Stats/Stats";
 import Sports from "@pages/Sports/Sports.tsx";
+import PuppyDetail from "@/pages/Puppies/PuppyDetail";
+import PuppyForm from "@/pages/Puppies/PuppyForm";
+import Auth from "@/pages/Auth/Auth";
 
 
 export const router = createBrowserRouter([
@@ -41,6 +44,10 @@ export const router = createBrowserRouter([
             { path: "about", element: <About /> },
             { path: "breed", element: <Breed /> },
             { path: "puppies", element: <PuppiesList /> },
+            { path: "puppies/new", element: <PuppyForm /> },
+            { path: "puppies/:id", element: <PuppyDetail /> },
+            { path: "puppies/:id/edit", element: <PuppyForm /> },
+            { path: "login", element: <Auth /> },
             { path: "archive", element: <Archive /> },
             { path: "archive/pedigree/:id", element: <Pedigree /> },
             { path: "health", element: <Health /> },

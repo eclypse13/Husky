@@ -11,4 +11,6 @@ staticfiles/
 .coverage
 *.log
 .DS_Store
-celerybeat-schedule.db.idea/
+celerybeat-schedule.db
+celerybeat-schedule*
+.idea/

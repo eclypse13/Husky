@@ -774,3 +774,99 @@ class SiteBannerSettings(models.Model):
 
     def __str__(self):
         return "Баннер сайта"
+
+
+# ============================================
+# ЩЕНКИ НА ПРОДАЖУ (объявления пользователей)
+# ============================================
+
+PUPPY_SEX_CHOICES = [
+    ('male', 'Кобель'),
+    ('female', 'Сука'),
+]
+
+PUPPY_STATUS_CHOICES = [
+    ('available', 'Доступен'),
+    ('reserved', 'Забронирован'),
+    ('sold', 'Продан'),
+]
+
+
+class PuppyListing(models.Model):
+    """
+    Объявление о щенке, которое заводчик выкладывает сам.
+    Родители указываются как «мягкие» ссылки на архив (id + имя),
+    т.к. архив собак живёт в отдельной БД (dogs_db).
+    """
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='puppy_listings',
+        verbose_name='Автор'
+    )
+
+    name = models.CharField(max_length=200, verbose_name='Имя / кличка щенка')
+    sex = models.CharField(max_length=10, choices=PUPPY_SEX_CHOICES, blank=True, verbose_name='Пол')
+    description = models.TextField(blank=True, verbose_name='Описание')
+
+    date_of_birth = models.DateField(blank=True, null=True, verbose_name='Дата рождения')
+    color = models.CharField(max_length=200, blank=True, verbose_name='Окрас')
+    city = models.CharField(max_length=120, blank=True, verbose_name='Город')
+
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True, verbose_name='Цена, ₽'
+    )
+
+    # Питомник
+    kennel_name = models.CharField(max_length=200, blank=True, verbose_name='Питомник')
+    kennel_url = models.URLField(blank=True, verbose_name='Ссылка на питомник')
+
+    # Контакт заводчика
+    breeder_contact = models.CharField(max_length=300, verbose_name='Контакт заводчика')
+
+    # Родители — ссылки на архив (по имени / id из dogs_db)
+    sire_archive_id = models.IntegerField(blank=True, null=True, verbose_name='ID отца в архиве')
+    sire_name = models.CharField(max_length=300, blank=True, verbose_name='Отец (имя)')
+    dam_archive_id = models.IntegerField(blank=True, null=True, verbose_name='ID матери в архиве')
+    dam_name = models.CharField(max_length=300, blank=True, verbose_name='Мать (имя)')
+
+    # Пометка «питомник — член НКП». Заполняется автоматически из профиля автора,
+    # но администратор может переопределить.
+    is_nkp_member = models.BooleanField(default=False, verbose_name='Питомник — член НКП')
+
+    # Статусы
+    status = models.CharField(
+        max_length=20, choices=PUPPY_STATUS_CHOICES, default='available', verbose_name='Статус'
+    )
+    is_published = models.BooleanField(default=True, verbose_name='Опубликовано')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Щенок на продажу'
+        verbose_name_plural = 'Щенки на продажу'
+        indexes = [
+            models.Index(fields=['is_published']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.kennel_name or self.owner})'
+
+
+class PuppyPhoto(models.Model):
+    """Фотография объявления. При сохранении приводится к единому размеру."""
+    listing = models.ForeignKey(
+        PuppyListing, on_delete=models.CASCADE, related_name='photos', verbose_name='Объявление'
+    )
+    image = models.ImageField(upload_to='puppies/', verbose_name='Фото')
+    order = models.PositiveIntegerField(default=0, db_index=True, verbose_name='Порядок')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = 'Фото щенка'
+        verbose_name_plural = 'Фото щенка'
+
+    def __str__(self):
+        return f'Фото #{self.pk} — {self.listing_id}'
