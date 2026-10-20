@@ -22,6 +22,7 @@ from ..config import (
     USER_AGENT,
 )
 from ..utils.text import normalize_dog_name
+from ..exceptions import SiteMessageError
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ class BrowserManager:
                     None,
                 )
                 if error_text:
-                    raise RuntimeError(f"Сайт вернул ошибку: {error_text}")
+                    raise SiteMessageError(f"Сайт вернул ошибку: {error_text}", html=page.content())
 
                 if wait_selector:
                     page.wait_for_selector(wait_selector, timeout=selector_timeout)
@@ -129,13 +130,12 @@ class BrowserManager:
                     raise RuntimeError(f"Пустой HTML ({len(html) if html else 0} байт)")
                 return html
 
+            except SiteMessageError as e:
+                logger.info(f" SiteMessageError:  {e}")
+                raise
+
             except Exception as e:
                 err_str = str(e)
-                # (пока без кастомной exception) если недоступны результаты из за приватности, скипаем
-                if err_str.startswith("Сайт вернул ошибку"):
-                    logger.info(f"  ℹ️  {err_str}")
-                    raise
-
                 is_crash = any(c in err_str for c in _CRASH_ERRORS)
 
                 if page:

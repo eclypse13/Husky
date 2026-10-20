@@ -20,6 +20,7 @@ from ..config import (
     ZOOPORTAL_SHOW_SH_BREED_ID,
 )
 from ..utils.text import parse_sex
+from ..exceptions import SiteMessageError
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,11 @@ def fetch_show_results(
     )
 
     with BrowserManager() as browser:
-        html = browser.fetch_page(url, wait_selector='.view-row.line')
+        try:
+            html = browser.fetch_page(url, wait_selector='.view-row.line')
+        except SiteMessageError as e:
+            signals = _extract_provisions_signals(BeautifulSoup(e.html, 'html.parser'))
+            return {'results': [], 'unavailable': True, **signals}
 
     return _parse_show_results_html(html)
 
