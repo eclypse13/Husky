@@ -138,14 +138,14 @@ class BrowserManager:
                 err_str = str(e)
                 is_crash = any(c in err_str for c in _CRASH_ERRORS)
 
-                if page:
-                    try:
-                        page.screenshot(path=f"/tmp/debug_{attempt}.png", full_page=True)
-                        with open(f"/tmp/debug_{attempt}.html", "w") as f:
-                            f.write(page.content())
-                        logger.error(f"  🐛 Дебаг-снимок сохранён: /tmp/debug_{attempt}.png")
-                    except Exception as debug_e:
-                        logger.error(f"  🐛 Не удалось сделать дебаг-снимок: {debug_e}")
+                # if page:
+                #     try:
+                #         page.screenshot(path=f"/tmp/debug_{attempt}.png", full_page=True)
+                #         with open(f"/tmp/debug_{attempt}.html", "w") as f:
+                #             f.write(page.content())
+                #         logger.error(f"  🐛 Дебаг-снимок сохранён: /tmp/debug_{attempt}.png")
+                #     except Exception as debug_e:
+                #         logger.error(f"  🐛 Не удалось сделать дебаг-снимок: {debug_e}")
 
 
                 if is_crash:
@@ -372,30 +372,29 @@ class ZooportalParser:
             return None
 
     def _extract_name(self, soup) -> Optional[str]:
-        h1 = soup.find('h1')
-        return normalize_dog_name(h1.get_text(strip=True)) if h1 else None
+        h6 = soup.select_one('div.zooportal-animal-view .top h6')
+        name = h6.find(string=True, recursive=False) if h6 else None
+        return normalize_dog_name(name.strip()) if name and name.strip() else None
 
     def _extract_call_name(self, soup) -> Optional[str]:
-        tag = soup.find('h2', class_='name_rus')
-        return tag.get_text(strip=True) if tag else None
+        desc = soup.select_one('div.info-1 .info-block .description')
+        return (desc.get_text(strip=True) or None) if desc else None
 
     def _extract_sex(self, soup) -> int:
-        for row in soup.find_all('tr'):
-            cells = row.find_all('td')
-            if len(cells) >= 2:
-                label = cells[0].get_text(strip=True).lower()
-                value = cells[1].get_text(strip=True).lower()
-                if 'пол' in label:
-                    return 2 if 'сука' in value else 1 if 'кобель' in value else 0
+        icon = soup.select_one('div.info-1 .info-block .icon')
+        classes = icon.get('class', []) if icon else []
+        if 'b1t-fi-venus-solid' in classes:
+            return 2
+        if 'b1t-fi-mars-solid' in classes:
+            return 1
         return 0
 
     def _extract_color(self, soup) -> Optional[str]:
-        for div in soup.find_all('div', class_='row2col'):
-            ct = div.find('div', class_='col-text')
-            cv = div.find('div', class_='col-value')
-            if ct and 'окрас' in ct.get_text(strip=True).lower():
-                return cv.get_text(strip=True) if cv else None
-        return None
+        blocks = soup.select('div.info-1 .info-block')
+        if len(blocks) < 2:
+            return None
+        desc = blocks[1].select_one('.description')
+        return (desc.get_text(strip=True) or None) if desc else None
 
     def _extract_year(self, soup) -> Optional[int]:
         dob = self._extract_date_of_birth(soup)
@@ -424,12 +423,13 @@ class ZooportalParser:
         return None
 
     def _extract_reg_number(self, soup) -> Optional[str]:
-        for el in soup.find_all(string=lambda t: t and '№ родословной' in t):
-            parent = el.parent
-            if parent.name == 'td':
-                next_td = parent.find_next_sibling('td')
-                if next_td:
-                    return next_td.get_text(strip=True)
+        for row in soup.select('div.b1t-z-edv-o tr'):
+            cells = row.find_all('td')
+            if len(cells) >= 2 and 'родословная' in cells[0].get_text(strip=True).lower():
+                first = cells[1].find('div')
+                value = (first or cells[1]).get_text(strip=True)
+                # у щенков вместо номера написано «метрика»
+                return value if value and value.lower() != 'метрика' else None
         return None
 
     def _extract_brand_chip(self, soup) -> Optional[str]:
@@ -444,87 +444,52 @@ class ZooportalParser:
         return ', '.join(parts) if parts else None
 
     def _extract_photo(self, soup) -> Optional[str]:
-        fancybox = soup.find('a', class_='fancybox', rel='poto')
-        if fancybox and fancybox.get('href'):
-            href = fancybox['href']
-            return f"{ZOOPORTAL_BASE_URL}{href}" if not href.startswith('http') else href
-        img = soup.find('img', class_='photo')
-        if img and img.get('src'):
-            src = img['src']
-            if 'resize_cache' in src:
-                src = src.replace('resize_cache/', '').replace('/300_170_2/', '/')
-            return f"{ZOOPORTAL_BASE_URL}{src}" if not src.startswith('http') else src
-        return None
+        link = soup.select_one('div.picture .photo a[href]')
+        img = soup.select_one('div.picture .photo img[src]')
+        src = link['href'] if link else img['src'] if img else None
+        if not src:
+            return None
+        return src if src.startswith('http') else f"{ZOOPORTAL_BASE_URL}{src}"
 
     def _extract_titles(self, soup) -> Optional[str]:
-        tag = soup.find('div', class_='titles')
-        return tag.get_text(strip=True) if tag else None
+        h6 = soup.select_one('div.zooportal-animal-view .top h6')
+        lines = [t.strip() for t in h6.find_all(string=True, recursive=False) if t.strip()] if h6 else []
+        return lines[1] if len(lines) > 1 else None
 
     def _extract_titles_structured(self, soup) -> List[Dict]:
         return []
 
     def _extract_breeder_info(self, soup) -> Dict[str, Optional[str]]:
-        info: Dict[str, Optional[str]] = {
-            'name': None, 'url': None, 'kennel': None, 'kennel_url': None
-        }
-        for div in soup.find_all('div', class_='row2col'):
-            ct = div.find('div', class_='col-text')
-            cv = div.find('div', class_='col-value')
-            if not ct or not cv:
-                continue
-            if ct.get_text(strip=True) != 'Заводчик:':
-                continue
-            link = cv.find('a')
-            if link:
-                info['name'] = link.get_text(strip=True)
-                href = link.get('href', '')
-                info['url'] = f"{ZOOPORTAL_BASE_URL}{href}" if href and not href.startswith('http') else href
-            else:
-                info['name'] = cv.get_text(strip=True)
-            next_div = div.find_next_sibling('div', class_='row2col')
-            if next_div:
-                nct = next_div.find('div', class_='col-text')
-                ncv = next_div.find('div', class_='col-value')
-                if nct and nct.get_text(strip=True) == 'Питомник:' and ncv:
-                    klink = ncv.find('a')
-                    if klink:
-                        info['kennel'] = klink.get_text(strip=True)
-                        khref = klink.get('href', '')
-                        info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{khref}" if khref and not khref.startswith(
-                            'http') else khref
-            break
+        info = self._extract_person(soup, 'span.breeder-info')
+        if not info['name']:
+            # если блок пустой, имя заводчика есть в meta description
+            meta = soup.find('meta', attrs={'name': 'description'})
+            m = re.search(r'заводчик\s+(.+?),\s*владелец', meta.get('content', '')) if meta else None
+            info['name'] = m.group(1).strip() if m else None
+
+        block = soup.select_one('a#breeder + div')
+        kennel = block.select_one('a[href*="/kennels/"]') if block else None
+        if kennel:
+            info['kennel'] = kennel.get_text(strip=True)
+            info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{kennel['href']}"
         return info
 
     def _extract_owner_info(self, soup) -> Dict[str, Optional[str]]:
-        info: Dict[str, Optional[str]] = {
-            'name': None, 'url': None, 'kennel': None, 'kennel_url': None
-        }
-        for div in soup.find_all('div', class_='row2col'):
-            ct = div.find('div', class_='col-text')
-            cv = div.find('div', class_='col-value')
-            if not ct or not cv:
-                continue
-            if ct.get_text(strip=True) != 'Владелец:':
-                continue
-            link = cv.find('a')
-            if link:
-                info['name'] = link.get_text(strip=True)
-                href = link.get('href', '')
-                info['url'] = f"{ZOOPORTAL_BASE_URL}{href}" if href and not href.startswith('http') else href
-            else:
-                info['name'] = cv.get_text(strip=True)
-            next_div = div.find_next_sibling('div', class_='row2col')
-            if next_div:
-                nct = next_div.find('div', class_='col-text')
-                ncv = next_div.find('div', class_='col-value')
-                if nct and nct.get_text(strip=True) == 'Питомник:' and ncv:
-                    klink = ncv.find('a')
-                    if klink:
-                        info['kennel'] = klink.get_text(strip=True)
-                        khref = klink.get('href', '')
-                        info['kennel_url'] = f"{ZOOPORTAL_BASE_URL}{khref}" if khref and not khref.startswith(
-                            'http') else khref
-            break
+        return self._extract_person(soup, 'span.owner-info')
+
+    # Имя и ссылка человека из блока заводчика/владельца
+    def _extract_person(self, soup, selector: str) -> Dict[str, Optional[str]]:
+        info = {'name': None, 'url': None, 'kennel': None, 'kennel_url': None}
+        span = soup.select_one(selector)
+        if not span:
+            return info
+        link = span.find('a')
+        if link:
+            href = link.get('href', '')
+            info['name'] = link.get_text(strip=True) or None
+            info['url'] = f"{ZOOPORTAL_BASE_URL}{href}" if href and not href.startswith('http') else href
+        else:
+            info['name'] = span.get_text(strip=True) or None
         return info
 
     # Парсинг таблицы родословной
@@ -546,7 +511,7 @@ class ZooportalParser:
             'base_dogs': {},
         }
 
-        pedigree_table = soup.find('table', class_='pedigree-table')
+        pedigree_table = soup.select_one('div.zooportal-animal-view-pedigree table.b1t-table')
         if not pedigree_table:
             return pedigree
 
@@ -556,15 +521,12 @@ class ZooportalParser:
             try:
                 code = (cell.get('code') or '').strip()
                 child_id = (cell.get('child_id') or '').strip()
-                if not code or not child_id:
+                if not code or not child_id or child_id == '0':
                     continue
 
                 base_key = f"{child_id}:"
                 if base_key not in pedigree['base_dogs']:
                     pedigree['base_dogs'][base_key] = {'zooportal_id': child_id}
-
-                if 'animal_parent_not_set' in str(cell):
-                    continue
 
                 name = self._extract_cell_name(cell)
                 if not name:
@@ -637,10 +599,9 @@ class ZooportalParser:
         link = cell.find('a')
         if link:
             return link.get_text(strip=True)
-        info = cell.find('div', class_='animal-info')
-        if info:
-            return info.get_text(' ', strip=True).strip()
-        return ''
+        big = cell.find('div', class_='big')
+        text = big.get_text(' ', strip=True) if big else ''
+        return '' if 'не указан' in text else text
 
     def _extract_cell_raw_text(self, cell) -> str:
         infos = cell.find_all('div', class_='animal-info')
