@@ -106,6 +106,10 @@ def import_show_results_task(
     from ..services import show_service as show_serv
     event = show_serv.refresh_show_type_from_rank(event, rank, is_speciality_breed)
 
+    if parsed.get('unavailable'):
+        logger.info(f"import_show_results_task show_id={show_id}: результаты скрыты, ранг={rank!r}")
+        return {'status': 'unavailable', 'show_id': show_id}
+
     if not results:
         mark_results_parsed(event)
         return {'status': 'success', 'show_id': show_id, 'found': 0, 'saved': 0}
@@ -334,7 +338,7 @@ def weekly_show_list_task(self) -> dict:
 def weekly_show_results_task(self) -> dict:
     list_task_ran_on = datetime.now().date() - timedelta(days=1)
     date_to = list_task_ran_on - timedelta(days=1)
-    date_from = date_to - timedelta(days=6)
+    date_from = date_to - timedelta(days=90)
     date_from_str = date_from.strftime('%d.%m.%Y')
     date_to_str = date_to.strftime('%d.%m.%Y')
     task = import_results_for_date_range_task.apply_async(

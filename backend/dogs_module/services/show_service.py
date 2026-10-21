@@ -163,21 +163,27 @@ def save_show_event(event_data: dict):
         except ValueError:
             pass
 
-    obj, created = show_repo.upsert_event(show_id, {
+    defaults = {
         'title': title[:1000],
         'event_date': event_date,
         'organizer': (event_data.get('organizer') or '')[:500],
-        'rank': rank[:255],
-        'show_type': show_type,
-        'multiplier': multiplier,
         'city': (event_data.get('city') or '')[:255],
         'address': (event_data.get('address') or '')[:1000],
         'judges': (event_data.get('judges') or '')[:2000],
         'status': (event_data.get('status') or '')[:100],
+    }
+    obj, created = show_repo.get_or_create_event(show_id, {
+        **defaults,
+        'rank': rank[:255],
+        'show_type': show_type,
+        'multiplier': multiplier,
     })
+    if not created:
+        obj, _ = show_repo.upsert_event(show_id, defaults)
+
     logger.info(
         f"ShowEvent {'создан' if created else 'обновлён'}: "
-        f"id={show_id} type={show_type} ×{multiplier} — {title[:60]}"
+        f"id={show_id} type={obj.show_type} ×{obj.multiplier} — {title[:60]}"
     )
     return obj
 
@@ -393,7 +399,6 @@ def recalculate_all_ratings(rating_year: int = None) -> dict:
 
     # Группируем по dog_id + nomination
     from ..repositories import show_repository as show_repo
-    from django.db.models import Sum
     from ..models import ShowResult
 
     rows_by_nomination = {}
